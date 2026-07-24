@@ -1,5 +1,10 @@
 /* Col du Fantasy - race proxy + draft-completion watcher + on-the-clock push (Cloudflare Worker)
  *
+ * v5 (2026-07-24): race feed now returns `finished` (bib,pos,name) from the live
+ * stage classification (type "ite") so the break widget can move a pick that has
+ * crossed the line to "Over the line" with its placing instead of dumping it in
+ * "Off the back". Additive + guarded; the on-road path is unchanged.
+ *
  * v4 (2026-07-19). Three jobs:
  * 1. Race feed proxy (original): browsers on coldufantasy.com cannot call the
  *    letour racecenter feed (CORS). ?stage=N fetches it server-side and returns
@@ -289,10 +294,11 @@ export default {
       const stage = (url.searchParams.get("stage") || "").replace(/[^0-9]/g, "");
       if (!stage) return json({ error: "missing ?stage=N" }, 400);
 
-      const [pack, comp, jerseysRaw] = await Promise.all([
+      const [pack, comp, jerseysRaw, rankRaw] = await Promise.all([
         getJSON(`pack-${YEAR}-${stage}`),
         getJSON(`allCompetitors-${YEAR}`),
         getJSON(`rankingTypeJerseys-${YEAR}-${stage}`).catch(() => null),
+        getJSON(`rankingType-${YEAR}-${stage}`).catch(() => null),
       ]);
 
       const byBib = {};
@@ -302,8 +308,23 @@ export default {
         }
       });
 
+      // Riders who have crossed the line on THIS stage, from the live stage
+      // classification (type "ite" = individuel etape). `position` is the placing.
+      // Wrapped so a feed change can never break the on-road path - finished just
+      // falls back to []. This is what lets the widget move a finisher off the road.
+      let finished = [];
+      try {
+        const ite = Array.isArray(rankRaw) ? rankRaw.find((d) => d && d.type === "ite") : null;
+        if (ite && Array.isArray(ite.rankings)) {
+          finished = ite.rankings
+            .filter((r) => r && r.bib != null && r.position != null)
+            .map((r) => ({ bib: r.bib, pos: r.position, name: byBib[r.bib] || "#" + r.bib }))
+            .sort((a, b) => a.pos - b.pos);
+        }
+      } catch (e) { finished = []; }
+
       const snaps = (Array.isArray(pack) ? pack : []).filter((x) => x.groups && x.groups.length);
-      if (!snaps.length) return json({ live: false, stage, groups: [] });
+      if (!snaps.length) return json({ live: false, stage, groups: [], finished });
       const cur = snaps.sort((a, b) => (b._updatedAt || 0) - (a._updatedAt || 0))[0];
 
       const groups = cur.groups
@@ -333,7 +354,7 @@ export default {
         });
       }
 
-      return json({ live: true, stage, updatedAt: cur._updatedAt || null, groups, jerseys });
+      return json({ live: true, stage, updatedAt: cur._updatedAt || null, groups, jerseys, finished });
     } catch (e) {
       return json({ error: String((e && e.message) || e) }, 502);
     }
