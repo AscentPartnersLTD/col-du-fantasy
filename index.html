@@ -3491,91 +3491,110 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
     return chips?'<span class="bw-jers">'+chips+'</span>':'';
   }
 
+  function ordN(n){ n=Number(n)||0; var s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+
   function render(data){
     if(!data || data.error){ BODY.className='bw-body has'; BODY.innerHTML=controlsRow('')+'<div class="bw-muted">Could not reach the live feed right now. Hit Refresh in a moment.</div>'; wireRefresh(); return; }
-    if(!data.live || !data.groups || !data.groups.length){ BODY.className='bw-body has'; BODY.innerHTML=controlsRow('')+'<div class="bw-muted">No live race on the road right now. This lights up once the stage rolls out.</div>'; wireRefresh(); return; }
-    var groups=data.groups.slice();
+    var groups=(data.live && data.groups)?data.groups.slice():[];
+    var finished=Array.isArray(data.finished)?data.finished:[];
+    if(!groups.length && !finished.length){ BODY.className='bw-body has'; BODY.innerHTML=controlsRow(stampNow(data))+'<div class="bw-muted">No live race on the road right now. This lights up once the stage rolls out.</div>'; wireRefresh(); stopPoll(); return; }
     var jerseys=data.jerseys||null;
-    var front=groups[0]; // Worker sorts by order, so [0] is the front of the race
-    var peloton=null;
-    for(var i=0;i<groups.length;i++){ if(/peloton|bunch/i.test(groups[i].name||'')){ peloton=groups[i]; break; } }
-    if(!peloton){ peloton=groups.reduce(function(a,b){return b.count>a.count?b:a;},groups[0]); }
-    var hasBreak=groups.length>1 && front!==peloton;
 
-    // label every group: Breakaway / Chase 1..N / Peloton / Dropped 1..N
-    var pIdx=groups.indexOf(peloton), chase=0, dropped=0;
-    groups.forEach(function(g,idx){
-      if(g===peloton){ g.label='Peloton'; }
-      else if(idx===0 && hasBreak){ g.label='Breakaway'; }
-      else if(idx<pIdx){ chase++; g.label='Chase '+chase; }
-      else { dropped++; g.label='Dropped'+(groups.length-pIdx>2?' '+dropped:''); }
-    });
-    if(!hasBreak) front.label='Peloton';
+    // Split pool picks: finishers (over the line, from the stage classification)
+    // versus those still out on the road. A finisher always wins over any on-road
+    // group so a rider who has crossed the line never shows as "Off the back".
+    function finEntry(rider){ for(var k=0;k<finished.length;k++){ if(matches(finished[k].name,rider)) return finished[k]; } return null; }
+    var allPicks=poolPicks();
+    var finPicks=[], picks=[];
+    allPicks.forEach(function(pp){ var fe=finEntry(pp.rider); if(fe){ finPicks.push({pp:pp,pos:fe.pos}); } else { picks.push(pp); } });
+    finPicks.sort(function(a,b){return (a.pos||999)-(b.pos||999);});
 
-    var picks=poolPicks();
-    var rows=picks.map(function(pp){
-      var grp=null;
-      groups.forEach(function(g){ if(!grp && g.riders.some(function(rn){return matches(rn,pp.rider);})) grp=g; });
-      var status,cls;
-      if(!grp){ status='Not shown'; cls='out'; }
-      else if(grp===front && hasBreak){ status='In the break'; cls='break'; }
-      else if(grp===peloton){ status='In the bunch'; cls='bunch'; }
-      else { status=grp.label; cls='chase'; }
-      return {pp:pp,cls:cls,status:status};
-    });
-    var order={break:0,chase:1,bunch:2,out:3};
-    rows.sort(function(a,b){return order[a.cls]-order[b.cls];});
-    var nBreak=rows.filter(function(r){return r.cls==='break';}).length;
+    var finHtml = finPicks.length
+      ? '<div class="bw-grp"><div class="bw-div"><span class="bw-gname bw-glead">Over the line</span>'
+        +'<span class="bw-rule"></span><span class="bw-gcount">'+finPicks.length+' in</span></div>'
+        +'<div class="bw-gours">'+finPicks.map(function(f){
+            return '<span class="bw-pick"><b style="color:'+COL[f.pp.p]+'">'+f.pp.p+'</b>'+esc(f.pp.rider)+' &middot; '+(f.pos?ordN(f.pos):'in')+'</span>';
+          }).join('')+'</div></div>'
+      : '';
 
-    var head = hasBreak
-      ? 'A break of <b>'+front.count+'</b> is up the road, <b>'+nBreak+'</b> of ours in it.'
-      : 'No break has gone yet, the race is all together.';
-    var meta = hasBreak
-      ? front.kmToGo+' km to go &middot; peloton at +'+gapStr(peloton.gap)
-      : (front.kmToGo?front.kmToGo+' km to go':'');
+    var front=null, peloton=null, hasBreak=false, ladder='', head='', meta='';
+    if(groups.length){
+      front=groups[0]; // Worker sorts by order, so [0] is the front of the race
+      for(var i=0;i<groups.length;i++){ if(/peloton|bunch/i.test(groups[i].name||'')){ peloton=groups[i]; break; } }
+      if(!peloton){ peloton=groups.reduce(function(a,b){return b.count>a.count?b:a;},groups[0]); }
+      hasBreak=groups.length>1 && front!==peloton;
 
-    // one structure: each group is a label-and-line divider with the gap and
-    // count riding the line, our picks as compact cards inside their group,
-    // and a roster expander per group. No separate status list.
-    var ladder = groups.map(function(g,idx){
-      var ours=picks.filter(function(pp){ return g.riders.some(function(rn){return matches(rn,pp.rider);}); });
-      var oursHtml=ours.length?'<div class="bw-gours">'+ours.map(function(pp){
-        return '<span class="bw-pick"><b style="color:'+COL[pp.p]+'">'+pp.p+'</b>'+esc(pp.rider)+'</span>';
-      }).join('')+'</div>':'';
-      var names=g.riders.map(function(rn){
-        var mine=picks.some(function(pp){return matches(rn,pp.rider);});
-        return '<span class="bw-name'+(mine?' ours':'')+'">'+esc(rn)+'</span>';
+      // label every group: Breakaway / Chase 1..N / Peloton / Dropped 1..N
+      var pIdx=groups.indexOf(peloton), chase=0, dropped=0;
+      groups.forEach(function(g,idx){
+        if(g===peloton){ g.label='Peloton'; }
+        else if(idx===0 && hasBreak){ g.label='Breakaway'; }
+        else if(idx<pIdx){ chase++; g.label='Chase '+chase; }
+        else { dropped++; g.label='Dropped'+(groups.length-pIdx>2?' '+dropped:''); }
+      });
+      if(!hasBreak) front.label='Peloton';
+
+      var nBreak=picks.filter(function(pp){ return hasBreak && front.riders.some(function(rn){return matches(rn,pp.rider);}); }).length;
+      head = hasBreak
+        ? 'A break of <b>'+front.count+'</b> is up the road, <b>'+nBreak+'</b> of ours in it.'
+        : 'No break has gone yet, the race is all together.';
+      meta = hasBreak
+        ? front.kmToGo+' km to go &middot; peloton at +'+gapStr(peloton.gap)
+        : (front.kmToGo?front.kmToGo+' km to go':'');
+
+      // one structure: each group is a label-and-line divider with the gap and
+      // count riding the line, our picks as compact cards inside their group,
+      // and a roster expander per group. No separate status list.
+      ladder = groups.map(function(g,idx){
+        var ours=picks.filter(function(pp){ return g.riders.some(function(rn){return matches(rn,pp.rider);}); });
+        var oursHtml=ours.length?'<div class="bw-gours">'+ours.map(function(pp){
+          return '<span class="bw-pick"><b style="color:'+COL[pp.p]+'">'+pp.p+'</b>'+esc(pp.rider)+'</span>';
+        }).join('')+'</div>':'';
+        var names=g.riders.map(function(rn){
+          var mine=picks.some(function(pp){return matches(rn,pp.rider);});
+          return '<span class="bw-name'+(mine?' ours':'')+'">'+esc(rn)+'</span>';
+        }).join('');
+        var gapTxt = idx===0 ? (g.kmToGo?g.kmToGo+' km to go':'front') : '+'+gapStr(g.gap);
+        var lead=(idx===0&&hasBreak);
+        return '<div class="bw-grp">'
+          +'<div class="bw-div"><span class="bw-gname'+(lead?' bw-glead':'')+'">'+esc(g.label)+'</span>'
+          +jerseyChips(g,jerseys)
+          +'<button class="bw-gbtn" type="button" data-bwg="'+idx+'">Show all riders &gt;</button>'
+          +'<span class="bw-rule"></span>'
+          +'<span class="bw-ggap">'+gapTxt+'</span>'
+          +'<span class="bw-gcount">'+g.count+' rider'+(g.count===1?'':'s')+'</span></div>'
+          +oursHtml
+          +'<div class="bw-glist" data-bwl="'+idx+'" style="display:none">'+names+'</div>'
+          +'</div>';
       }).join('');
-      var gapTxt = idx===0 ? (g.kmToGo?g.kmToGo+' km to go':'front') : '+'+gapStr(g.gap);
-      var lead=(idx===0&&hasBreak);
-      return '<div class="bw-grp">'
-        +'<div class="bw-div"><span class="bw-gname'+(lead?' bw-glead':'')+'">'+esc(g.label)+'</span>'
-        +jerseyChips(g,jerseys)
-        +'<button class="bw-gbtn" type="button" data-bwg="'+idx+'">Show all riders &gt;</button>'
-        +'<span class="bw-rule"></span>'
-        +'<span class="bw-ggap">'+gapTxt+'</span>'
-        +'<span class="bw-gcount">'+g.count+' rider'+(g.count===1?'':'s')+'</span></div>'
-        +oursHtml
-        +'<div class="bw-glist" data-bwl="'+idx+'" style="display:none">'+names+'</div>'
-        +'</div>';
-    }).join('');
+    } else {
+      // no on-road groups: the stage is finishing/done, only finishers remain
+      head = finPicks.length ? 'Riders are crossing the line.' : 'The stage is wrapping up.';
+    }
 
-    // picks the feed does not place right now stay visible under their own line
-    var missing=rows.filter(function(r){return r.cls==='out';});
+    // picks still on the road that the feed cannot place (grupetto, or all done)
+    var missing=picks.filter(function(pp){ return !groups.some(function(g){return g.riders.some(function(rn){return matches(rn,pp.rider);});}); });
+    var missLabel=groups.length?'Off the back':'Still out there';
     var missingHtml=missing.length
-      ? '<div class="bw-grp"><div class="bw-div"><span class="bw-gname">Off the back</span><span class="bw-rule"></span></div>'
-        +'<div class="bw-gours">'+missing.map(function(r){
-          return '<span class="bw-pick"><b style="color:'+COL[r.pp.p]+'">'+r.pp.p+'</b>'+esc(r.pp.rider)+'</span>';
+      ? '<div class="bw-grp"><div class="bw-div"><span class="bw-gname">'+missLabel+'</span><span class="bw-rule"></span></div>'
+        +'<div class="bw-gours">'+missing.map(function(pp){
+          return '<span class="bw-pick"><b style="color:'+COL[pp.p]+'">'+pp.p+'</b>'+esc(pp.rider)+'</span>';
         }).join('')+'</div></div>'
       : '';
 
+    var allIn = allPicks.length>0 && finPicks.length>=allPicks.length;
+    var foot = allIn
+      ? 'Every one of our picks is over the line. Placings settle when the stage is made official.'
+      : 'Live from the official race feed. Finishers move to Over the line with their placing as they cross, and the panel keeps refreshing until all of ours are in. The feed only tracks race-relevant groups, so a rider dropped into an untracked grupetto sits under '+missLabel+' until it picks them up.';
+
     BODY.className='bw-body has';
     BODY.innerHTML=controlsRow(stampNow(data))
-      +'<div class="bw-headline">'+head+'</div>'
+      +(head?'<div class="bw-headline">'+head+'</div>':'')
       +(meta?'<div class="bw-meta">'+meta+'</div>':'')
+      +finHtml
       +ladder
       +missingHtml
-      +'<div class="bw-foot">Live from the official race feed, which only tracks the race-relevant groups - riders dropped into an untracked grupetto sit under Off the back until the feed picks their group up again. Jersey cards mark where the classification leaders are riding. Hit Refresh for a new snapshot.</div>';
+      +'<div class="bw-foot">'+foot+'</div>';
 
     BODY.querySelectorAll('.bw-gbtn').forEach(function(btn){
       btn.addEventListener('click',function(){
@@ -3586,6 +3605,20 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
       });
     });
     wireRefresh();
+    schedulePoll(data, allIn);   // auto-refresh until every pick is over the line
+  }
+
+  /* Auto-refresh (Allen, 2026-07-24): while the panel is open and a stage is live
+     or finishing, re-pull every 45s so finishers land in "Over the line" on their
+     own; stop the moment all of our picks are in, or the panel closes. */
+  var bwPoll=null;
+  function stopPoll(){ if(bwPoll){ clearTimeout(bwPoll); bwPoll=null; } }
+  function schedulePoll(data, allIn){
+    stopPoll();
+    if(!bwOpen || allIn) return;
+    var alive = data && (data.live || (Array.isArray(data.finished) && data.finished.length));
+    if(!alive || !poolPicks().length) return;
+    bwPoll=setTimeout(function(){ if(bwOpen) doFetch(); }, 45000);
   }
 
   /* Endpoint failover + last-good snapshot (2026-07-22 rebuild).
@@ -3624,6 +3657,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   }
 
   function doFetch(){
+    stopPoll();   // a fresh pull (manual or scheduled) resets the auto-refresh cycle
     var rf=document.getElementById('bwRefresh'); if(rf) rf.disabled=true;
     BODY.className='bw-body has'; BODY.innerHTML='<div class="bw-muted">Reading the race...</div>';
     var stage=(typeof UPCOMING!=='undefined'&&UPCOMING.n)?UPCOMING.n:'';
@@ -3648,7 +3682,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   }
 
   var bwOpen=false;
-  function setOpen(o){ bwOpen=o; BODY.style.display=o?'':'none'; BTN.textContent=o?'Hide':"Who's in the break?"; }
+  function setOpen(o){ bwOpen=o; if(!o) stopPoll(); BODY.style.display=o?'':'none'; BTN.textContent=o?'Hide':"Who's in the break?"; }
   setOpen(false);
 
   BTN.addEventListener('click',function(){
