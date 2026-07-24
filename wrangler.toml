@@ -1,0 +1,14 @@
+# Col du Fantasy - col-break Worker deploy config (Workers Builds).
+# A push to main runs `npx wrangler deploy`, which deploys worker4.js to the
+# col-break Worker. Values pinned to the live worker so nothing changes but code:
+#   compat date 2026-07-17, no flags, STATE KV binding, observability on.
+name = "col-break"
+main = "worker4.js"
+compatibility_date = "2026-07-17"
+
+[[kv_namespaces]]
+binding = "STATE"
+id = "8063ce5112544db3b66a5e7b5cd75e58"
+
+[observability]
+enabled = true
