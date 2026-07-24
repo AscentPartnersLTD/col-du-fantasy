@@ -3185,9 +3185,11 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
     return r;
   }
   const rCur=crank(cur,true), rPts=crank(pts,false);
-  const leadCur=Math.min(...PL.map(p=>cur[p])), leadPts=Math.max(...PL.map(p=>pts[p]))||1;
+  const leadCur=Math.min(...PL.map(p=>cur[p])), maxCur=Math.max(...PL.map(p=>cur[p]))||1, leadPts=Math.max(...PL.map(p=>pts[p]))||1;
   const bar=(w,c)=>`<span class="wi-track"><span class="wi-fill" style="width:${Math.max(w,6).toFixed(0)}%;background:${c}"></span></span>`;
-  const rowT=p=>`<div class="wi-row"><span class="wi-rank">${rCur[p]}</span><span class="wi-p" style="color:${COL[p]}">${p}</span>${bar(leadCur/cur[p]*100,COL[p])}<span class="wi-val">${cur[p]} <small>total</small></span></div>`;
+  // Placement bar is proportional to the actual total (lowest leads), so a bigger
+  // number draws a bigger bar - the bar reads the same direction as the score.
+  const rowT=p=>`<div class="wi-row"><span class="wi-rank">${rCur[p]}</span><span class="wi-p" style="color:${COL[p]}">${p}</span>${bar(cur[p]/maxCur*100,COL[p])}<span class="wi-val">${cur[p]} <small>total</small></span></div>`;
   const rowP=p=>{ const d=rCur[p]-rPts[p];
     const move=d>0?`<span class="wi-move up">up ${d}</span>`:d<0?`<span class="wi-move down">down ${-d}</span>`:`<span class="wi-move same">holds</span>`;
     return `<div class="wi-row"><span class="wi-rank">${rPts[p]}</span><span class="wi-p" style="color:${COL[p]}">${p}</span>${bar(pts[p]/leadPts*100,COL[p])}<span class="wi-val">${pts[p]} <small>pts</small></span>${move}</div>`; };
