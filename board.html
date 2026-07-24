@@ -1598,6 +1598,16 @@ const USA_RIDERS=[
  {r:"M. Riccitello",t:"Decathlon CMA CGM Team",bio:"Born 2002 in Tucson, Arizona, the youngest of the six. Broke through with fifth overall and the best young rider jersey at the 2025 Vuelta, then opened 2026 by winning the Tour de la Provence for his new French team. A pure climber built for the high mountains."}
 ];
 const SHARED_UPCOMING = {
+  20: { route:"Bourg d'Oisans > Alpe d'Huez", type:"Queen stage summit finish", km:170.9,
+    intel:{
+      summary:"The queen stage and the last day in the mountains: 170.9 km and about 5,450 m of climbing from Bourg d'Oisans over the Croix de Fer, the Telegraphe and the Galibier (2,642 m, the roof of this Tour), then the Col de Sarenne straight into a second Alpe d'Huez finish. Whatever the overall still holds is decided here.",
+      facts:[
+        "170.9 km with about 5,450 m of climbing, the hardest day of the race",
+        "Croix de Fer (24 km at 5.2%), Telegraphe (11.9 km at 7.1%) and Galibier (17.7 km at 6.9%, 2,642 m) stack up the damage",
+        "The Col de Sarenne (12.8 km at 7.3%) crests late before the drop to the foot of the Alpe",
+        "Finishes up Alpe d'Huez (final 3.7 km at 6.2%) for the second day running"
+      ]
+    } },
   17: { route:"Chambery > Voiron", type:"Sprint or breakaway", km:174.7,
     intel:{
       summary:"A deceptive transition day from Chambery to Voiron: 174.7 km that reads flat but hides about 2,400 m of climbing, with a late rise inside the closing kilometres before a downhill-and-flat run to the line. A bunch sprint if the fast men's teams keep it together, a breakaway win if they let it slip.",
@@ -1976,7 +1986,7 @@ const RACE = [
   { n:16, date:"Jul 21", route:"Evian-les-Bains > Thonon-les-Bains", type:"Individual TT", win:"Remco Evenepoel", extra:"Back-to-back; beat Pogacar against the clock" },
   { n:17, date:"Jul 22", route:"Chambery > Voiron",        type:"Hilly sprint",      win:"Jasper Philipsen",  extra:"Third stage win of his Tour" },
   { n:18, date:"Jul 23", route:"Voiron > Orcieres-Merlette", type:"Summit finish",   win:"Richard Carapaz",   extra:"Soloed from the break in the Alps" },
-  { n:19, date:"Jul 24", route:"Gap > Alpe d'Huez",        type:"Summit finish",     win:"", upcoming:true, extra:"128 km, 21 hairpins" },
+  { n:19, date:"Jul 24", route:"Gap > Alpe d'Huez",        type:"Summit finish",     win:"Tadej Pogacar",           extra:"Soloed clear for the Alpe d'Huez win" },
   { n:20, date:"Jul 25", route:"Alpe d'Huez (queen)",      type:"Queen stage",       win:"", upcoming:true, extra:"Galibier + Sarenne, 5,600 m" },
   { n:21, date:"Jul 26", route:"Paris > Champs-Elysees",   type:"Finale / Montmartre",win:"", upcoming:true, extra:"Three Montmartre climbs" }
 ];
@@ -2011,15 +2021,15 @@ const UPCOMING = CDF.upcoming;
    Open-Meteo (free, no key) for the finish town on `date`. Update place/lat/lon/date
    each time you roll UPCOMING to the next stage. Coordinates are the finish town. */
 const WEATHER = {
-  stage: 19, place: "Alpe d'Huez", finish: "Gap > Alpe d'Huez",
-  lat: 45.0925, lon: 6.0706, date: "2026-07-24"
+  stage: 20, place: "Alpe d'Huez", finish: "Bourg d'Oisans > Alpe d'Huez",
+  lat: 45.0925, lon: 6.0706, date: "2026-07-25"
 };
 
 /* The stage AFTER upcoming, for the "Next two stages" card on Stats. Brief course
    info only (no picks). Update it each time UPCOMING rolls forward. */
 const NEXT2 = {
-  n: 20, route: "Bourg d'Oissans > Alpe d'Huez", type: "Queen stage summit finish", km: 170.9,
-  line: "The queen stage: 170.9 km and about 5,450 m of climbing over the Croix de Fer, the Telegraphe and the Galibier (2,642 m, the Tour's highest point), then the Col de Sarenne into a second Alpe d'Huez finish. This is where the overall is decided."
+  n: 21, route: "Thoiry > Paris (Champs-Elysees)", type: "Hilly finale / Montmartre", km: 133,
+  line: "The finale: 133 km from Thoiry into Paris, with three cobbled ascents of the Cote de la Butte Montmartre (1.1 km at 5.9%) on a 16.7 km finishing circuit, the last cresting 10.3 km out before the Champs-Elysees. Not the usual sprinters' procession."
 };
 
 /* "Who's in the break?" live widget. Paste the deployed Cloudflare Worker URL here
