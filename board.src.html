@@ -1598,6 +1598,16 @@ const USA_RIDERS=[
  {r:"M. Riccitello",t:"Decathlon CMA CGM Team",bio:"Born 2002 in Tucson, Arizona, the youngest of the six. Broke through with fifth overall and the best young rider jersey at the 2025 Vuelta, then opened 2026 by winning the Tour de la Provence for his new French team. A pure climber built for the high mountains."}
 ];
 const SHARED_UPCOMING = {
+  21: { route:"Thoiry > Paris (Champs-Elysees)", type:"Hilly finale / Montmartre", km:133,
+    intel:{
+      summary:"The final stage into Paris, and no longer a procession: 133 km from Thoiry with three cobbled ascents of the Cote de la Butte Montmartre before the run to the Champs-Elysees, where a late attacker can still deny the sprinters.",
+      facts:[
+        "133 km from Thoiry into Paris, the closing stage of the Tour",
+        "Three ascents of the Cote de la Butte Montmartre (1.1 km at 5.9%) on a 16.7 km finishing circuit",
+        "The final Montmartre crest comes 10.3 km from the line",
+        "Sprinters' teams against the attackers on the Champs-Elysees finish"
+      ]
+    } },
   20: { route:"Bourg d'Oisans > Alpe d'Huez", type:"Queen stage summit finish", km:170.9,
     intel:{
       summary:"The queen stage and the last day in the mountains: 170.9 km and about 5,450 m of climbing from Bourg d'Oisans over the Croix de Fer, the Telegraphe and the Galibier (2,642 m, the roof of this Tour), then the Col de Sarenne straight into a second Alpe d'Huez finish. Whatever the overall still holds is decided here.",
@@ -1704,17 +1714,17 @@ async function buildCDF(){
   let draftDoc={};
   try{ const dsnap=await db.doc('pools/'+poolId+'/drafts/'+STAGE).get();
     if(dsnap.exists){ draftDoc=dsnap.data()||{}; (draftDoc.picks||[]).forEach(p=>{ if(p&&p.player&&p.rider&&upPicks[p.player]) upPicks[p.player].push(p.rider); }); } }catch(e){}
-  const su=(SHARED_UPCOMING&&SHARED_UPCOMING[Number(STAGE)])||{};
+  const su=((pool.boardConfig&&pool.boardConfig.sharedUpcoming&&pool.boardConfig.sharedUpcoming[Number(STAGE)])||(SHARED_UPCOMING&&SHARED_UPCOMING[Number(STAGE)]))||{};
   // Course intel and pre-race reads are data-driven (2026-07-23): the draft doc in
   // Firestore wins, the baked SHARED_UPCOMING is the fallback. This is what lets the
   // draft-done endpoint post reads with no board redeploy.
   const dIntel=(draftDoc.intel&&draftDoc.intel.summary)?draftDoc.intel:null;
-  const upcoming={ n:Number(STAGE), order:ORDER.slice(), route:(draftDoc.route||su.route||''), type:(draftDoc.type||su.type||''), km:(draftDoc.km||su.km||0), intel:(dIntel||su.intel||{summary:'',facts:[]}), reads:(draftDoc.reads||su.reads||null), picks:upPicks };
+  const upcoming={ n:Number(STAGE), order:ORDER.slice(), route:(draftDoc.route||su.route||''), type:(draftDoc.type||su.type||''), km:(draftDoc.km||su.km||0), intel:(dIntel||su.intel||{summary:'',facts:[]}), reads:(draftDoc.reads||su.reads||null), flag:(draftDoc.flag||su.flag||null), picks:upPicks };
   const official=pool.official||{ through:0, placement:Object.assign({},zero), rank:Object.assign({},zero) };
   const ledger=pool.personaLedger||{order:ORDER.slice(),by:{},seen:{}};
   const rp=pool.riderProfile||riderProfile;
   const seats=seatList.slice();
-  return { players, order:ORDER.slice(), seats, riderProfile:rp, personaLedger:ledger, official, stages, upcoming, editorial:pool.editorial||null };
+  return { players, order:ORDER.slice(), seats, riderProfile:rp, personaLedger:ledger, official, stages, upcoming, editorial:pool.editorial||null, boardConfig:pool.boardConfig||null };
 }
 /* ---------------- draft engine (per pool) ---------------- */
 function draftRef(){ return db.doc('pools/'+poolId+'/drafts/'+STAGE); }
@@ -1966,8 +1976,10 @@ const PERSONA_LEDGER = CDF.personaLedger;
 
 const OFFICIAL = CDF.official;
 
-/* Full 21-stage calendar. win:"" + upcoming:true for stages not yet raced. */
-const RACE = [
+/* Full 21-stage calendar. win:"" + upcoming:true for stages not yet raced.
+   BAKED FALLBACK: the live value is CDF.boardConfig.race (Firestore) when present;
+   this array is the last-good fallback used only if that read is empty/absent. */
+const RACE_BAKED = [
   { n:1,  date:"Jul 4",  route:"Barcelona TTT",            type:"Team time trial",   win:"Team Visma-Lease a Bike", extra:"Vingegaard in yellow" },
   { n:2,  date:"Jul 5",  route:"Tarragona > Barcelona",    type:"Hilly / Montjuic",  win:"Isaac del Toro",          extra:"UAE 1-2, Pogacar led him out" },
   { n:3,  date:"Jul 6",  route:"Granollers > Les Angles",  type:"Mountain",          win:"Tadej Pogacar",           extra:"Takes yellow, 2s on Vingegaard" },
@@ -1987,9 +1999,11 @@ const RACE = [
   { n:17, date:"Jul 22", route:"Chambery > Voiron",        type:"Hilly sprint",      win:"Jasper Philipsen",  extra:"Third stage win of his Tour" },
   { n:18, date:"Jul 23", route:"Voiron > Orcieres-Merlette", type:"Summit finish",   win:"Richard Carapaz",   extra:"Soloed from the break in the Alps" },
   { n:19, date:"Jul 24", route:"Gap > Alpe d'Huez",        type:"Summit finish",     win:"Tadej Pogacar",           extra:"Soloed clear for the Alpe d'Huez win" },
-  { n:20, date:"Jul 25", route:"Alpe d'Huez (queen)",      type:"Queen stage",       win:"", upcoming:true, extra:"Galibier + Sarenne, 5,600 m" },
-  { n:21, date:"Jul 26", route:"Paris > Champs-Elysees",   type:"Finale / Montmartre",win:"", upcoming:true, extra:"Three Montmartre climbs" }
+  { n:20, date:"Jul 25", route:"Bourg d'Oisans > Alpe d'Huez", type:"Queen stage",    win:"R. Carapaz", extra:"Won the second Alpe d'Huez stage ahead of Evenepoel and Kuss" },
+  { n:21, date:"Jul 26", route:"Thoiry > Paris (Champs-Elysees)", type:"Finale / Montmartre",win:"", upcoming:true, extra:"Three Montmartre climbs" }
 ];
+/* Firestore wins, baked is fallback. Updating Full Results is now a boardConfig write, no rebuild. */
+const RACE = (CDF.boardConfig&&Array.isArray(CDF.boardConfig.race)&&CDF.boardConfig.race.length) ? CDF.boardConfig.race : RACE_BAKED;
 
 /* Official top 5 finishers per scored stage (shared race fact, same for every pool).
    Stage 1 is the team time trial, so those are teams. Sources: cyclingstage.com,
@@ -2020,17 +2034,16 @@ const UPCOMING = CDF.upcoming;
 /* Next-stage weather. The widget on the Stats tab fetches a live forecast from
    Open-Meteo (free, no key) for the finish town on `date`. Update place/lat/lon/date
    each time you roll UPCOMING to the next stage. Coordinates are the finish town. */
-const WEATHER = {
-  stage: 20, place: "Alpe d'Huez", finish: "Bourg d'Oisans > Alpe d'Huez",
-  lat: 45.0925, lon: 6.0706, date: "2026-07-25"
+const WEATHER_BAKED = {
+  stage: 21, place: "Paris (Champs-Elysees)", finish: "Thoiry > Paris (Champs-Elysees)",
+  lat: 48.8698, lon: 2.3078, date: "2026-07-26"
 };
+const WEATHER = (CDF.boardConfig&&CDF.boardConfig.weather) || WEATHER_BAKED;
 
 /* The stage AFTER upcoming, for the "Next two stages" card on Stats. Brief course
    info only (no picks). Update it each time UPCOMING rolls forward. */
-const NEXT2 = {
-  n: 21, route: "Thoiry > Paris (Champs-Elysees)", type: "Hilly finale / Montmartre", km: 133,
-  line: "The finale: 133 km from Thoiry into Paris, with three cobbled ascents of the Cote de la Butte Montmartre (1.1 km at 5.9%) on a 16.7 km finishing circuit, the last cresting 10.3 km out before the Champs-Elysees. Not the usual sprinters' procession."
-};
+const NEXT2_BAKED = null; /* Stage 21 is the final stage; there is no stage after upcoming. */
+const NEXT2 = (CDF.boardConfig && CDF.boardConfig.next2 !== undefined) ? CDF.boardConfig.next2 : NEXT2_BAKED;
 
 /* "Who's in the break?" live widget. Paste the deployed Cloudflare Worker URL here
    (see break-widget-setup.md). While it is empty the widget stays hidden, so no one
@@ -2951,7 +2964,7 @@ document.getElementById('stages').insertAdjacentHTML('afterbegin',
   `<div class="stage live open">
     <div class="stage-head" onclick="this.parentElement.classList.toggle('open')">
       <div class="stnum g">ST ${up.n}<small>${up.km} KM</small></div>
-      <div class="stinfo"><div class="route">${up.route}</div>
+      <div class="stinfo"><div class="route">${up.route}${up.flag?` <span class="stage-flag" style="display:inline-block;background:#cf2530;color:#fff;font-weight:800;font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:6px;margin-left:8px;vertical-align:middle">${up.flag}</span>`:''}</div>
         <div class="sub"><span class="type">${up.type}</span><span>&middot;</span><span style="color:var(--gold-d);font-weight:700">${upHasPicks?'Picks in progress':'Next up'}</span></div></div>
       ${profileSVG(up.type)}
       <div class="st-right">Status<br><b style="color:var(--gold-d)">Live</b></div>
