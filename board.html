@@ -1719,7 +1719,7 @@ async function buildCDF(){
   // Firestore wins, the baked SHARED_UPCOMING is the fallback. This is what lets the
   // draft-done endpoint post reads with no board redeploy.
   const dIntel=(draftDoc.intel&&draftDoc.intel.summary)?draftDoc.intel:null;
-  const upcoming={ n:Number(STAGE), order:ORDER.slice(), route:(draftDoc.route||su.route||''), type:(draftDoc.type||su.type||''), km:(draftDoc.km||su.km||0), intel:(dIntel||su.intel||{summary:'',facts:[]}), reads:(draftDoc.reads||su.reads||null), picks:upPicks };
+  const upcoming={ n:Number(STAGE), order:ORDER.slice(), route:(draftDoc.route||su.route||''), type:(draftDoc.type||su.type||''), km:(draftDoc.km||su.km||0), intel:(dIntel||su.intel||{summary:'',facts:[]}), reads:(draftDoc.reads||su.reads||null), flag:(draftDoc.flag||su.flag||null), picks:upPicks };
   const official=pool.official||{ through:0, placement:Object.assign({},zero), rank:Object.assign({},zero) };
   const ledger=pool.personaLedger||{order:ORDER.slice(),by:{},seen:{}};
   const rp=pool.riderProfile||riderProfile;
@@ -2964,7 +2964,7 @@ document.getElementById('stages').insertAdjacentHTML('afterbegin',
   `<div class="stage live open">
     <div class="stage-head" onclick="this.parentElement.classList.toggle('open')">
       <div class="stnum g">ST ${up.n}<small>${up.km} KM</small></div>
-      <div class="stinfo"><div class="route">${up.route}</div>
+      <div class="stinfo"><div class="route">${up.route}${up.flag?` <span class="stage-flag" style="display:inline-block;background:#cf2530;color:#fff;font-weight:800;font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:6px;margin-left:8px;vertical-align:middle">${up.flag}</span>`:''}</div>
         <div class="sub"><span class="type">${up.type}</span><span>&middot;</span><span style="color:var(--gold-d);font-weight:700">${upHasPicks?'Picks in progress':'Next up'}</span></div></div>
       ${profileSVG(up.type)}
       <div class="st-right">Status<br><b style="color:var(--gold-d)">Live</b></div>
