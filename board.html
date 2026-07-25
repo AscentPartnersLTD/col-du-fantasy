@@ -1598,6 +1598,16 @@ const USA_RIDERS=[
  {r:"M. Riccitello",t:"Decathlon CMA CGM Team",bio:"Born 2002 in Tucson, Arizona, the youngest of the six. Broke through with fifth overall and the best young rider jersey at the 2025 Vuelta, then opened 2026 by winning the Tour de la Provence for his new French team. A pure climber built for the high mountains."}
 ];
 const SHARED_UPCOMING = {
+  21: { route:"Thoiry > Paris (Champs-Elysees)", type:"Hilly finale / Montmartre", km:133,
+    intel:{
+      summary:"The final stage into Paris, and no longer a procession: 133 km from Thoiry with three cobbled ascents of the Cote de la Butte Montmartre before the run to the Champs-Elysees, where a late attacker can still deny the sprinters.",
+      facts:[
+        "133 km from Thoiry into Paris, the closing stage of the Tour",
+        "Three ascents of the Cote de la Butte Montmartre (1.1 km at 5.9%) on a 16.7 km finishing circuit",
+        "The final Montmartre crest comes 10.3 km from the line",
+        "Sprinters' teams against the attackers on the Champs-Elysees finish"
+      ]
+    } },
   20: { route:"Bourg d'Oisans > Alpe d'Huez", type:"Queen stage summit finish", km:170.9,
     intel:{
       summary:"The queen stage and the last day in the mountains: 170.9 km and about 5,450 m of climbing from Bourg d'Oisans over the Croix de Fer, the Telegraphe and the Galibier (2,642 m, the roof of this Tour), then the Col de Sarenne straight into a second Alpe d'Huez finish. Whatever the overall still holds is decided here.",
@@ -1987,8 +1997,8 @@ const RACE = [
   { n:17, date:"Jul 22", route:"Chambery > Voiron",        type:"Hilly sprint",      win:"Jasper Philipsen",  extra:"Third stage win of his Tour" },
   { n:18, date:"Jul 23", route:"Voiron > Orcieres-Merlette", type:"Summit finish",   win:"Richard Carapaz",   extra:"Soloed from the break in the Alps" },
   { n:19, date:"Jul 24", route:"Gap > Alpe d'Huez",        type:"Summit finish",     win:"Tadej Pogacar",           extra:"Soloed clear for the Alpe d'Huez win" },
-  { n:20, date:"Jul 25", route:"Alpe d'Huez (queen)",      type:"Queen stage",       win:"", upcoming:true, extra:"Galibier + Sarenne, 5,600 m" },
-  { n:21, date:"Jul 26", route:"Paris > Champs-Elysees",   type:"Finale / Montmartre",win:"", upcoming:true, extra:"Three Montmartre climbs" }
+  { n:20, date:"Jul 25", route:"Bourg d'Oisans > Alpe d'Huez", type:"Queen stage",    win:"R. Carapaz", extra:"Won the second Alpe d'Huez stage ahead of Evenepoel and Kuss" },
+  { n:21, date:"Jul 26", route:"Thoiry > Paris (Champs-Elysees)", type:"Finale / Montmartre",win:"", upcoming:true, extra:"Three Montmartre climbs" }
 ];
 
 /* Official top 5 finishers per scored stage (shared race fact, same for every pool).
@@ -2021,16 +2031,13 @@ const UPCOMING = CDF.upcoming;
    Open-Meteo (free, no key) for the finish town on `date`. Update place/lat/lon/date
    each time you roll UPCOMING to the next stage. Coordinates are the finish town. */
 const WEATHER = {
-  stage: 20, place: "Alpe d'Huez", finish: "Bourg d'Oisans > Alpe d'Huez",
-  lat: 45.0925, lon: 6.0706, date: "2026-07-25"
+  stage: 21, place: "Paris (Champs-Elysees)", finish: "Thoiry > Paris (Champs-Elysees)",
+  lat: 48.8698, lon: 2.3078, date: "2026-07-26"
 };
 
 /* The stage AFTER upcoming, for the "Next two stages" card on Stats. Brief course
    info only (no picks). Update it each time UPCOMING rolls forward. */
-const NEXT2 = {
-  n: 21, route: "Thoiry > Paris (Champs-Elysees)", type: "Hilly finale / Montmartre", km: 133,
-  line: "The finale: 133 km from Thoiry into Paris, with three cobbled ascents of the Cote de la Butte Montmartre (1.1 km at 5.9%) on a 16.7 km finishing circuit, the last cresting 10.3 km out before the Champs-Elysees. Not the usual sprinters' procession."
-};
+const NEXT2 = null; /* Stage 21 is the final stage; there is no stage after upcoming, so the "next two stages" card shows only the finale. */
 
 /* "Who's in the break?" live widget. Paste the deployed Cloudflare Worker URL here
    (see break-widget-setup.md). While it is empty the widget stays hidden, so no one
