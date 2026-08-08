@@ -3009,6 +3009,7 @@ document.getElementById('stages').insertAdjacentHTML('afterbegin',
     </div>
     <div class="stage-body">
       ${upIntel}
+      ${up.profile?`<img class="ahead-profile" src="${up.profile}" alt="Stage ${up.n} elevation profile" loading="lazy">`:''}
       <table class="picks"><thead><tr><th>Rider</th><th>Picks</th><th class="r">Placement</th></tr></thead><tbody>${upRows}</tbody></table>
       ${upRead}
     </div></div>`);
