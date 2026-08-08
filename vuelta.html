@@ -1029,6 +1029,43 @@
       <div class="msub">Top American of the stage. Back the day's best-placed American call to earn a shield; most shields at season's end takes the jersey.</div>
       <div id="mericaTracker"></div>
     </div>
+    <div class="metricbox" id="kasseiTrackerBox" style="margin-top:14px">
+      <style>
+        #kasseiTrackerBox .mt-top{display:flex;gap:18px;align-items:flex-start;margin-top:10px}
+        #kasseiTrackerBox .mt-emblem img{width:96px;height:auto;display:block;filter:drop-shadow(0 4px 10px rgba(0,0,0,.28))}
+        #kasseiTrackerBox .mt-tally{flex:1;min-width:0}
+        #kasseiTrackerBox .mt-hold{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;padding-bottom:9px;border-bottom:1px solid var(--line)}
+        #kasseiTrackerBox .mt-holdlab{font-family:'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:var(--mute)}
+        #kasseiTrackerBox .mt-holdnm{font-family:'Montserrat',sans-serif;font-weight:800;font-size:14px;color:var(--ink)}
+        #kasseiTrackerBox .mt-row{display:grid;grid-template-columns:120px 1fr 26px;align-items:center;gap:10px;padding:5px 0}
+        #kasseiTrackerBox .mt-row+.mt-row{border-top:1px solid var(--line)}
+        #kasseiTrackerBox .mt-nm{font-size:13px;color:var(--ink2)}
+        #kasseiTrackerBox .mt-row.hold .mt-nm{color:var(--ink);font-weight:700}
+        #kasseiTrackerBox .mt-shields{display:flex;align-items:center;gap:3px;flex-wrap:wrap}
+        #kasseiTrackerBox .mt-shico{width:16px;height:16px}
+        #kasseiTrackerBox .mt-none{font-size:11px;color:var(--gray);font-style:italic}
+        #kasseiTrackerBox .mt-ct{font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+        #kasseiTrackerBox .mt-watch{margin-top:14px;border-top:1px solid var(--line);padding-top:11px}
+        #kasseiTrackerBox .mt-wlab{font-family:'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:var(--mute);margin-bottom:8px}
+        #kasseiTrackerBox .mt-wrow{display:grid;grid-template-columns:46px 1fr 1fr;align-items:center;gap:10px;padding:5px 0;font-size:12.5px}
+        #kasseiTrackerBox .mt-wrow+.mt-wrow{border-top:1px solid var(--line)}
+        #kasseiTrackerBox .mt-wn{font-family:'Montserrat',sans-serif;font-weight:800;color:var(--mute);font-size:11px}
+        #kasseiTrackerBox .mt-wr{color:var(--ink)} #kasseiTrackerBox .mt-wr em{color:var(--mute);font-style:normal;font-variant-numeric:tabular-nums}
+        #kasseiTrackerBox .mt-ww{color:var(--ink2)}
+        @media(max-width:560px){#kasseiTrackerBox .mt-top{flex-direction:column}#kasseiTrackerBox .mt-emblem{align-self:center}#kasseiTrackerBox .mt-wrow{grid-template-columns:40px 1fr}#kasseiTrackerBox .mt-ww{grid-column:2}}
+        .mer-card.kassei .mer-h>img{width:32px;height:auto;flex:none;margin-top:2px}
+        .mer-mini.kassei .mm-ico img{width:16px;height:16px;object-fit:contain}
+        .mer-mini.kassei .mm-ico{color:#EF3340}
+        .mer-card.kassei .mer-chip:hover{border-color:#EF3340}
+        .mer-card.kassei .mer-chip.on{border-color:#EF3340;background:rgba(239,51,64,.08);box-shadow:inset 0 0 0 1px #EF3340}
+        .mer-card.kassei .mer-outtag,.mer-card.kassei .mer-callers{color:#EF3340}
+        .mer-card.kassei .mer-top{border-color:#EF3340;background:rgba(239,51,64,.06)}
+        .mer-card.kassei .mer-tag{background:#EF3340}
+      </style>
+      <div class="mh">Kasseistampers</div>
+      <div class="msub">Top Belgian of the stage. Back the day's best-placed Belgian call to earn a cobble; most cobbles at season's end takes the Koning der Kasseistampers jersey. Named for the cobblestone stampers of Aarschot - night-watchmen who stamped their clogs on the pave to sound busy while they slipped back to the pub.</div>
+      <div id="kasseiTracker"></div>
+    </div>
     <div class="metricbox" id="tiltBox" style="margin-top:14px">
       <style>
         #tiltBox .tilt-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
@@ -1657,6 +1694,15 @@ const USA_RIDERS=[
  {r:"M. Jorgenson",t:"Visma-Lease a Bike",bio:"Born 1999, raised in Boise, Idaho. Back-to-back winner of Paris-Nice in 2024 and 2025, the first American to take it since 2006, and winner of the 2024 Dwars door Vlaanderen cobbled classic. Eighth overall at the 2024 Tour; with Vingegaard out, the 6-foot-3 all-rounder now carries Visma's hopes in this race."},
  {r:"M. Riccitello",t:"Decathlon CMA CGM Team",bio:"Born 2002 in Tucson, Arizona, the youngest of the six. Broke through with fifth overall and the best young rider jersey at the 2025 Vuelta, then opened 2026 by winning the Tour de la Provence for his new French team. A pure climber built for the high mountains."}
 ];
+const BELGIAN_RIDERS=[
+ {r:"W. van Aert",t:"Visma-Lease a Bike",bio:"One of the great all-rounders of his generation: multiple Tour de France stage wins across sprints, mountains and time trials, a former cyclocross world champion, and a Milan-San Remo and Gent-Wevelgem winner. The engine every Belgian fan watches."},
+ {r:"C. Uijtdebroeks",t:"Movistar Team",bio:"Young Belgian GC talent who took the best young rider jersey and a top-ten overall at the Vuelta as a neo-pro, climbing with the leaders in the high mountains."},
+ {r:"T. Nys",t:"Lidl-Trek",bio:"Son of cyclocross great Sven Nys and a cyclocross star in his own right, now a WorldTour puncheur with stage wins on steep, hilly finishes."},
+ {r:"L. De Plus",t:"Netcompany INEOS",bio:"A trusted grand-tour climbing domestique who has paced GC leaders through the biggest mountain stages for years."},
+ {r:"J. Widar",t:"Lotto-Intermarche",bio:"A highly rated young Belgian climber and U23 Giro overall winner, stepping up to grand-tour racing."},
+ {r:"G. Vermeersch",t:"Red Bull-BORA-hansgrohe",bio:"A powerful all-rounder and inaugural gravel world champion, at home on cobbles, crosswinds and rough terrain."},
+ {r:"S. Cras",t:"Soudal Quick-Step",bio:"A rangy climber and breakaway rider who thrives on long mountain days and grand-tour escapes."}
+];
 const SHARED_UPCOMING = {
   21: { route:"Thoiry > Paris (Champs-Elysees)", type:"Hilly finale / Montmartre", km:133,
     intel:{
@@ -1805,6 +1851,7 @@ function subscribe(){
     renderDraft();
     highlightSeat();
     try{ renderMerica(); }catch(e){ console.error('merica render',e); }
+    try{ renderKassei(); }catch(e){ console.error('kassei render',e); }
     try{ clockPing(); }catch(e){}
     try{ paintPushUI(); }catch(e){}
   }, err=>{ $('draftMount').innerHTML=warn('Permission error: '+esc(err.message)); });
@@ -1943,6 +1990,71 @@ function renderMerica(){
       if(!draft) return;
       window.__merOpen=null; // a real pick clears any bio-preview so the top card shows your call
       try{ await draftRef().update(new firebase.firestore.FieldPath('merica', myCode), r); }
+      catch(e){ const f=mm.querySelector('.mer-foot'); if(f) f.textContent='Could not save the call: '+(e&&e.message||e); }
+    });
+  });
+}
+function renderKassei(){
+  let mm=document.getElementById('kasseiMount');
+  if(!mm){ const dm=document.getElementById('kasseiMount')||document.getElementById('draftMount'); if(!dm||!dm.parentNode) return; mm=document.createElement('div'); mm.id='kasseiMount'; dm.parentNode.insertBefore(mm, dm.nextSibling); }
+  const picks=(draft&&draft.kassei)||{};
+  const mine=myCode?(picks[myCode]||null):null;
+  // The featured rider in the wide top slot: your current pick (seats), or the
+  // last rider an observer tapped (local bio browsing, nothing written).
+  const featured=window.__kasOpen||(myCode?mine:null);
+  const shield='<img class="kas-emb" src="/emblem-belgium.png" alt="Belgium">';
+  const avOf=u=>{ const RR=(typeof RIDERS!=='undefined')?RIDERS.find(x=>x.r===u.r):null; const p=(RR&&RR.p)||''; return p?'<img class="mer-av" src="'+esc(p)+'" alt="" onerror="this.style.display=\'none\'">':''; };
+  // Once the stage's draft is locked, the card collapses to a thin bar under the
+  // main picks minibar (Allen, 2026-07-19) so the Break Tracker stays above the
+  // fold. Tap to reopen; picks stay editable until EOS.
+  const stageOn=!!draft && ((draft.status==='complete') || ((draft.queue||[]).length===0 && (draft.picks||[]).length>0));
+  // Who called whom stays HIDDEN until the draft locks (Allen, 2026-07-19) -
+  // everyone picks blind, then the reveal happens on the collapsed bar.
+  const callersOf=u=>{ if(!stageOn) return ''; const cs=ORDER.filter(c=>picks[c]===u.r); return cs.length?'<span class="mer-callers">'+cs.map(esc).join(' ')+'</span>':''; };
+  if(stageOn && !window.__kasExpand){
+    const shieldMini='<img class="kas-emb" src="/emblem-belgium.png" alt="Belgium">';
+    const entries=ORDER.filter(c=>picks[c]).map(c=>{
+      const r=picks[c]; const RR=(typeof RIDERS!=='undefined')?RIDERS.find(x=>x.r===r):null;
+      const img=(RR&&RR.p)?'<img src="'+esc(RR.p)+'" onerror="this.remove()">':'';
+      const col=(PMETA[c]&&PMETA[c].c)||'#888';
+      const last=r.replace(/^[A-Z]\.\s*/,'');
+      return '<span class="mm-pick" title="'+esc(c)+' picked '+esc(r)+'"><b style="color:'+col+'">'+esc(c)+'</b><span class="mm-av" style="border-color:'+col+'">'+img+(img?'':'<span class="mfb" style="background:'+col+'">'+esc(c)+'</span>')+'</span><span class="mm-nm">'+esc(last)+'</span></span>';
+    }).join('');
+    const more=myCode&&!mine?'Tap to make your call':'Tap to view or change';
+    mm.innerHTML='<div class="mer-mini kassei" role="button" aria-label="Open Kasseistampers">'
+      +'<div class="mm-t"><span class="mm-ico">'+shieldMini+'</span>Kasseistampers - Stage '+esc(String(STAGE))+'</div>'
+      +'<span class="mm-picks">'+entries+'</span>'
+      +'<span class="mm-more">'+more+'</span></div>';
+    mm.querySelector('.mer-mini').addEventListener('click',()=>{ window.__kasExpand=true; renderMerica(); });
+    return;
+  }
+  let topCard='';
+  const fu=featured?BELGIAN_RIDERS.find(x=>x.r===featured):null;
+  if(fu){
+    const bio=esc(fu.bio)+(fu.site?' <a class="mer-site" href="'+esc(fu.site)+'" target="_blank" rel="noopener">'+esc(fu.siteLabel||'website')+'</a>':'');
+    const tag=fu.out?'<span class="mer-tag obs">Abandoned - not selectable</span>':((myCode&&featured===mine)?'<span class="mer-tag">Your pick</span>':'<span class="mer-tag obs">Rider bio</span>');
+    topCard='<div class="mer-top">'+avOf(fu)
+      +'<div class="mer-open-body"><div class="mer-line1"><span class="mer-name">'+esc(fu.r)+'</span><span class="mer-team">'+esc(fu.t)+'</span>'+callersOf(fu)+tag+'</div>'
+      +'<div class="mer-bio">'+bio+'</div></div></div>';
+  }
+  const chips=BELGIAN_RIDERS.filter(u=>u.r!==featured).map(u=>{
+    return '<div class="mer-chip'+(u.out?' mer-out':'')+'" data-r="'+esc(u.r)+'"'+(u.out?' data-out="1"':'')+'>'+avOf(u)
+      +'<span class="mer-name">'+esc(u.r)+'</span><span class="mer-team">'+esc(u.t)+'</span>'+(u.out?'<span class="mer-outtag">Abandoned</span>':'')+callersOf(u)+'</div>';
+  }).join('');
+  const foot=myCode?(mine?('Your call: '+esc(mine)+'. Tap another rider below to switch any time before the stage is scored.'):'Tap a rider to make your call for this stage. Your pick moves up top with their story.'):'Watching only - pool seats make the calls. Tap a rider to read their bio.';
+  const minBtn=stageOn?'<button type="button" class="mer-minbtn">Minimize</button>':'';
+  mm.innerHTML='<div class="mer-card kassei"><div class="mer-h">'+shield+'<div><div class="mer-t">KASSEISTAMPERS - STAGE '+esc(String(STAGE))+'</div><div class="mer-s">Pick the top-finishing Belgian of the day. Right call earns a cobble on your card; most cobbles at season\'s end takes the Koning der Kasseistampers jersey. No draft order, no exclusivity - everybody just picks.</div></div>'+minBtn+'</div>'+topCard+'<div class="mer-chips">'+chips+'</div><div class="mer-foot">'+foot+'</div><div class="mer-credit">Rider photos: A.S.O. / letour.fr</div></div>';
+  const mb=mm.querySelector('.mer-minbtn');
+  if(mb) mb.addEventListener('click',()=>{ window.__kasExpand=false; renderMerica(); });
+  mm.querySelectorAll('.mer-chip').forEach(ch=>{
+    ch.addEventListener('click', async ()=>{
+      const r=ch.getAttribute('data-r');
+      const isOut=ch.getAttribute('data-out')==='1';
+      // abandoned riders: open the bio for reading, never selectable (Allen, 2026-07-23)
+      if(!myCode || isOut){ window.__kasOpen=r; renderMerica(); return; }
+      if(!draft) return;
+      window.__kasOpen=null; // a real pick clears any bio-preview so the top card shows your call
+      try{ await draftRef().update(new firebase.firestore.FieldPath('kassei', myCode), r); }
       catch(e){ const f=mm.querySelector('.mer-foot'); if(f) f.textContent='Could not save the call: '+(e&&e.message||e); }
     });
   });
@@ -2733,7 +2845,8 @@ const PERSONA_BY = (function(){
   const JERSEY_ICONS={
     yellow:'<img class="jsy" src="/jersey-yellow.jpg" alt="Yellow jersey" loading="lazy">',
     merica:'<img class="jsy" src="/jersey-merica.jpg" alt="Captain Merica jersey" loading="lazy">',
-    arlequin:'<img class="jsy" src="/jersey-arlequin.jpg" alt="Arlequin jersey" loading="lazy">'
+    arlequin:'<img class="jsy" src="/jersey-arlequin.jpg" alt="Arlequin jersey" loading="lazy">',
+    kassei:'<img class="jsy" src="/jersey-kasseistampers.jpg" alt="Kasseistampers jersey" loading="lazy">'
   };
   const rp=(typeof RIDER_PROFILE!=='undefined')?RIDER_PROFILE:{};
   el.innerHTML = placeOrder.map((k,i)=>{
@@ -2903,6 +3016,7 @@ function stageCard(st){
           :`<div class="pending-line">Finishes pending: ${st.verify}</div>`):''}
        ${awardsRow(st)}
        ${st.merica?`<div class="mer-line"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#B31942" stroke-width="1.7"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="#3C3B6E" stroke-width="1.7"/><path fill="#3C3B6E" d="M12 8.2l1.15 2.33 2.57.37-1.86 1.81.44 2.56L12 14.06l-2.3 1.21.44-2.56-1.86-1.81 2.57-.37z"/></svg><span><b>Captain 'Merica:</b> ${st.merica.top} (${ordinal(st.merica.f)})${st.merica.correct&&st.merica.correct.length?' - called by '+st.merica.correct.join(', '):' - nobody called it'}</span></div>`:''}
+       ${st.kassei?`<div class="mer-line"><img src="/emblem-belgium.png" alt="" style="width:22px;height:22px;object-fit:contain;flex:none"><span><b>Kasseistampers:</b> ${st.kassei.top} (${ordinal(st.kassei.f)})${st.kassei.correct&&st.kassei.correct.length?' - called by '+st.kassei.correct.join(', '):' - nobody called it'}</span></div>`:''}
        <div class="note"><span class="lab">The read</span>${st.reads?codes.filter(k=>st.reads[k]).map(k=>`<div class="readrow"><b>${k}</b> ${st.reads[k]}</div>`).join(''):st.note}</div>`;
   }
   const right = st.voidStage ? `<div class="dns-stamp">DNS</div>`
@@ -3283,6 +3397,27 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   const wrows=watch.map(s=>{const cor=(s.merica.correct||[]).map(nameOf);const who=cor.length?cor.join(', '):'no call took it';return `<div class="mt-wrow"><span class="mt-wn">St ${s.n}</span><span class="mt-wr">${s.merica.top} <em>${ord(s.merica.f)}</em></span><span class="mt-ww">${who}</span></div>`;}).join('');
   el.innerHTML=`<div class="mt-top"><div class="mt-emblem"><img src="emblem-captain.png" alt="Captain 'Merica" onerror="this.closest('.mt-emblem').style.display='none'"></div><div class="mt-tally"><div class="mt-hold"><span class="mt-holdlab">Current holder</span><span class="mt-holdnm">${holderTxt}</span></div>${tally}</div></div>${watch.length?`<div class="mt-watch"><div class="mt-wlab">Stage-by-stage American watch</div>${wrows}</div>`:''}`;
 }catch(e){ console.error('merica tracker',e); } })();
+
+/* Kasseistampers season tracker: shield tally + stage-by-stage American watch, from STAGES.kassei. */
+(function(){ try{
+  const el=document.getElementById('kasseiTracker'); if(!el) return;
+  const S=(typeof STAGES!=='undefined')?STAGES:[]; if(!S.length){ el.innerHTML='<div class="msub">The tracker fills in as stages are scored.</div>'; return; }
+  const PL=(CDF.seats||CDF.order).slice();
+  const COL=(function(){var _p=['#c9971a','#26347e','#2f8f52','#cf2530'],_s=CDF.order.slice().sort(),o={};_s.forEach(function(c,i){o[c]=_p[i%_p.length];});return o;})();
+  const nameOf=c=>(CDF.names&&CDF.names[c])||c;
+  function ord(n){ const s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+  const SH='<img class="mt-shico" src="/emblem-belgium.png" alt="" style="width:16px;height:16px;object-fit:contain">';
+  const MER={}; PL.forEach(p=>MER[p]=0); const watch=[];
+  S.forEach(s=>{ if(s.kassei&&s.kassei.top){ watch.push(s); (s.kassei.correct||[]).forEach(c=>{ if(MER[c]!=null) MER[c]++; }); } });
+  watch.sort((a,b)=>b.n-a.n);
+  const max=Math.max(0,...PL.map(p=>MER[p]));
+  const holders=PL.filter(p=>MER[p]===max&&max>0);
+  const holderTxt=holders.length?(holders.length===1?nameOf(holders[0])+' holds the jersey':holders.map(nameOf).join(' & ')+' share the lead'):'Up for grabs';
+  const board=PL.map(p=>({p,n:MER[p]})).sort((a,b)=>b.n-a.n||a.p.localeCompare(b.p));
+  const tally=board.map(b=>{const hold=max>0&&b.n===max;const sh=b.n>0?Array(Math.min(b.n,10)).fill(SH).join(''):'<span class="mt-none">no cobbles yet</span>';return `<div class="mt-row${hold?' hold':''}"><span class="mt-nm">${nameOf(b.p)}</span><span class="mt-shields">${sh}</span><span class="mt-ct" style="color:${COL[b.p]||'#1b1a17'}">${b.n}</span></div>`;}).join('');
+  const wrows=watch.map(s=>{const cor=(s.kassei.correct||[]).map(nameOf);const who=cor.length?cor.join(', '):'no call took it';return `<div class="mt-wrow"><span class="mt-wn">St ${s.n}</span><span class="mt-wr">${s.kassei.top} <em>${ord(s.kassei.f)}</em></span><span class="mt-ww">${who}</span></div>`;}).join('');
+  el.innerHTML=`<div class="mt-top"><div class="mt-emblem"><img src="emblem-belgium.png" alt="Kasseistampers" onerror="this.closest('.mt-emblem').style.display='none'"></div><div class="mt-tally"><div class="mt-hold"><span class="mt-holdlab">Current holder</span><span class="mt-holdnm">${holderTxt}</span></div>${tally}</div></div>${watch.length?`<div class="mt-watch"><div class="mt-wlab">Stage-by-stage Belgian watch</div>${wrows}</div>`:''}`;
+}catch(e){ console.error('kassei tracker',e); } })();
 
 ;
 
