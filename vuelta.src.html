@@ -851,6 +851,13 @@
   </section>
 
   <section class="tab" id="tab-ledger">
+    <style>
+      #tab-ledger .road-ahead-h{font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;font-size:12px;color:var(--red);margin:24px 0 12px;padding-top:6px;border-top:1px solid var(--line)}
+      #tab-ledger .stage.ahead .st-right b{color:var(--mute)}
+      #tab-ledger .ahead-note{font-size:12.5px;color:var(--ink2);margin:4px 0;line-height:1.5}
+      #tab-ledger .ahead-note.dim{color:var(--mute);font-size:11.5px}
+      #tab-ledger .ahead-profile{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:8px;background:#fff;margin-top:8px}
+    </style>
     <h2 class="eyebrow">Stages &middot; Tap a row for the picks and the read</h2>
     <div id="stages"></div>
   </section>
@@ -3004,6 +3011,28 @@ document.getElementById('stages').insertAdjacentHTML('afterbegin',
       <table class="picks"><thead><tr><th>Rider</th><th>Picks</th><th class="r">Placement</th></tr></thead><tbody>${upRows}</tbody></table>
       ${upRead}
     </div></div>`);
+
+/* Pre-race "road ahead": every not-yet-scored stage from the calendar (CDF.boardConfig.race)
+   as an expandable card with a stylized profile. Official climbs and the real elevation
+   profile fill in per stage as the race nears. */
+(function(){
+  const host=document.getElementById('stages');
+  if(!host || typeof RACE==='undefined' || !Array.isArray(RACE) || !RACE.length) return;
+  const scored=new Set((typeof STAGES!=='undefined'?STAGES:[]).map(s=>s.n));
+  const upN=(typeof UPCOMING!=='undefined'&&UPCOMING)?UPCOMING.n:0;
+  const rows=RACE.filter(r=>!scored.has(r.n) && r.n!==upN).sort((a,b)=>a.n-b.n);
+  if(!rows.length) return;
+  const cards=rows.map(r=>`<div class="stage ahead">
+    <div class="stage-head" onclick="this.parentElement.classList.toggle('open')">
+      <div class="stnum g">ST ${r.n}<small>${r.km?esc(String(r.km))+' KM':''}</small></div>
+      <div class="stinfo"><div class="route">${esc(r.route||'')}</div><div class="sub"><span class="type">${esc(r.type||'')}</span>${r.date?'<span>&middot;</span><span>'+esc(r.date)+'</span>':''}</div></div>
+      ${profileSVG(r.type||'')}
+      <div class="st-right">Status<br><b>Upcoming</b></div>
+    </div>
+    <div class="stage-body">${r.extra?`<p class="ahead-note">${esc(r.extra)}</p>`:''}${r.profile?`<img class="ahead-profile" src="${r.profile}" alt="Stage ${r.n} elevation profile" loading="lazy">`:`<p class="ahead-note dim">Stylized profile by stage type. The official elevation profile and full climb list fill in as the race nears.</p>`}</div>
+  </div>`).join('');
+  host.insertAdjacentHTML('beforeend', `<div class="road-ahead-h">The road ahead &middot; stages ${rows[0].n} to ${rows[rows.length-1].n}</div>${cards}`);
+})();
 
 /* Today's Order strip (Overview) - the day's pick order, rotates each stage */
 (function(){
