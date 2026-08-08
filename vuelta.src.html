@@ -1164,6 +1164,12 @@
       .tk-controls .see-table-btn.on{background:var(--red);color:#fff;border-color:var(--red)}
       .tk-link{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--red);text-decoration:none}
       .tk-link:hover{text-decoration:underline}
+      .unpicked-players{display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:2px 18px 6px}
+      .unpicked-players .up-lab{font-family:'Montserrat',sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
+      .unpicked-players .up-chip{font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;color:var(--ink2);background:var(--paper);border:1px solid var(--line2);border-radius:999px;padding:5px 13px;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+      .unpicked-players .up-chip:hover{border-color:var(--red)}
+      .unpicked-players .up-chip.on{background:var(--red);color:#fff;border-color:var(--red)}
+      .unpicked-hint{font-size:11.5px;color:var(--mute);line-height:1.5;padding:0 18px 6px;max-width:640px}
       .team-kits .jersey-gallery{margin:14px 18px 20px}
       .jersey-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px;margin:4px 0 24px}
       .jcell{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 8px 9px;text-align:center;box-shadow:var(--sh)}
@@ -1175,7 +1181,7 @@
     <p class="palmares-note">Every pick counts toward its rider's 2026 team. This is who you trust, where you are concentrated, and which squads the pool leans on. The stripe is each manager's mix, sized by how often they have gone back to a team.</p>
     <details class="team-kits" open>
       <summary class="tk-summary">Team Kits &amp; Links &middot; the 23 teams of the Vuelta<span class="jtog"></span></summary>
-      <div class="tk-controls"><button id="unpickedBtn" class="see-table-btn" type="button">See teams still up for grabs</button><a class="tk-link" href="https://www.lavuelta.es/en/the-race/la-vuelta-26-teams" target="_blank" rel="noopener">All team kits on lavuelta.es &rsaquo;</a></div>
+      <div class="tk-controls"><button id="unpickedBtn" class="see-table-btn" type="button">See teams a player still needs</button><a class="tk-link" href="https://www.lavuelta.es/en/the-race/la-vuelta-26-teams" target="_blank" rel="noopener">All team kits on lavuelta.es &rsaquo;</a></div>
       <div class="jersey-gallery" id="teamJerseys"></div>
     </details>
     <div class="arlequin-bar" id="arlequinBar"></div>
@@ -1773,7 +1779,13 @@ async function buildCDF(){
   // Firestore wins, the baked SHARED_UPCOMING is the fallback. This is what lets the
   // draft-done endpoint post reads with no board redeploy.
   const dIntel=(draftDoc.intel&&draftDoc.intel.summary)?draftDoc.intel:null;
-  const upcoming={ n:Number(STAGE), order:ORDER.slice(), route:(draftDoc.route||su.route||''), type:(draftDoc.type||su.type||''), km:(draftDoc.km||su.km||0), intel:(dIntel||su.intel||{summary:'',facts:[]}), reads:(draftDoc.reads||su.reads||null), flag:(draftDoc.flag||su.flag||null), picks:upPicks };
+  // Pre-race fallback (2026-08-08): before a stage's draft doc carries course intel,
+  // the live card fills route/type/km/profile/intel from the seeded calendar row
+  // (boardConfig.race), the same source the road-ahead cards read. Keeps Stage 1
+  // (and every future live stage) populated with no per-stage hand write.
+  const _rr=(pool.boardConfig&&Array.isArray(pool.boardConfig.race))?pool.boardConfig.race.find(r=>Number(r.n)===Number(STAGE)):null;
+  const _rrIntel=_rr?(_rr.intel||(_rr.extra?{summary:_rr.extra,facts:[]}:null)):null;
+  const upcoming={ n:Number(STAGE), order:ORDER.slice(), route:(draftDoc.route||su.route||(_rr&&_rr.route)||''), type:(draftDoc.type||su.type||(_rr&&_rr.type)||''), km:(draftDoc.km||su.km||(_rr&&_rr.km)||0), intel:(dIntel||su.intel||_rrIntel||{summary:'',facts:[]}), reads:(draftDoc.reads||su.reads||null), flag:(draftDoc.flag||su.flag||null), profile:(draftDoc.profile||(_rr&&_rr.profile)||su.profile||null), picks:upPicks };
   const official=pool.official||{ through:0, placement:Object.assign({},zero), rank:Object.assign({},zero) };
   const ledger=pool.personaLedger||{order:ORDER.slice(),by:{},seen:{}};
   const rp=pool.riderProfile||riderProfile;
@@ -3174,15 +3186,37 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   }
   if(Object.keys(unmapped).length) console.warn('Allegiances unmapped picks:',unmapped);
   const poolTotals={}; PL.forEach(p=>Object.keys(counts[p]).forEach(t=>{poolTotals[t]=(poolTotals[t]||0)+counts[p][t];}));
-  /* "Teams still up for grabs" filter - hides teams the pool has already drafted, so it is
-     easy to hunt the ones nobody owns yet (fuels the Maillot Arlequin chase). */
+  /* "Teams a player still needs" filter - PER PLAYER, pure info. Shows the selected
+     player only the teams THEY have not yet drafted a rider from, so an Arlequin chaser
+     can see which teams they still need to collect. It does not affect who picks. Defaults
+     to the signed-in player; a chip row lets you check any player's gaps. */
   (function(){
     const btn=document.getElementById('unpickedBtn'), g=document.getElementById('teamJerseys');
-    if(!btn||!g) return; let on=false;
+    if(!btn||!g) return;
+    const seats=PL.slice();
+    let sel=(typeof myCode!=='undefined' && myCode && seats.indexOf(myCode)>=0)?myCode:seats[0];
+    let on=false;
+    const chipWrap=document.createElement('div');
+    chipWrap.className='unpicked-players'; chipWrap.hidden=true;
+    chipWrap.innerHTML='<span class="up-lab">Whose gaps</span>'+seats.map(p=>`<button type="button" class="up-chip${p===sel?' on':''}" data-p="${esc(p)}">${esc(p)}</button>`).join('');
+    const hint=document.createElement('div');
+    hint.className='unpicked-hint'; hint.hidden=true;
+    btn.insertAdjacentElement('afterend',chipWrap);
+    chipWrap.insertAdjacentElement('afterend',hint);
+    function apply(){
+      const c=counts[sel]||{};
+      let need=0;
+      [...g.querySelectorAll('.jcell')].forEach(cell=>{ const t=cell.getAttribute('data-team'); const has=(c[t]||0)>0; if(on&&has){cell.style.display='none';} else {cell.style.display=''; if(on&&!has) need++;} });
+      hint.textContent=`${sel} still needs a rider from ${need} of ${TEAMS23.length} team${need===1?'':'s'} - picking any rider from one of these adds that team to the ${sel} collection.`;
+    }
     btn.addEventListener('click',()=>{
-      on=!on; btn.classList.toggle('on',on);
-      btn.textContent=on?'Show all teams':'See teams still up for grabs';
-      [...g.querySelectorAll('.jcell')].forEach(c=>{ const t=c.getAttribute('data-team'); c.style.display=(on && (poolTotals[t]||0)>0)?'none':''; });
+      on=!on; btn.classList.toggle('on',on); chipWrap.hidden=!on; hint.hidden=!on;
+      btn.textContent=on?'Show all teams':'See teams a player still needs';
+      apply();
+    });
+    chipWrap.addEventListener('click',e=>{
+      const b=e.target.closest('.up-chip'); if(!b) return;
+      sel=b.dataset.p; chipWrap.querySelectorAll('.up-chip').forEach(x=>x.classList.toggle('on',x===b)); apply();
     });
   })();
   const cardsEl=document.getElementById('allegCards');
