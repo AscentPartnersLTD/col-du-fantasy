@@ -853,7 +853,7 @@
         <table class="gc" id="gcRank"></table>
       </div>
     </div>
-    <p style="font-size:12px;color:var(--mute);margin-top:8px">Standings are tallied straight from the race results across every completed stage, using each player's picks and real finishes. Stage 9 was voided for the whole pool, and a live stage is held off until it finishes.</p>
+    <p style="font-size:12px;color:var(--mute);margin-top:8px">Standings are tallied straight from the race results across every completed stage, using each player's picks and real finishes. A live stage is held off until it finishes.</p>
     <div class="verify-panel" id="verifyPanel"></div>
   </section>
 
@@ -878,7 +878,7 @@
   <section class="tab" id="tab-results">
     <h2 class="eyebrow">Vuelta a España 2026 &middot; Full calendar and winners</h2>
     <table class="results" id="resultsTable"></table>
-    <p style="font-size:12px;color:var(--mute);margin-top:12px">All 21 stages, Monaco to Granada. Completed stages show the race winner; upcoming stages show the road ahead. Race results are independent of the pool. Stage 9 ran and was won by Van der Poel, but the pool neutralized the day.</p>
+    <p style="font-size:12px;color:var(--mute);margin-top:12px">All 21 stages, Monaco to Granada. Completed stages show the race winner; upcoming stages show the road ahead. Race results are independent of the pool.</p>
   </section>
 
   <section class="tab" id="tab-stats">
@@ -995,7 +995,7 @@
       <div id="nsBody"></div>
     </div>
     <div class="metricbox" style="margin-top:14px">
-      <div class="mh">Placement race, stage by stage</div><div class="msub">Cumulative total, lower line is ahead. Stage 9 was void</div>
+      <div class="mh">Placement race, stage by stage</div><div class="msub">Cumulative total, lower line is ahead</div>
       <div id="mTrend"></div>
     </div>
     <h2 class="eyebrow" style="margin-top:26px">Combativity awards</h2>
@@ -2101,8 +2101,8 @@ const UPCOMING = CDF.upcoming;
    Open-Meteo (free, no key) for the finish town on `date`. Update place/lat/lon/date
    each time you roll UPCOMING to the next stage. Coordinates are the finish town. */
 const WEATHER_BAKED = {
-  stage: 21, place: "Paris (Champs-Elysees)", finish: "Thoiry > Paris (Champs-Elysees)",
-  lat: 48.8698, lon: 2.3078, date: "2026-07-26"
+  stage: 1, place: "Monaco", finish: "Monaco (ITT)",
+  lat: 43.7384, lon: 7.4246, date: "2026-08-22"
 };
 const WEATHER = (CDF.boardConfig&&CDF.boardConfig.weather) || WEATHER_BAKED;
 
@@ -3617,7 +3617,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   const bTrend=boxOf('mTrend');
   wire(bTrend,'mTrend', trendPtsHTML(),
     [{el:q(bTrend,'.mh'), points:`Fantasy Points race, stage by stage`},
-     {el:q(bTrend,'.msub'), points:`Cumulative fantasy points, higher line is ahead. Stage 9 was void`}], 'Placement');
+     {el:q(bTrend,'.msub'), points:`Cumulative fantasy points, higher line is ahead`}], 'Placement');
 })();
 
 ;
