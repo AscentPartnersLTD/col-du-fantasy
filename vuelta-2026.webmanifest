@@ -1,0 +1,30 @@
+{
+  "name": "Col du Fantasy",
+  "short_name": "Fantasy Vuelta",
+  "description": "Vuelta a Espana 2026 daily pick pool",
+  "start_url": "./vuelta.html",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#7c0a1a",
+  "theme_color": "#c8102e",
+  "icons": [
+    {
+      "src": "vuelta-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "vuelta-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "vuelta-icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
