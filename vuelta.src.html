@@ -864,6 +864,11 @@
       #tab-ledger .ahead-note{font-size:12.5px;color:var(--ink2);margin:4px 0;line-height:1.5}
       #tab-ledger .ahead-note.dim{color:var(--mute);font-size:11.5px}
       #tab-ledger .ahead-profile{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:8px;background:#fff;margin-top:8px}
+      #tab-ledger .mini-prof{width:104px;height:32px;flex:none;border-radius:5px;overflow:hidden;background:#fff;border:1px solid var(--line)}
+      #tab-ledger .mini-prof img{width:100%;height:100%;object-fit:cover;object-position:center 74%;display:block}
+      #tab-ledger .stage-links{margin-top:10px}
+      #tab-ledger .stage-links a{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--red);text-decoration:none}
+      #tab-ledger .stage-links a:hover{text-decoration:underline}
     </style>
     <h2 class="eyebrow">Stages &middot; Tap a row for the picks and the read</h2>
     <div id="stages"></div>
@@ -1147,6 +1152,19 @@
       .arlequin-bar .arl-hold{font-family:'Montserrat',sans-serif;font-weight:800;font-size:12.5px;color:#e8c96a;margin:0 0 11px}
       .arlequin-bar .arl-tag{font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:10.5px;color:#e8c96a;margin:3px 0 7px}
       @media(max-width:560px){.arlequin-bar{flex-direction:column;align-items:stretch}.arlequin-bar .arl-emblem{align-self:center}.arlequin-bar .arl-row{grid-template-columns:16px 76px 1fr 50px}}
+      .team-kits{margin:6px 0 20px;border:1px solid var(--line);border-radius:14px;background:var(--card);box-shadow:var(--sh);overflow:hidden}
+      .team-kits>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--red)}
+      .team-kits>summary::-webkit-details-marker{display:none}
+      .team-kits>summary .jtog{width:15px;height:15px;position:relative;flex:none}
+      .team-kits>summary .jtog::before,.team-kits>summary .jtog::after{content:'';position:absolute;background:currentColor;border-radius:2px}
+      .team-kits>summary .jtog::before{left:2px;right:2px;top:6.5px;height:2px}
+      .team-kits>summary .jtog::after{top:2px;bottom:2px;left:6.5px;width:2px;transition:opacity .18s}
+      .team-kits[open]>summary .jtog::after{opacity:0}
+      .tk-controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:0 18px 4px}
+      .tk-controls .see-table-btn.on{background:var(--red);color:#fff;border-color:var(--red)}
+      .tk-link{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--red);text-decoration:none}
+      .tk-link:hover{text-decoration:underline}
+      .team-kits .jersey-gallery{margin:14px 18px 20px}
       .jersey-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px;margin:4px 0 24px}
       .jcell{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 8px 9px;text-align:center;box-shadow:var(--sh)}
       .jcell img{width:100%;height:80px;object-fit:contain;display:block;margin:0 auto 7px}
@@ -1155,8 +1173,11 @@
     </style>
     <h2 class="eyebrow">Allegiances &middot; the teams each of us keeps riding with</h2>
     <p class="palmares-note">Every pick counts toward its rider's 2026 team. This is who you trust, where you are concentrated, and which squads the pool leans on. The stripe is each manager's mix, sized by how often they have gone back to a team.</p>
-    <h2 class="eyebrow mt">The 23 teams of the Vuelta</h2>
-    <div class="jersey-gallery" id="teamJerseys"></div>
+    <details class="team-kits" open>
+      <summary class="tk-summary">Team Kits &amp; Links &middot; the 23 teams of the Vuelta<span class="jtog"></span></summary>
+      <div class="tk-controls"><button id="unpickedBtn" class="see-table-btn" type="button">See teams still up for grabs</button><a class="tk-link" href="https://www.lavuelta.es/en/the-race/la-vuelta-26-teams" target="_blank" rel="noopener">All team kits on lavuelta.es &rsaquo;</a></div>
+      <div class="jersey-gallery" id="teamJerseys"></div>
+    </details>
     <div class="arlequin-bar" id="arlequinBar"></div>
     <div class="alleg-grid" id="allegCards"></div>
     <div class="table-toggle"><button id="seeTableBtn" class="see-table-btn">See data table</button></div>
@@ -3031,6 +3052,7 @@ document.getElementById('stages').insertAdjacentHTML('afterbegin',
     <div class="stage-body">
       ${upIntel}
       ${up.profile?`<img class="ahead-profile" src="${up.profile}" alt="Stage ${up.n} elevation profile" loading="lazy">`:''}
+      <div class="stage-links"><a href="https://www.lavuelta.es/en/stage-${up.n}" target="_blank" rel="noopener">Full stage on lavuelta.es &rsaquo;</a></div>
       <table class="picks"><thead><tr><th>Rider</th><th>Picks</th><th class="r">Placement</th></tr></thead><tbody>${upRows}</tbody></table>
       ${upRead}
     </div></div>`);
@@ -3050,10 +3072,10 @@ document.getElementById('stages').insertAdjacentHTML('afterbegin',
     <div class="stage-head" onclick="this.parentElement.classList.toggle('open')">
       <div class="stnum g">ST ${r.n}<small>${r.km?esc(String(r.km))+' KM':''}</small></div>
       <div class="stinfo"><div class="route">${esc(r.route||'')}</div><div class="sub"><span class="type">${esc(r.type||'')}</span>${r.date?'<span>&middot;</span><span>'+esc(r.date)+'</span>':''}</div></div>
-      ${profileSVG(r.type||'')}
+      ${r.profile?`<span class="mini-prof"><img src="${r.profile}" alt="" loading="lazy"></span>`:profileSVG(r.type||'')}
       <div class="st-right">Status<br><b>Upcoming</b></div>
     </div>
-    <div class="stage-body">${r.extra?`<p class="ahead-note">${esc(r.extra)}</p>`:''}${r.profile?`<img class="ahead-profile" src="${r.profile}" alt="Stage ${r.n} elevation profile" loading="lazy">`:`<p class="ahead-note dim">Stylized profile by stage type. The official elevation profile and full climb list fill in as the race nears.</p>`}</div>
+    <div class="stage-body">${r.extra?`<p class="ahead-note">${esc(r.extra)}</p>`:''}${r.profile?`<img class="ahead-profile" src="${r.profile}" alt="Stage ${r.n} elevation profile" loading="lazy">`:`<p class="ahead-note dim">Stylized profile by stage type. The official elevation profile and full climb list fill in as the race nears.</p>`}<div class="stage-links"><a href="https://www.lavuelta.es/en/stage-${r.n}" target="_blank" rel="noopener">Full stage on lavuelta.es &rsaquo;</a></div></div>
   </div>`).join('');
   host.innerHTML = `<div class="road-ahead-h">The road ahead &middot; stages ${rows[0].n} to ${rows[rows.length-1].n}</div>${cards}`;
 })();
@@ -3127,7 +3149,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   const TEAM_IMG={"Alpecin-Premier Tech":"Alpecin.png","Bahrain Victorious":"Bahrain.png","Burgos-BH":"Burgos.png","Cofidis":"Cofidis.png","Decathlon CMA CGM Team":"Decathlon.png","EF Education-EasyPost":"EF.png","Equipo Kern Pharma":"Kern Pharma.png","Groupama-FDJ United":"Groupama.png","Lidl-Trek":"Lidl Trek.png","Lotto-Intermarché":"Lotto.png","Movistar Team":"Movistar.png","Netcompany INEOS":"Netcompany.png","NSN Cycling Team":"NSN.png","Pinarello Q36.5":"Pinarello.png","Red Bull-BORA-hansgrohe":"Red Bull Bora.png","Soudal Quick-Step":"Soudal Quickstep.png","Team Jayco AlUla":"Jayco.png","Team Picnic PostNL":"Pic Nic.png","Tudor Pro Cycling":"Tudor.png","UAE Team Emirates XRG":"UAE.png","Uno-X Mobility":"Uno.png","Visma-Lease a Bike":"Visma.png","XDS Astana Team":"XDS Astana.png"};
   const TEAM_ICON={"Alpecin-Premier Tech":"Alpecin Icon.png","Bahrain Victorious":"Bahrain Icon.png","Burgos-BH":"Burgos Icon.png","Cofidis":"Cofidis Icon.png","Decathlon CMA CGM Team":"Decathalon Icon.png","EF Education-EasyPost":"EF Icon.png","Equipo Kern Pharma":"Kern Pharma Icon.png","Groupama-FDJ United":"Groupama Icon.png","Lidl-Trek":"Lidl Trek Icon.png","Lotto-Intermarché":"Lotto Icon.png","Movistar Team":"Movistar Icon.png","NSN Cycling Team":"NSN Icon.png","Pinarello Q36.5":"Pinarello Icon.png","Red Bull-BORA-hansgrohe":"Red Bull Bora Icon.png","Soudal Quick-Step":"Soudal Quickstep Icon.png","Team Jayco AlUla":"Jayco Icon.png","Team Picnic PostNL":"Pic Nic Icon.png","Tudor Pro Cycling":"Tudor Icon.png","UAE Team Emirates XRG":"UAE Icon.png","Uno-X Mobility":"Uno Icon.png","Visma-Lease a Bike":"Visma Icon.png","XDS Astana Team":"XDS Astana Icon.png"};
   (function(){ const g=document.getElementById('teamJerseys'); if(!g) return;
-    g.innerHTML=TEAMS23.slice().sort().map(t=>{ const f=TEAM_IMG[t]; return `<div class="jcell">${f?`<img src="${encodeURI(f)}" alt="${t} jersey" loading="lazy">`:''}<div class="jn">${t}</div></div>`; }).join('');
+    g.innerHTML=TEAMS23.slice().sort().map(t=>{ const f=TEAM_IMG[t]; return `<div class="jcell" data-team="${esc(t)}">${f?`<img src="${encodeURI(f)}" alt="${t} jersey" loading="lazy">`:''}<div class="jn">${t}</div></div>`; }).join('');
   })();
   const PL=(CDF.seats||CDF.order).slice();
   function teamOf(n){ if(!n) return null; if(TEAM_ALIAS[n]) return TEAM_ALIAS[n]; if(TEAMS23.indexOf(n)>=0) return n; if(RIDER_TEAM[n]) return RIDER_TEAM[n]; return null; }
@@ -3152,6 +3174,17 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   }
   if(Object.keys(unmapped).length) console.warn('Allegiances unmapped picks:',unmapped);
   const poolTotals={}; PL.forEach(p=>Object.keys(counts[p]).forEach(t=>{poolTotals[t]=(poolTotals[t]||0)+counts[p][t];}));
+  /* "Teams still up for grabs" filter - hides teams the pool has already drafted, so it is
+     easy to hunt the ones nobody owns yet (fuels the Maillot Arlequin chase). */
+  (function(){
+    const btn=document.getElementById('unpickedBtn'), g=document.getElementById('teamJerseys');
+    if(!btn||!g) return; let on=false;
+    btn.addEventListener('click',()=>{
+      on=!on; btn.classList.toggle('on',on);
+      btn.textContent=on?'Show all teams':'See teams still up for grabs';
+      [...g.querySelectorAll('.jcell')].forEach(c=>{ const t=c.getAttribute('data-team'); c.style.display=(on && (poolTotals[t]||0)>0)?'none':''; });
+    });
+  })();
   const cardsEl=document.getElementById('allegCards');
   if(cardsEl){
     cardsEl.innerHTML=PL.map(p=>{
@@ -3190,7 +3223,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
       const pct=Math.round(s.n/MAXT*100), col=COL[s.p]||'#c9971a', qual=s.n>=MIN, hold=qual&&i===0;
       return `<div class="arl-row${hold?' lead':''}"><span class="arl-pos">${i+1}</span><span class="arl-nm">${nameOf(s.p)}</span><span class="arl-track"><span class="arl-thresh" style="left:${(MIN/MAXT*100).toFixed(1)}%" title="15 to qualify"></span><span class="arl-fill" style="width:${Math.max(pct,4)}%;background:${col}"></span></span><span class="arl-val">${s.n}${qual?'<small class="arl-ck">&#10003;</small>':''}</span></div>`;
     }).join('');
-    arlEl.innerHTML=`<div class="arl-emblem"><img src="emblem-arlequin.png" alt="Le Maillot Arlequin" onerror="this.closest('.arl-emblem').style.display='none'"></div><div class="arl-body"><div class="arl-h">Le Maillot Arlequin</div><div class="arl-tag">Largest variety of teams</div><div class="arl-sub">Goes to whoever ends the Tour having drafted the largest variety of teams. Everyone stays in the running; ${MIN} teams is the minimum to qualify, and the gold line marks it.</div><div class="arl-hold">${holder}</div><div class="arl-rows">${rows}</div></div>`;
+    arlEl.innerHTML=`<div class="arl-emblem"><img src="emblem-arlequin.png" alt="Le Maillot Arlequin" onerror="this.closest('.arl-emblem').style.display='none'"></div><div class="arl-body"><div class="arl-h">Le Maillot Arlequin</div><div class="arl-tag">Largest variety of teams</div><div class="arl-sub">Goes to whoever ends the Vuelta having drafted the largest variety of teams. Everyone stays in the running; ${MIN} teams is the minimum to qualify, and the gold line marks it.</div><div class="arl-hold">${holder}</div><div class="arl-rows">${rows}</div></div>`;
   }
 })();
 
