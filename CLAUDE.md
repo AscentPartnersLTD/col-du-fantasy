@@ -24,10 +24,10 @@ hosting repo and is no longer the one to commit to.
 Sources, edited by hand:
 
 - `board.src.html` - the Tour-family board source. Contains the literal
-  placeholder `{{DEFAULT_POOL}}`.
+  placeholders `{{DEFAULT_POOL}}` and `{{BUILD_STAMP}}`.
 - `vuelta.src.html` - the Vuelta board source. Separate file, red skin, its own
-  side games and calendar. Also contains `{{DEFAULT_POOL}}`.
-- `build_boards.py` - substitutes the placeholder and writes the built files.
+  side games and calendar. Also contains `{{DEFAULT_POOL}}` and `{{BUILD_STAMP}}`.
+- `build_boards.py` - substitutes the placeholders and writes the built files.
 
 Built, never hand-edited:
 
@@ -45,8 +45,22 @@ Supporting: `operator.html` (owner console), `pools.html` (member router),
 
 ```
 python3 build_boards.py            # tour.html, index.html, board.html, tour-staging.html
-python3 -c "s=open('vuelta.src.html',encoding='utf-8').read(); open('vuelta.html','w',encoding='utf-8').write(s.replace('{{DEFAULT_POOL}}','vuelta-2026'))"
+python3 -c "import datetime;s=open('vuelta.src.html',encoding='utf-8').read();assert '{{DEFAULT_POOL}}' in s and '{{BUILD_STAMP}}' in s;st='<!-- build:'+datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d-%H%M%SZ')+' -->';open('vuelta.html','w',encoding='utf-8').write(s.replace('{{DEFAULT_POOL}}','vuelta-2026').replace('{{BUILD_STAMP}}',st))"
 ```
+
+Two placeholders get substituted at build time:
+
+- `{{DEFAULT_POOL}}` - the pool id, one value per built file, listed above.
+- `{{BUILD_STAMP}}` - becomes `<!-- build:YYYYMMDD-HHMMSSZ -->` in UTC. It is
+  computed once per run, so every file from one `build_boards.py` invocation
+  shares a stamp and tour.html and index.html stay byte-identical. The Vuelta
+  one-liner stamps itself, so it carries its own time unless run in the same
+  second. Do not hand-write a stamp into a source file; that is exactly the
+  frozen `20260715-143742 stage11` literal this replaced, which made every build
+  claim to be from July 15.
+
+The stamp is the fastest way to tell whether the CDN is serving a fresh copy:
+read line 3 of the served file and compare it to the build you just pushed.
 
 `build_boards.py` covers only the Tour family. The Vuelta build is the one-liner
 above. Add `--staging-only` to build just the staging copy. Use `--staging-only`
