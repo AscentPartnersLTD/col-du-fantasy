@@ -49,7 +49,15 @@ python3 -c "s=open('vuelta.src.html',encoding='utf-8').read(); open('vuelta.html
 ```
 
 `build_boards.py` covers only the Tour family. The Vuelta build is the one-liner
-above. Add `--staging-only` to build just the staging copy.
+above. Add `--staging-only` to build just the staging copy. Use `--staging-only`
+whenever the live files are already built and committed, because a bare
+`build_boards.py` rewrites tour.html, index.html, and board.html from source and
+strips the redeploy comment off each one.
+
+On Dragon, `python3` and `python` resolve to the Microsoft Store app execution
+alias and fail from Git Bash with "Python was not found". Use `py -3`, which is
+the real interpreter (Python 3.12.10). Substitute `py -3` for `python3` in both
+commands above. The `python3` spelling is correct in the cloud sandbox.
 
 After building, append a fresh redeploy comment to each changed HTML file so the
 CDN drops the old copy.
