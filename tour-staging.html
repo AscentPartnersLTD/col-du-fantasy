@@ -297,6 +297,10 @@
   .medal.prix{background:#fdf4dd;color:#a9790a}
   .medal.win{background:#eef4ef;color:#2f7d4f}
   .medal.zero{background:#f3f1ea;color:#b7b1a3}
+  .medal.mer{background:#eef1f8}
+  .medal.mer.zero{background:#f3f1ea}
+  .medal.mer.zero svg circle{stroke:#c2bcae}
+  .medal.mer.zero svg path{fill:#c2bcae}
   .pc-story{font-size:11.5px;line-height:1.5;color:var(--ink2);border-top:1px solid var(--line);padding-top:11px;margin-top:2px}
   @media(max-width:760px){ .palmares{grid-template-columns:repeat(2,minmax(0,1fr))} }
   @media(max-width:440px){ .palmares{grid-template-columns:1fr} }
@@ -591,6 +595,9 @@
       .mer-chip{border:1px solid var(--line);border-radius:10px;padding:12px 8px 10px;cursor:pointer;transition:border-color .15s, background .15s, box-shadow .15s;display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px}
       .mer-chip:hover{border-color:#B22234}
       .mer-chip.on{border-color:#B22234;background:rgba(178,34,52,.07);box-shadow:inset 0 0 0 1px #B22234}
+      .mer-chip.mer-out{opacity:.5;filter:grayscale(1);cursor:default}
+      .mer-chip.mer-out:hover{border-color:var(--line);box-shadow:none}
+      .mer-outtag{font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-size:9px;color:#b21f2b;margin-top:3px}
       .mer-av{width:54px;height:54px;border-radius:50%;object-fit:cover;flex:none;background:#efece3;margin-bottom:5px}
       .mer-name{font-size:12.5px;font-weight:700;line-height:1.25}
       .mer-team{font-size:10.5px;color:var(--mute);line-height:1.35}
@@ -962,6 +969,35 @@
     </div>
     <h2 class="eyebrow" style="margin-top:26px">Combativity awards</h2>
     <div id="combativity"></div>
+    <div class="metricbox" id="mericaTrackerBox" style="margin-top:14px">
+      <style>
+        #mericaTrackerBox .mt-top{display:flex;gap:18px;align-items:flex-start;margin-top:10px}
+        #mericaTrackerBox .mt-emblem img{width:96px;height:auto;display:block;filter:drop-shadow(0 4px 10px rgba(0,0,0,.28))}
+        #mericaTrackerBox .mt-tally{flex:1;min-width:0}
+        #mericaTrackerBox .mt-hold{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;padding-bottom:9px;border-bottom:1px solid var(--line)}
+        #mericaTrackerBox .mt-holdlab{font-family:'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:var(--mute)}
+        #mericaTrackerBox .mt-holdnm{font-family:'Montserrat',sans-serif;font-weight:800;font-size:14px;color:var(--ink)}
+        #mericaTrackerBox .mt-row{display:grid;grid-template-columns:120px 1fr 26px;align-items:center;gap:10px;padding:5px 0}
+        #mericaTrackerBox .mt-row+.mt-row{border-top:1px solid var(--line)}
+        #mericaTrackerBox .mt-nm{font-size:13px;color:var(--ink2)}
+        #mericaTrackerBox .mt-row.hold .mt-nm{color:var(--ink);font-weight:700}
+        #mericaTrackerBox .mt-shields{display:flex;align-items:center;gap:3px;flex-wrap:wrap}
+        #mericaTrackerBox .mt-shico{width:16px;height:16px}
+        #mericaTrackerBox .mt-none{font-size:11px;color:var(--gray);font-style:italic}
+        #mericaTrackerBox .mt-ct{font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+        #mericaTrackerBox .mt-watch{margin-top:14px;border-top:1px solid var(--line);padding-top:11px}
+        #mericaTrackerBox .mt-wlab{font-family:'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:var(--mute);margin-bottom:8px}
+        #mericaTrackerBox .mt-wrow{display:grid;grid-template-columns:46px 1fr 1fr;align-items:center;gap:10px;padding:5px 0;font-size:12.5px}
+        #mericaTrackerBox .mt-wrow+.mt-wrow{border-top:1px solid var(--line)}
+        #mericaTrackerBox .mt-wn{font-family:'Montserrat',sans-serif;font-weight:800;color:var(--mute);font-size:11px}
+        #mericaTrackerBox .mt-wr{color:var(--ink)} #mericaTrackerBox .mt-wr em{color:var(--mute);font-style:normal;font-variant-numeric:tabular-nums}
+        #mericaTrackerBox .mt-ww{color:var(--ink2)}
+        @media(max-width:560px){#mericaTrackerBox .mt-top{flex-direction:column}#mericaTrackerBox .mt-emblem{align-self:center}#mericaTrackerBox .mt-wrow{grid-template-columns:40px 1fr}#mericaTrackerBox .mt-ww{grid-column:2}}
+      </style>
+      <div class="mh">Captain 'Merica</div>
+      <div class="msub">Top American of the stage. Back the day's best-placed American call to earn a shield; most shields at season's end takes the jersey.</div>
+      <div id="mericaTracker"></div>
+    </div>
     <div class="metricbox" id="tiltBox" style="margin-top:14px">
       <style>
         #tiltBox .tilt-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
@@ -1066,9 +1102,29 @@
       table.teamgrid td.z{color:var(--gray)}
       table.teamgrid tr.tot td{border-top:2px solid var(--line2);border-bottom:none;font-family:'Montserrat',sans-serif;font-weight:800;color:var(--ink)}
       table.teamgrid .teamdot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:8px;vertical-align:middle}
+      .arlequin-bar{display:flex;gap:18px;align-items:center;background:linear-gradient(135deg,#1b2a3a,#243B53);border:1px solid #10202e;border-radius:14px;padding:16px 20px;margin-bottom:18px;box-shadow:var(--sh)}
+      .arlequin-bar .arl-emblem img{width:104px;height:auto;display:block;filter:drop-shadow(0 4px 10px rgba(0,0,0,.4))}
+      .arlequin-bar .arl-body{flex:1;min-width:0}
+      .arlequin-bar .arl-h{font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:#f4ecd8;letter-spacing:.02em}
+      .arlequin-bar .arl-sub{font-size:11.5px;color:#c7cfd8;margin:3px 0 12px;line-height:1.45;max-width:640px}
+      .arlequin-bar .arl-rows{display:flex;flex-direction:column;gap:7px}
+      .arlequin-bar .arl-row{display:grid;grid-template-columns:18px 116px 1fr 56px;align-items:center;gap:10px}
+      .arlequin-bar .arl-pos{font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;color:#8ea0b2;text-align:center}
+      .arlequin-bar .arl-row.lead .arl-pos{color:#e8c96a}
+      .arlequin-bar .arl-nm{font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;color:#f4ecd8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .arlequin-bar .arl-track{position:relative;background:rgba(255,255,255,.12);border-radius:6px;height:12px;overflow:hidden}
+      .arlequin-bar .arl-fill{display:block;height:100%;border-radius:6px}
+      .arlequin-bar .arl-thresh{position:absolute;top:0;bottom:0;width:2px;background:#e8c96a;z-index:2}
+      .arlequin-bar .arl-val{font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#f4ecd8;text-align:right;font-variant-numeric:tabular-nums}
+      .arlequin-bar .arl-val small{font-weight:600;color:#8ea0b2;font-size:10px}
+      .arlequin-bar .arl-val .arl-ck{color:#e8c96a;font-weight:800;margin-left:1px}
+      .arlequin-bar .arl-hold{font-family:'Montserrat',sans-serif;font-weight:800;font-size:12.5px;color:#e8c96a;margin:0 0 11px}
+      .arlequin-bar .arl-tag{font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:10.5px;color:#e8c96a;margin:3px 0 7px}
+      @media(max-width:560px){.arlequin-bar{flex-direction:column;align-items:stretch}.arlequin-bar .arl-emblem{align-self:center}.arlequin-bar .arl-row{grid-template-columns:16px 76px 1fr 50px}}
     </style>
     <h2 class="eyebrow">Allegiances &middot; the teams each of us keeps riding with</h2>
     <p class="palmares-note">Every pick counts toward its rider's 2026 team. This is who you trust, where you are concentrated, and which squads the pool leans on. The stripe is each manager's mix, sized by how often they have gone back to a team.</p>
+    <div class="arlequin-bar" id="arlequinBar"></div>
     <div class="alleg-grid" id="allegCards"></div>
     <div class="table-toggle"><button id="seeTableBtn" class="see-table-btn">See data table</button></div>
     <div id="teamTableWrap" class="team-table-wrap" hidden></div>
@@ -1136,7 +1192,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 
 <script>
-const RIDERS = [{"b":51,"r":"P. Seixas","n":"Paul","t":"Decathlon CMA CGM Team","c":"#0082C3","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/51/71734/0:0,400:400-0-0-70/54716"},{"b":21,"r":"R. Evenepoel","n":"Remco","t":"Red Bull-BORA-hansgrohe","c":"#223971","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/21/71737/0:0,400:400-0-0-70/36350"},{"b":171,"r":"T. Pidcock","n":"Tom","t":"Pinarello Q36.5","c":"#009CA6","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/171/71794/0:0,400:400-0-0-70/526ee"},{"b":1,"r":"T. Pogacar","n":"Tadej","t":"UAE Team Emirates XRG","c":"#d4111e","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/1/71834/0:0,400:400-0-0-70/9a582"},{"b":181,"r":"R. Gregoire","n":"Romain","t":"Groupama-FDJ United","c":"#26429B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/181/71791/0:0,400:400-0-0-70/2236c"},{"b":101,"r":"M. van der Poel","n":"Mathieu","t":"Alpecin-Premier Tech","c":"#6B0F1A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/101/71756/0:0,400:400-0-0-70/bbd49"},{"b":37,"r":"M. Vacek","n":"Mathias","t":"Lidl-Trek","c":"#001E62","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/37/71744/0:0,400:400-0-0-70/c5383"},{"b":2,"r":"I. del Toro","n":"Isaac","t":"UAE Team Emirates XRG","c":"#d4111e","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/2/71837/0:0,400:400-0-0-70/5d784"},{"b":121,"r":"T. Johannessen","n":"Tobias","t":"Uno-X Mobility","c":"#FF5C39","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/121/71885/0:0,400:400-70-0-70/53fb2"},{"b":31,"r":"J. Ayuso","n":"Juan","t":"Lidl-Trek","c":"#001E62","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/31/71732/0:0,400:400-0-0-70/b2640"},{"b":34,"r":"Q. Simmons","n":"Quinn","t":"Lidl-Trek","c":"#001E62","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/34/71864/0:0,400:400-0-0-70/267bf"},{"b":33,"r":"M. Pedersen","n":"Mads","t":"Lidl-Trek","c":"#001E62","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/33/71739/0:0,400:400-0-0-70/b9b9e"},{"b":44,"r":"B. Healy","n":"Ben","t":"EF Education-EasyPost","c":"#FF0098","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/44/71874/0:0,400:400-0-0-70/8d88c"},{"b":105,"r":"J. Philipsen","n":"Jasper","t":"Alpecin-Premier Tech","c":"#6B0F1A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/105/71879/0:0,400:400-0-0-70/47c2e"},{"b":55,"r":"O. Kooij","n":"Olav","t":"Decathlon CMA CGM Team","c":"#0082C3","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/55/71846/0:0,400:400-0-0-70/14a75"},{"b":131,"r":"B. Girmay","n":"Biniam","t":"NSN Cycling Team","c":"#F7A600","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/131/71889/0:0,400:400-0-0-70/d6cec"},{"b":122,"r":"J. Abrahamsen","n":"Jonas","t":"Uno-X Mobility","c":"#FF5C39","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/122/71884/0:0,400:400-0-0-70/9e49c"},{"b":111,"r":"B. O'Connor","n":"Ben","t":"Team Jayco AlUla","c":"#00A94F","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/111/71760/0:0,400:400-0-0-70/8fc03"},{"b":45,"r":"S. Quinn","n":"Sean","t":"EF Education-EasyPost","c":"#FF0098","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/45/71736/0:0,400:400-0-0-70/86d77"},{"b":64,"r":"M. Kanter","n":"Max","t":"XDS Astana Team","c":"#00A9CE","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/64/71733/0:0,400:400-0-0-70/093a7"},{"b":165,"r":"M. Fretin","n":"Milan","t":"Cofidis","c":"#E2001A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/165/71781/0:0,400:400-0-0-70/be306"},{"b":152,"r":"H. Artz","n":"Huub","t":"Lotto-Intermarché","c":"#A6093D","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/152/71830/0:0,400:400-0-0-70/dc4b5"},{"b":8,"r":"A. Yates","n":"Adam","t":"UAE Team Emirates XRG","c":"#d4111e","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/8/71870/0:0,400:400-0-0-70/231b7"},{"b":201,"r":"J. Jegat","n":"Jordan","t":"TotalEnergies","c":"#F04E23","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/201/71812/0:0,400:400-0-0-70/334e1"},{"b":195,"r":"R. Pluimers","n":"Rick","t":"Tudor Pro Cycling","c":"#2B2B2B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/195/71811/0:0,400:400-0-0-70/b1dd4"},{"b":72,"r":"P. Bauhaus","n":"Phil","t":"Bahrain Victorious","c":"#C8102E","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/72/71860/0:0,400:400-0-0-70/da949"},{"b":4,"r":"B. McNulty","n":"Brandon","t":"UAE Team Emirates XRG","c":"#d4111e","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/4/71836/0:0,400:400-0-0-70/8efa9"},{"b":43,"r":"A. Baudin","n":"Alex","t":"EF Education-EasyPost","c":"#FF0098","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/43/71742/0:0,400:400-0-0-70/f78a8"},{"b":41,"r":"R. Carapaz","n":"Richard","t":"EF Education-EasyPost","c":"#FF0098","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/41/71725/0:0,400:400-0-0-70/7396a"},{"b":82,"r":"T. Arensman","n":"Thymen","t":"Netcompany INEOS","c":"#A50021","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/82/71749/0:0,400:400-0-0-70/0ceca"},{"b":52,"r":"T. Benoot","n":"Tiesj","t":"Decathlon CMA CGM Team","c":"#0082C3","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/52/71727/0:0,400:400-0-0-70/7566a"},{"b":164,"r":"J. Biermans","n":"Jenthe","t":"Cofidis","c":"#E2001A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/164/71786/0:0,400:400-0-0-70/1eaaf"},{"b":176,"r":"X. Meurisse","n":"Xandro","t":"Pinarello Q36.5","c":"#009CA6","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/176/71789/0:0,400:400-0-0-70/9c69c"},{"b":174,"r":"Q. Hermans","n":"Quinten","t":"Pinarello Q36.5","c":"#009CA6","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/174/71798/0:0,400:400-0-0-70/8c897"},{"b":142,"r":"P. Castrillo","n":"Pablo","t":"Movistar Team","c":"#009DDC","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/142/71779/0:0,400:400-0-0-70/1d6bc"},{"b":13,"r":"B. Armirail","n":"Bruno","t":"Visma-Lease a Bike","c":"#E3C400","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/13/72256/0:0,400:400-0-0-70/bb80c"},{"b":157,"r":"B. Veistroffer","n":"Baptiste","t":"Lotto-Intermarché","c":"#A6093D","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/157/71797/0:0,400:400-0-0-70/70a75"},{"b":85,"r":"D. Godon","n":"Dorian","t":"Netcompany INEOS","c":"#A50021","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/85/71873/0:0,400:400-0-0-70/35d66"},{"b":114,"r":"F. Engelhardt","n":"Felix","t":"Team Jayco AlUla","c":"#00A94F","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/114/71764/0:0,400:400-0-0-70/fea2a"},{"b":35,"r":"M. Skjelmose","n":"Mattias","t":"Lidl-Trek","c":"#001E62","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/35/71728/0:0,400:400-0-0-70/b50dd"},{"b":125,"r":"A. Johannessen","n":"Anders","t":"Uno-X Mobility","c":"#FF5C39","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/125/71886/0:0,400:400-70-0-70/c5513"},{"b":7,"r":"T. Wellens","n":"Tim","t":"UAE Team Emirates XRG","c":"#d4111e","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/7/71741/0:0,400:400-0-0-70/7558c"},{"b":124,"r":"M. Cort Nielsen","n":"Magnus","t":"Uno-X Mobility","c":"#FF5C39","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/124/71888/0:0,400:400-0-0-70/7e7ee"},{"b":196,"r":"M. Storer","n":"Michael","t":"Tudor Pro Cycling","c":"#2B2B2B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/196/71896/0:0,400:400-0-0-70/be8cf"},{"b":86,"r":"M. Kwiatkowski","n":"Michal","t":"Netcompany INEOS","c":"#A50021","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/86/71750/0:0,400:400-0-0-70/978d1"},{"b":23,"r":"N. Denz","n":"Nico","t":"Red Bull-BORA-hansgrohe","c":"#223971","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/23/71867/0:0,400:400-0-0-70/d158b"},{"b":88,"r":"K. Vauquelin","n":"Kévin","t":"Netcompany INEOS","c":"#A50021","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/88/71751/0:0,400:400-0-0-70/8292e"},{"b":87,"r":"J. Tarling","n":"Joshua","t":"Netcompany INEOS","c":"#A50021","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/87/71876/0:0,400:400-0-0-70/9bfe6"},{"b":118,"r":"M. Schmid","n":"Mauro","t":"Team Jayco AlUla","c":"#00A94F","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/118/71767/0:0,400:400-0-0-70/a20c2"},{"b":172,"r":"X. Azparren Irurzun","n":"Xabier","t":"Pinarello Q36.5","c":"#009CA6","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/172/71782/0:0,400:400-0-0-70/b8aa8"},{"b":225,"r":"J. Nicolau","n":"Joel","t":"Caja Rural-Seguros RGA","c":"#1E8449","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/225/71844/0:0,400:400-0-0-70/479c1"},{"b":47,"r":"M. Valgren","n":"Michael","t":"EF Education-EasyPost","c":"#FF0098","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/47/71735/0:0,400:400-0-0-70/e252d"},{"b":185,"r":"L. Germani","n":"Lorenzo","t":"Groupama-FDJ United","c":"#26429B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/185/71841/0:0,400:400-0-0-70/61068"},{"b":5,"r":"N. Politt","n":"Nils","t":"UAE Team Emirates XRG","c":"#d4111e","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/5/71838/0:0,400:400-0-0-70/6a3c7"},{"b":136,"r":"K. Neilands","n":"Krists","t":"NSN Cycling Team","c":"#F7A600","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/136/71890/0:0,400:400-0-0-70/15613"},{"b":137,"r":"J. Stewart","n":"Jake","t":"NSN Cycling Team","c":"#F7A600","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/137/71770/0:0,400:400-0-0-70/adef0"},{"b":22,"r":"M. Cattaneo","n":"Mattia","t":"Red Bull-BORA-hansgrohe","c":"#223971","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/22/71738/0:0,400:400-0-0-70/e26de"},{"b":38,"r":"C. Verona","n":"Carlos","t":"Lidl-Trek","c":"#001E62","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/38/71875/0:0,400:400-0-0-70/88a9e"},{"b":148,"r":"E. Rubio","n":"Einer","t":"Movistar Team","c":"#009DDC","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/148/71792/0:0,400:400-0-0-70/faffb"},{"b":48,"r":"M. Walker","n":"Max","t":"EF Education-EasyPost","c":"#FF0098","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/48/71849/0:0,400:400-0-0-70/8f64a"},{"b":57,"r":"N. Prodhomme","n":"Nicolas","t":"Decathlon CMA CGM Team","c":"#0082C3","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/57/71861/0:0,400:400-0-0-70/19094"},{"b":104,"r":"T. Marsman","n":"Tim","t":"Alpecin-Premier Tech","c":"#6B0F1A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/104/71759/0:0,400:400-0-0-70/7c38b"},{"b":78,"r":"V. Van Mechelen","n":"Vlad","t":"Bahrain Victorious","c":"#C8102E","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/78/71851/0:0,400:400-0-0-70/0d800"},{"b":222,"r":"A. Balderstone","n":"Abel","t":"Caja Rural-Seguros RGA","c":"#1E8449","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/222/71827/0:0,400:400-0-0-70/8674a"},{"b":166,"r":"A. Kirsch","n":"Alex","t":"Cofidis","c":"#E2001A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/166/71800/0:0,400:400-0-0-70/a371a"},{"b":42,"r":"K. Asgreen","n":"Kasper","t":"EF Education-EasyPost","c":"#FF0098","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/42/71859/0:0,400:400-0-0-70/d5bc1"},{"b":228,"r":"J. Parra","n":"Jose Felix","t":"Caja Rural-Seguros RGA","c":"#1E8449","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/228/71831/0:0,400:400-0-0-70/0cff4"},{"b":126,"r":"A. Skaarseth","n":"Anders","t":"Uno-X Mobility","c":"#FF5C39","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/126/71769/0:0,400:400-0-0-70/f9a5c"},{"b":215,"r":"R. Dhondt","n":"Robbe","t":"Team Picnic PostNL","c":"#FF6900","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/215/71822/0:0,400:400-0-0-70/3bf7f"},{"b":27,"r":"T. Van Dijke","n":"Tim","t":"Red Bull-BORA-hansgrohe","c":"#223971","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/27/71743/0:0,400:400-0-0-70/5c9b9"},{"b":12,"r":"E. Affini","n":"Edoardo","t":"Visma-Lease a Bike","c":"#E3C400","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/12/72253/0:0,400:400-0-0-70/822f1"},{"b":155,"r":"L. Slock","n":"Liam","t":"Lotto-Intermarché","c":"#A6093D","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/155/71776/0:0,400:400-0-0-70/ddfb8"},{"b":26,"r":"J. Tratnik","n":"Jan","t":"Red Bull-BORA-hansgrohe","c":"#223971","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/26/71845/0:0,400:400-0-0-70/03994"},{"b":81,"r":"E. Bernal","n":"Egan","t":"Netcompany INEOS","c":"#A50021","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/81/71855/0:0,400:400-0-0-70/f5997"},{"b":226,"r":"S. Oldani","n":"Stefano","t":"Caja Rural-Seguros RGA","c":"#1E8449","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/226/71832/0:0,400:400-0-0-70/0e1de"},{"b":223,"r":"S. Berwick","n":"Sebastian","t":"Caja Rural-Seguros RGA","c":"#1E8449","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/223/71828/0:0,400:400-0-0-70/5aae8"},{"b":106,"r":"E. Planckaert","n":"Edward","t":"Alpecin-Premier Tech","c":"#6B0F1A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/106/71882/0:0,400:400-0-0-70/f09ec"},{"b":144,"r":"R. Garcia","n":"Raul","t":"Movistar Team","c":"#009DDC","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/144/71778/0:0,400:400-0-0-70/bc2d7"},{"b":83,"r":"T. Foss","n":"Tobias","t":"Netcompany INEOS","c":"#A50021","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/83/71871/0:0,400:400-0-0-70/f655c"},{"b":175,"r":"D. Howson","n":"Damien Craig","t":"Pinarello Q36.5","c":"#009CA6","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/175/71799/0:0,400:400-0-0-70/10780"},{"b":18,"r":"D. Piganzoli","n":"Davide","t":"Visma-Lease a Bike","c":"#E3C400","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/18/72250/0:0,400:400-0-0-70/636e5"},{"b":73,"r":"D. Caruso","n":"Damiano","t":"Bahrain Victorious","c":"#C8102E","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/73/71862/0:0,400:400-0-0-70/3b782"},{"b":205,"r":"T. Guernalec","n":"Thibault","t":"TotalEnergies","c":"#F04E23","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/205/71816/0:0,400:400-0-0-70/9a0aa"},{"b":208,"r":"M. Vercher","n":"Matteo","t":"TotalEnergies","c":"#F04E23","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/208/71818/0:0,400:400-0-0-70/4168e"},{"b":108,"r":"E. Verstrynge","n":"Emiel","t":"Alpecin-Premier Tech","c":"#6B0F1A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/108/71761/0:0,400:400-0-0-70/5980a"},{"b":211,"r":"W. Barguil","n":"Warren","t":"Team Picnic PostNL","c":"#FF6900","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/211/71821/0:0,400:400-0-0-70/ce39f"},{"b":133,"r":"G. Bennett","n":"George","t":"NSN Cycling Team","c":"#F7A600","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/133/71891/0:0,400:400-0-0-70/c2d72"},{"b":186,"r":"G. Martin Guyonnet","n":"Guillaume","t":"Groupama-FDJ United","c":"#26429B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/186/71806/0:0,400:400-0-0-70/49029"},{"b":32,"r":"D. Gee","n":"Derek James","t":"Lidl-Trek","c":"#001E62","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/32/71850/0:0,400:400-0-0-70/3babf"},{"b":113,"r":"L. Durbridge","n":"Luke","t":"Team Jayco AlUla","c":"#00A94F","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/113/71762/0:0,400:400-0-0-70/19cd9"},{"b":107,"r":"J. Rickaert","n":"Jonas","t":"Alpecin-Premier Tech","c":"#6B0F1A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/107/71880/0:0,400:400-0-0-70/c8b3e"},{"b":217,"r":"J. Van den Berg","n":"Julius","t":"Team Picnic PostNL","c":"#FF6900","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/217/71843/0:0,400:400-0-0-70/3ad90"},{"b":132,"r":"L. Askey","n":"Lewis","t":"NSN Cycling Team","c":"#F7A600","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/132/71772/0:0,400:400-0-0-70/a6f87"},{"b":17,"r":"S. Kuss","n":"Sepp","t":"Visma-Lease a Bike","c":"#E3C400","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/17/72248/0:0,400:400-0-0-70/8da6c"},{"b":183,"r":"C. Braz Afonso","n":"Clément","t":"Groupama-FDJ United","c":"#26429B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/183/71803/0:0,400:400-0-0-70/d23b5"},{"b":227,"r":"J. Otruba","n":"Jakub","t":"Caja Rural-Seguros RGA","c":"#1E8449","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/227/71893/0:0,400:400-0-0-70/00cc8"},{"b":188,"r":"C. Russo","n":"Clément","t":"Groupama-FDJ United","c":"#26429B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/188/71809/0:0,400:400-0-0-70/22ae4"},{"b":36,"r":"T. Skujins","n":"Toms","t":"Lidl-Trek","c":"#001E62","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/36/71730/0:0,400:400-0-0-70/e5c48"},{"b":207,"r":"A. Turgis","n":"Anthony","t":"TotalEnergies","c":"#F04E23","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/207/71897/0:0,400:400-0-0-70/2071b"},{"b":84,"r":"F. Ganna","n":"Filippo","t":"Netcompany INEOS","c":"#A50021","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/84/71866/0:0,400:400-0-0-70/3f30e"},{"b":218,"r":"F. Van den Broek","n":"Frank","t":"Team Picnic PostNL","c":"#FF6900","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/218/71824/0:0,400:400-0-0-70/7eec5"},{"b":203,"r":"J. Delbove","n":"Joris","t":"TotalEnergies","c":"#F04E23","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/203/71817/0:0,400:400-0-0-70/299b3"},{"b":77,"r":"A. Tiberi","n":"Antonio","t":"Bahrain Victorious","c":"#C8102E","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/77/71748/0:0,400:400-0-0-70/8d73d"},{"b":3,"r":"F. Grossschartner","n":"Felix","t":"UAE Team Emirates XRG","c":"#d4111e","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/3/71835/0:0,400:400-0-0-70/49094"},{"b":168,"r":"B. Thomas","n":"Benjamin","t":"Cofidis","c":"#E2001A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/168/71805/0:0,400:400-0-0-70/4f7c0"},{"b":204,"r":"A. Delettre","n":"Alexandre","t":"TotalEnergies","c":"#F04E23","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/204/71814/0:0,400:400-0-0-70/1a8b2"},{"b":28,"r":"M. Van Gils","n":"Maxim","t":"Red Bull-BORA-hansgrohe","c":"#223971","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/28/71853/0:0,400:400-0-0-70/f04fe"},{"b":198,"r":"Y. Voisard","n":"Yannis","t":"Tudor Pro Cycling","c":"#2B2B2B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/198/71810/0:0,400:400-0-0-70/51fc7"},{"b":178,"r":"F. Wright","n":"Fred","t":"Pinarello Q36.5","c":"#009CA6","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/178/71790/0:0,400:400-0-0-70/16d2b"},{"b":61,"r":"S. Higuita","n":"Sergio","t":"XDS Astana Team","c":"#00A9CE","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/61/71729/0:0,400:400-0-0-70/059e7"},{"b":158,"r":"G. Zimmermann","n":"Georg","t":"Lotto-Intermarché","c":"#A6093D","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/158/71894/0:0,400:400-0-0-70/5341a"},{"b":163,"r":"A. Aranburu","n":"Alex","t":"Cofidis","c":"#E2001A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/163/71784/0:0,400:400-0-0-70/da601"},{"b":194,"r":"M. Hirschi","n":"Marc","t":"Tudor Pro Cycling","c":"#2B2B2B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/194/71842/0:0,400:400-0-0-70/39700"},{"b":193,"r":"M. Haller","n":"Marco","t":"Tudor Pro Cycling","c":"#2B2B2B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/193/71840/0:0,400:400-0-0-70/4f4fc"},{"b":202,"r":"N. Breuillard","n":"Nicolas","t":"TotalEnergies","c":"#F04E23","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/202/71813/0:0,400:400-0-0-70/6da20"},{"b":46,"r":"G. Steinhauser","n":"Georg","t":"EF Education-EasyPost","c":"#FF0098","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/46/71854/0:0,400:400-0-0-70/10b9e"},{"b":143,"r":"J. Cepeda","n":"Jefferson","t":"Movistar Team","c":"#009DDC","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/143/71777/0:0,400:400-0-0-70/137d2"},{"b":75,"r":"M. Mohoric","n":"Matej","t":"Bahrain Victorious","c":"#C8102E","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/75/71747/0:0,400:400-0-0-70/c7cf5"},{"b":67,"r":"S. Velasco","n":"Simone","t":"XDS Astana Team","c":"#00A9CE","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/67/71865/0:0,400:400-0-0-70/88f5f"},{"b":167,"r":"H. Page","n":"Hugo","t":"Cofidis","c":"#E2001A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/167/71801/0:0,400:400-0-0-70/ee90b"},{"b":68,"r":"N. Vinokurov","n":"Nicolya","t":"XDS Astana Team","c":"#00A9CE","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/68/71863/0:0,400:400-0-0-70/f2c60"},{"b":66,"r":"M. Teunissen","n":"Mike","t":"XDS Astana Team","c":"#00A9CE","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/66/71848/0:0,400:400-0-0-70/7e784"},{"b":53,"r":"C. Bol","n":"Cees","t":"Decathlon CMA CGM Team","c":"#0082C3","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/53/71745/0:0,400:400-0-0-70/589ab"},{"b":177,"r":"B. Van Moer","n":"Brent","t":"Pinarello Q36.5","c":"#009CA6","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/177/71788/0:0,400:400-0-0-70/c659c"},{"b":14,"r":"V. Campenaerts","n":"Victor","t":"Visma-Lease a Bike","c":"#E3C400","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/14/72249/0:0,400:400-0-0-70/c120c"},{"b":112,"r":"P. Ackermann","n":"Pascal","t":"Team Jayco AlUla","c":"#00A94F","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/112/71881/0:0,400:400-0-0-70/86e00"},{"b":214,"r":"J. Degenkolb","n":"John","t":"Team Picnic PostNL","c":"#FF6900","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/214/71823/0:0,400:400-0-0-70/f4770"},{"b":115,"r":"M. Matthews","n":"Michael","t":"Team Jayco AlUla","c":"#00A94F","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/115/71883/0:0,400:400-0-0-70/406d7"},{"b":145,"r":"M. Heßmann","n":"Michel","t":"Movistar Team","c":"#009DDC","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/145/71780/0:0,400:400-0-0-70/0c161"},{"b":156,"r":"L. Van Eetvelt","n":"Lennert","t":"Lotto-Intermarché","c":"#A6093D","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/156/71785/0:0,400:400-0-0-70/e6887"},{"b":103,"r":"S. Dillier","n":"Silvan","t":"Alpecin-Premier Tech","c":"#6B0F1A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/103/71877/0:0,400:400-0-0-70/94a35"},{"b":54,"r":"D. Hoole","n":"Daan","t":"Decathlon CMA CGM Team","c":"#0082C3","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/54/71740/0:0,400:400-0-0-70/3c6af"},{"b":6,"r":"F. Vermeersch","n":"Florian","t":"UAE Team Emirates XRG","c":"#d4111e","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/6/71856/0:0,400:400-0-0-70/5ff50"},{"b":97,"r":"I. Van Wilder","n":"Ilan","t":"Soudal Quick-Step","c":"#0033A0","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/97/71754/0:0,400:400-0-0-70/1eb65"},{"b":135,"r":"M. Louvel","n":"Matis","t":"NSN Cycling Team","c":"#F7A600","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/135/71773/0:0,400:400-0-0-70/86ba7"},{"b":65,"r":"H. Tejada","n":"Harold","t":"XDS Astana Team","c":"#00A9CE","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/65/71857/0:0,400:400-0-0-70/3e52b"},{"b":146,"r":"N. Oliveira","n":"Nelson","t":"Movistar Team","c":"#009DDC","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/146/71796/0:0,400:400-0-0-70/c475a"},{"b":24,"r":"J. Hindley","n":"Jai","t":"Red Bull-BORA-hansgrohe","c":"#223971","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/24/71723/0:0,400:400-0-0-70/e7635"},{"b":94,"r":"J. Stuyven","n":"Jasper","t":"Soudal Quick-Step","c":"#0033A0","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/94/71755/0:0,400:400-0-0-70/eba02"},{"b":98,"r":"L. Vervaeke","n":"Louis","t":"Soudal Quick-Step","c":"#0033A0","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/98/71757/0:0,400:400-0-0-70/3cd99"},{"b":117,"r":"L. Plapp","n":"Luke","t":"Team Jayco AlUla","c":"#00A94F","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/117/71765/0:0,400:400-0-0-70/4eca0"},{"b":63,"r":"A. Gate","n":"Aaron Murray","t":"XDS Astana Team","c":"#00A9CE","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/63/71858/0:0,400:400-0-0-70/203e5"},{"b":95,"r":"D. Van Baarle","n":"Dylan","t":"Soudal Quick-Step","c":"#0033A0","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/95/71868/0:0,400:400-0-0-70/c7d59"},{"b":191,"r":"J. Alaphilippe","n":"Julian","t":"Tudor Pro Cycling","c":"#2B2B2B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/191/71807/0:0,400:400-0-0-70/f8344"},{"b":71,"r":"L. Martinez","n":"Lenny","t":"Bahrain Victorious","c":"#C8102E","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/71/71847/0:0,400:400-0-0-70/751a2"},{"b":16,"r":"M. Jorgenson","n":"Matteo","t":"Visma-Lease a Bike","c":"#E3C400","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/16/72254/0:0,400:400-0-0-70/b0595"},{"b":134,"r":"M. Frigo","n":"Marco","t":"NSN Cycling Team","c":"#F7A600","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/134/71892/0:0,400:400-0-0-70/c8db3"},{"b":147,"r":"J. Romo","n":"Javier","t":"Movistar Team","c":"#009DDC","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/147/71833/0:0,400:400-0-0-70/9341f"},{"b":58,"r":"M. Riccitello","n":"Matthew","t":"Decathlon CMA CGM Team","c":"#0082C3","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/58/71724/0:0,400:400-0-0-70/68f13"},{"b":184,"r":"E. Costiou","n":"Ewen","t":"Groupama-FDJ United","c":"#26429B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/184/71802/0:0,400:400-0-0-70/426d0"},{"b":162,"r":"P. Allegaert","n":"Piet","t":"Cofidis","c":"#E2001A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/162/71783/0:0,400:400-0-0-70/3c1ac"},{"b":56,"r":"A. Paret Peintre","n":"Aurélien","t":"Decathlon CMA CGM Team","c":"#0082C3","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/56/71869/0:0,400:400-0-0-70/45bd4"},{"b":76,"r":"R. Stannard","n":"Robert","t":"Bahrain Victorious","c":"#C8102E","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/76/71852/0:0,400:400-0-0-70/3a1bc"},{"b":93,"r":"V. Paret Peintre","n":"Valentin","t":"Soudal Quick-Step","c":"#0033A0","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/93/71872/0:0,400:400-0-0-70/433fd"},{"b":187,"r":"Q. Pacher","n":"Quentin","t":"Groupama-FDJ United","c":"#26429B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/187/71808/0:0,400:400-0-0-70/2a953"},{"b":74,"r":"K. Gradek","n":"Kamil","t":"Bahrain Victorious","c":"#C8102E","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/74/71746/0:0,400:400-0-0-70/5f073"},{"b":15,"r":"P. Hagenes","n":"Per Strand","t":"Visma-Lease a Bike","c":"#E3C400","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/15/72255/0:0,400:400-0-0-70/6e9fc"},{"b":62,"r":"D. Ballerini","n":"Davide","t":"XDS Astana Team","c":"#00A9CE","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/62/71726/0:0,400:400-0-0-70/1c851"},{"b":213,"r":"P. Bittner","n":"Pavel","t":"Team Picnic PostNL","c":"#FF6900","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/213/71820/0:0,400:400-0-0-70/44948"},{"b":92,"r":"P. Eenkhoorn","n":"Pascal","t":"Soudal Quick-Step","c":"#0033A0","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/92/71753/0:0,400:400-0-0-70/40ecb"},{"b":161,"r":"I. Izagirre","n":"Ion","t":"Cofidis","c":"#E2001A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/161/71895/0:0,400:400-0-0-70/0594b"},{"b":216,"r":"N. Märkl","n":"Niklas","t":"Team Picnic PostNL","c":"#FF6900","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/216/71825/0:0,400:400-0-0-70/eca4d"},{"b":206,"r":"M. Le Berre","n":"Mathis","t":"TotalEnergies","c":"#F04E23","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/206/71815/0:0,400:400-0-0-70/b6f6e"},{"b":128,"r":"S. Wærenskjold","n":"Soren","t":"Uno-X Mobility","c":"#FF5C39","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/128/71887/0:0,400:400-70-0-70/0551b"}];
+const RIDERS = [{"b":51,"r":"P. Seixas","n":"Paul","t":"Decathlon CMA CGM Team","c":"#0082C3","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/51/71734/0:0,400:400-0-0-70/54716"},{"b":21,"r":"R. Evenepoel","n":"Remco","t":"Red Bull-BORA-hansgrohe","c":"#223971","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/21/71737/0:0,400:400-0-0-70/36350"},{"b":171,"r":"T. Pidcock","n":"Tom","t":"Pinarello Q36.5","c":"#009CA6","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/171/71794/0:0,400:400-0-0-70/526ee"},{"b":1,"r":"T. Pogacar","n":"Tadej","t":"UAE Team Emirates XRG","c":"#d4111e","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/1/71834/0:0,400:400-0-0-70/9a582"},{"b":181,"r":"R. Gregoire","n":"Romain","t":"Groupama-FDJ United","c":"#26429B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/181/71791/0:0,400:400-0-0-70/2236c"},{"b":101,"r":"M. van der Poel","n":"Mathieu","t":"Alpecin-Premier Tech","c":"#6B0F1A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/101/71756/0:0,400:400-0-0-70/bbd49"},{"b":37,"r":"M. Vacek","n":"Mathias","t":"Lidl-Trek","c":"#001E62","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/37/71744/0:0,400:400-0-0-70/c5383"},{"b":2,"r":"I. del Toro","n":"Isaac","t":"UAE Team Emirates XRG","c":"#d4111e","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/2/71837/0:0,400:400-0-0-70/5d784"},{"b":121,"r":"T. Johannessen","n":"Tobias","t":"Uno-X Mobility","c":"#FF5C39","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/121/71885/0:0,400:400-70-0-70/53fb2"},{"b":31,"r":"J. Ayuso","n":"Juan","t":"Lidl-Trek","c":"#001E62","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/31/71732/0:0,400:400-0-0-70/b2640"},{"b":34,"r":"Q. Simmons","n":"Quinn","t":"Lidl-Trek","c":"#001E62","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/34/71864/0:0,400:400-0-0-70/267bf"},{"b":33,"r":"M. Pedersen","n":"Mads","t":"Lidl-Trek","c":"#001E62","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/33/71739/0:0,400:400-0-0-70/b9b9e"},{"b":44,"r":"B. Healy","n":"Ben","t":"EF Education-EasyPost","c":"#FF0098","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/44/71874/0:0,400:400-0-0-70/8d88c"},{"b":105,"r":"J. Philipsen","n":"Jasper","t":"Alpecin-Premier Tech","c":"#6B0F1A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/105/71879/0:0,400:400-0-0-70/47c2e"},{"b":55,"r":"O. Kooij","n":"Olav","t":"Decathlon CMA CGM Team","c":"#0082C3","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/55/71846/0:0,400:400-0-0-70/14a75"},{"b":131,"r":"B. Girmay","n":"Biniam","t":"NSN Cycling Team","c":"#F7A600","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/131/71889/0:0,400:400-0-0-70/d6cec"},{"b":122,"r":"J. Abrahamsen","n":"Jonas","t":"Uno-X Mobility","c":"#FF5C39","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/122/71884/0:0,400:400-0-0-70/9e49c"},{"b":111,"r":"B. O'Connor","n":"Ben","t":"Team Jayco AlUla","c":"#00A94F","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/111/71760/0:0,400:400-0-0-70/8fc03"},{"b":45,"r":"S. Quinn","n":"Sean","t":"EF Education-EasyPost","c":"#FF0098","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/45/71736/0:0,400:400-0-0-70/86d77"},{"b":64,"r":"M. Kanter","n":"Max","t":"XDS Astana Team","c":"#00A9CE","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/64/71733/0:0,400:400-0-0-70/093a7"},{"b":165,"r":"M. Fretin","n":"Milan","t":"Cofidis","c":"#E2001A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/165/71781/0:0,400:400-0-0-70/be306"},{"b":152,"r":"H. Artz","n":"Huub","t":"Lotto-Intermarché","c":"#A6093D","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/152/71830/0:0,400:400-0-0-70/dc4b5"},{"b":8,"r":"A. Yates","n":"Adam","t":"UAE Team Emirates XRG","c":"#d4111e","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/8/71870/0:0,400:400-0-0-70/231b7"},{"b":201,"r":"J. Jegat","n":"Jordan","t":"TotalEnergies","c":"#F04E23","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/201/71812/0:0,400:400-0-0-70/334e1"},{"b":195,"r":"R. Pluimers","n":"Rick","t":"Tudor Pro Cycling","c":"#2B2B2B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/195/71811/0:0,400:400-0-0-70/b1dd4"},{"b":72,"r":"P. Bauhaus","n":"Phil","t":"Bahrain Victorious","c":"#C8102E","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/72/71860/0:0,400:400-0-0-70/da949"},{"b":4,"r":"B. McNulty","n":"Brandon","t":"UAE Team Emirates XRG","c":"#d4111e","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/4/71836/0:0,400:400-0-0-70/8efa9","x":true},{"b":43,"r":"A. Baudin","n":"Alex","t":"EF Education-EasyPost","c":"#FF0098","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/43/71742/0:0,400:400-0-0-70/f78a8"},{"b":41,"r":"R. Carapaz","n":"Richard","t":"EF Education-EasyPost","c":"#FF0098","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/41/71725/0:0,400:400-0-0-70/7396a"},{"b":82,"r":"T. Arensman","n":"Thymen","t":"Netcompany INEOS","c":"#A50021","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/82/71749/0:0,400:400-0-0-70/0ceca"},{"b":52,"r":"T. Benoot","n":"Tiesj","t":"Decathlon CMA CGM Team","c":"#0082C3","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/52/71727/0:0,400:400-0-0-70/7566a"},{"b":164,"r":"J. Biermans","n":"Jenthe","t":"Cofidis","c":"#E2001A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/164/71786/0:0,400:400-0-0-70/1eaaf"},{"b":176,"r":"X. Meurisse","n":"Xandro","t":"Pinarello Q36.5","c":"#009CA6","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/176/71789/0:0,400:400-0-0-70/9c69c"},{"b":174,"r":"Q. Hermans","n":"Quinten","t":"Pinarello Q36.5","c":"#009CA6","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/174/71798/0:0,400:400-0-0-70/8c897"},{"b":142,"r":"P. Castrillo","n":"Pablo","t":"Movistar Team","c":"#009DDC","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/142/71779/0:0,400:400-0-0-70/1d6bc"},{"b":13,"r":"B. Armirail","n":"Bruno","t":"Visma-Lease a Bike","c":"#E3C400","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/13/72256/0:0,400:400-0-0-70/bb80c"},{"b":157,"r":"B. Veistroffer","n":"Baptiste","t":"Lotto-Intermarché","c":"#A6093D","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/157/71797/0:0,400:400-0-0-70/70a75"},{"b":85,"r":"D. Godon","n":"Dorian","t":"Netcompany INEOS","c":"#A50021","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/85/71873/0:0,400:400-0-0-70/35d66"},{"b":114,"r":"F. Engelhardt","n":"Felix","t":"Team Jayco AlUla","c":"#00A94F","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/114/71764/0:0,400:400-0-0-70/fea2a"},{"b":35,"r":"M. Skjelmose","n":"Mattias","t":"Lidl-Trek","c":"#001E62","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/35/71728/0:0,400:400-0-0-70/b50dd"},{"b":125,"r":"A. Johannessen","n":"Anders","t":"Uno-X Mobility","c":"#FF5C39","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/125/71886/0:0,400:400-70-0-70/c5513"},{"b":7,"r":"T. Wellens","n":"Tim","t":"UAE Team Emirates XRG","c":"#d4111e","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/7/71741/0:0,400:400-0-0-70/7558c"},{"b":124,"r":"M. Cort Nielsen","n":"Magnus","t":"Uno-X Mobility","c":"#FF5C39","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/124/71888/0:0,400:400-0-0-70/7e7ee"},{"b":196,"r":"M. Storer","n":"Michael","t":"Tudor Pro Cycling","c":"#2B2B2B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/196/71896/0:0,400:400-0-0-70/be8cf"},{"b":86,"r":"M. Kwiatkowski","n":"Michal","t":"Netcompany INEOS","c":"#A50021","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/86/71750/0:0,400:400-0-0-70/978d1"},{"b":23,"r":"N. Denz","n":"Nico","t":"Red Bull-BORA-hansgrohe","c":"#223971","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/23/71867/0:0,400:400-0-0-70/d158b"},{"b":88,"r":"K. Vauquelin","n":"Kévin","t":"Netcompany INEOS","c":"#A50021","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/88/71751/0:0,400:400-0-0-70/8292e"},{"b":87,"r":"J. Tarling","n":"Joshua","t":"Netcompany INEOS","c":"#A50021","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/87/71876/0:0,400:400-0-0-70/9bfe6"},{"b":118,"r":"M. Schmid","n":"Mauro","t":"Team Jayco AlUla","c":"#00A94F","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/118/71767/0:0,400:400-0-0-70/a20c2"},{"b":172,"r":"X. Azparren Irurzun","n":"Xabier","t":"Pinarello Q36.5","c":"#009CA6","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/172/71782/0:0,400:400-0-0-70/b8aa8"},{"b":225,"r":"J. Nicolau","n":"Joel","t":"Caja Rural-Seguros RGA","c":"#1E8449","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/225/71844/0:0,400:400-0-0-70/479c1"},{"b":47,"r":"M. Valgren","n":"Michael","t":"EF Education-EasyPost","c":"#FF0098","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/47/71735/0:0,400:400-0-0-70/e252d"},{"b":185,"r":"L. Germani","n":"Lorenzo","t":"Groupama-FDJ United","c":"#26429B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/185/71841/0:0,400:400-0-0-70/61068"},{"b":5,"r":"N. Politt","n":"Nils","t":"UAE Team Emirates XRG","c":"#d4111e","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/5/71838/0:0,400:400-0-0-70/6a3c7"},{"b":136,"r":"K. Neilands","n":"Krists","t":"NSN Cycling Team","c":"#F7A600","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/136/71890/0:0,400:400-0-0-70/15613"},{"b":137,"r":"J. Stewart","n":"Jake","t":"NSN Cycling Team","c":"#F7A600","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/137/71770/0:0,400:400-0-0-70/adef0"},{"b":22,"r":"M. Cattaneo","n":"Mattia","t":"Red Bull-BORA-hansgrohe","c":"#223971","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/22/71738/0:0,400:400-0-0-70/e26de"},{"b":38,"r":"C. Verona","n":"Carlos","t":"Lidl-Trek","c":"#001E62","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/38/71875/0:0,400:400-0-0-70/88a9e"},{"b":148,"r":"E. Rubio","n":"Einer","t":"Movistar Team","c":"#009DDC","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/148/71792/0:0,400:400-0-0-70/faffb"},{"b":48,"r":"M. Walker","n":"Max","t":"EF Education-EasyPost","c":"#FF0098","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/48/71849/0:0,400:400-0-0-70/8f64a"},{"b":57,"r":"N. Prodhomme","n":"Nicolas","t":"Decathlon CMA CGM Team","c":"#0082C3","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/57/71861/0:0,400:400-0-0-70/19094"},{"b":104,"r":"T. Marsman","n":"Tim","t":"Alpecin-Premier Tech","c":"#6B0F1A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/104/71759/0:0,400:400-0-0-70/7c38b"},{"b":78,"r":"V. Van Mechelen","n":"Vlad","t":"Bahrain Victorious","c":"#C8102E","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/78/71851/0:0,400:400-0-0-70/0d800"},{"b":222,"r":"A. Balderstone","n":"Abel","t":"Caja Rural-Seguros RGA","c":"#1E8449","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/222/71827/0:0,400:400-0-0-70/8674a"},{"b":166,"r":"A. Kirsch","n":"Alex","t":"Cofidis","c":"#E2001A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/166/71800/0:0,400:400-0-0-70/a371a"},{"b":42,"r":"K. Asgreen","n":"Kasper","t":"EF Education-EasyPost","c":"#FF0098","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/42/71859/0:0,400:400-0-0-70/d5bc1"},{"b":228,"r":"J. Parra","n":"Jose Felix","t":"Caja Rural-Seguros RGA","c":"#1E8449","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/228/71831/0:0,400:400-0-0-70/0cff4"},{"b":126,"r":"A. Skaarseth","n":"Anders","t":"Uno-X Mobility","c":"#FF5C39","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/126/71769/0:0,400:400-0-0-70/f9a5c"},{"b":215,"r":"R. Dhondt","n":"Robbe","t":"Team Picnic PostNL","c":"#FF6900","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/215/71822/0:0,400:400-0-0-70/3bf7f"},{"b":27,"r":"T. Van Dijke","n":"Tim","t":"Red Bull-BORA-hansgrohe","c":"#223971","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/27/71743/0:0,400:400-0-0-70/5c9b9"},{"b":12,"r":"E. Affini","n":"Edoardo","t":"Visma-Lease a Bike","c":"#E3C400","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/12/72253/0:0,400:400-0-0-70/822f1"},{"b":155,"r":"L. Slock","n":"Liam","t":"Lotto-Intermarché","c":"#A6093D","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/155/71776/0:0,400:400-0-0-70/ddfb8"},{"b":26,"r":"J. Tratnik","n":"Jan","t":"Red Bull-BORA-hansgrohe","c":"#223971","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/26/71845/0:0,400:400-0-0-70/03994"},{"b":81,"r":"E. Bernal","n":"Egan","t":"Netcompany INEOS","c":"#A50021","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/81/71855/0:0,400:400-0-0-70/f5997"},{"b":226,"r":"S. Oldani","n":"Stefano","t":"Caja Rural-Seguros RGA","c":"#1E8449","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/226/71832/0:0,400:400-0-0-70/0e1de"},{"b":223,"r":"S. Berwick","n":"Sebastian","t":"Caja Rural-Seguros RGA","c":"#1E8449","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/223/71828/0:0,400:400-0-0-70/5aae8"},{"b":106,"r":"E. Planckaert","n":"Edward","t":"Alpecin-Premier Tech","c":"#6B0F1A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/106/71882/0:0,400:400-0-0-70/f09ec"},{"b":144,"r":"R. Garcia","n":"Raul","t":"Movistar Team","c":"#009DDC","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/144/71778/0:0,400:400-0-0-70/bc2d7"},{"b":83,"r":"T. Foss","n":"Tobias","t":"Netcompany INEOS","c":"#A50021","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/83/71871/0:0,400:400-0-0-70/f655c"},{"b":175,"r":"D. Howson","n":"Damien Craig","t":"Pinarello Q36.5","c":"#009CA6","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/175/71799/0:0,400:400-0-0-70/10780"},{"b":18,"r":"D. Piganzoli","n":"Davide","t":"Visma-Lease a Bike","c":"#E3C400","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/18/72250/0:0,400:400-0-0-70/636e5"},{"b":73,"r":"D. Caruso","n":"Damiano","t":"Bahrain Victorious","c":"#C8102E","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/73/71862/0:0,400:400-0-0-70/3b782"},{"b":205,"r":"T. Guernalec","n":"Thibault","t":"TotalEnergies","c":"#F04E23","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/205/71816/0:0,400:400-0-0-70/9a0aa"},{"b":208,"r":"M. Vercher","n":"Matteo","t":"TotalEnergies","c":"#F04E23","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/208/71818/0:0,400:400-0-0-70/4168e"},{"b":108,"r":"E. Verstrynge","n":"Emiel","t":"Alpecin-Premier Tech","c":"#6B0F1A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/108/71761/0:0,400:400-0-0-70/5980a"},{"b":211,"r":"W. Barguil","n":"Warren","t":"Team Picnic PostNL","c":"#FF6900","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/211/71821/0:0,400:400-0-0-70/ce39f"},{"b":133,"r":"G. Bennett","n":"George","t":"NSN Cycling Team","c":"#F7A600","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/133/71891/0:0,400:400-0-0-70/c2d72"},{"b":186,"r":"G. Martin Guyonnet","n":"Guillaume","t":"Groupama-FDJ United","c":"#26429B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/186/71806/0:0,400:400-0-0-70/49029"},{"b":32,"r":"D. Gee","n":"Derek James","t":"Lidl-Trek","c":"#001E62","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/32/71850/0:0,400:400-0-0-70/3babf"},{"b":113,"r":"L. Durbridge","n":"Luke","t":"Team Jayco AlUla","c":"#00A94F","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/113/71762/0:0,400:400-0-0-70/19cd9"},{"b":107,"r":"J. Rickaert","n":"Jonas","t":"Alpecin-Premier Tech","c":"#6B0F1A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/107/71880/0:0,400:400-0-0-70/c8b3e"},{"b":217,"r":"J. Van den Berg","n":"Julius","t":"Team Picnic PostNL","c":"#FF6900","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/217/71843/0:0,400:400-0-0-70/3ad90"},{"b":132,"r":"L. Askey","n":"Lewis","t":"NSN Cycling Team","c":"#F7A600","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/132/71772/0:0,400:400-0-0-70/a6f87"},{"b":17,"r":"S. Kuss","n":"Sepp","t":"Visma-Lease a Bike","c":"#E3C400","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/17/72248/0:0,400:400-0-0-70/8da6c"},{"b":183,"r":"C. Braz Afonso","n":"Clément","t":"Groupama-FDJ United","c":"#26429B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/183/71803/0:0,400:400-0-0-70/d23b5"},{"b":227,"r":"J. Otruba","n":"Jakub","t":"Caja Rural-Seguros RGA","c":"#1E8449","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/227/71893/0:0,400:400-0-0-70/00cc8"},{"b":188,"r":"C. Russo","n":"Clément","t":"Groupama-FDJ United","c":"#26429B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/188/71809/0:0,400:400-0-0-70/22ae4"},{"b":36,"r":"T. Skujins","n":"Toms","t":"Lidl-Trek","c":"#001E62","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/36/71730/0:0,400:400-0-0-70/e5c48"},{"b":207,"r":"A. Turgis","n":"Anthony","t":"TotalEnergies","c":"#F04E23","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/207/71897/0:0,400:400-0-0-70/2071b"},{"b":84,"r":"F. Ganna","n":"Filippo","t":"Netcompany INEOS","c":"#A50021","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/84/71866/0:0,400:400-0-0-70/3f30e"},{"b":218,"r":"F. Van den Broek","n":"Frank","t":"Team Picnic PostNL","c":"#FF6900","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/218/71824/0:0,400:400-0-0-70/7eec5"},{"b":203,"r":"J. Delbove","n":"Joris","t":"TotalEnergies","c":"#F04E23","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/203/71817/0:0,400:400-0-0-70/299b3"},{"b":77,"r":"A. Tiberi","n":"Antonio","t":"Bahrain Victorious","c":"#C8102E","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/77/71748/0:0,400:400-0-0-70/8d73d"},{"b":3,"r":"F. Grossschartner","n":"Felix","t":"UAE Team Emirates XRG","c":"#d4111e","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/3/71835/0:0,400:400-0-0-70/49094"},{"b":168,"r":"B. Thomas","n":"Benjamin","t":"Cofidis","c":"#E2001A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/168/71805/0:0,400:400-0-0-70/4f7c0"},{"b":204,"r":"A. Delettre","n":"Alexandre","t":"TotalEnergies","c":"#F04E23","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/204/71814/0:0,400:400-0-0-70/1a8b2"},{"b":28,"r":"M. Van Gils","n":"Maxim","t":"Red Bull-BORA-hansgrohe","c":"#223971","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/28/71853/0:0,400:400-0-0-70/f04fe"},{"b":198,"r":"Y. Voisard","n":"Yannis","t":"Tudor Pro Cycling","c":"#2B2B2B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/198/71810/0:0,400:400-0-0-70/51fc7"},{"b":178,"r":"F. Wright","n":"Fred","t":"Pinarello Q36.5","c":"#009CA6","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/178/71790/0:0,400:400-0-0-70/16d2b"},{"b":61,"r":"S. Higuita","n":"Sergio","t":"XDS Astana Team","c":"#00A9CE","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/61/71729/0:0,400:400-0-0-70/059e7"},{"b":158,"r":"G. Zimmermann","n":"Georg","t":"Lotto-Intermarché","c":"#A6093D","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/158/71894/0:0,400:400-0-0-70/5341a"},{"b":163,"r":"A. Aranburu","n":"Alex","t":"Cofidis","c":"#E2001A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/163/71784/0:0,400:400-0-0-70/da601"},{"b":194,"r":"M. Hirschi","n":"Marc","t":"Tudor Pro Cycling","c":"#2B2B2B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/194/71842/0:0,400:400-0-0-70/39700"},{"b":193,"r":"M. Haller","n":"Marco","t":"Tudor Pro Cycling","c":"#2B2B2B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/193/71840/0:0,400:400-0-0-70/4f4fc"},{"b":202,"r":"N. Breuillard","n":"Nicolas","t":"TotalEnergies","c":"#F04E23","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/202/71813/0:0,400:400-0-0-70/6da20"},{"b":46,"r":"G. Steinhauser","n":"Georg","t":"EF Education-EasyPost","c":"#FF0098","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/46/71854/0:0,400:400-0-0-70/10b9e"},{"b":143,"r":"J. Cepeda","n":"Jefferson","t":"Movistar Team","c":"#009DDC","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/143/71777/0:0,400:400-0-0-70/137d2"},{"b":75,"r":"M. Mohoric","n":"Matej","t":"Bahrain Victorious","c":"#C8102E","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/75/71747/0:0,400:400-0-0-70/c7cf5"},{"b":67,"r":"S. Velasco","n":"Simone","t":"XDS Astana Team","c":"#00A9CE","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/67/71865/0:0,400:400-0-0-70/88f5f"},{"b":167,"r":"H. Page","n":"Hugo","t":"Cofidis","c":"#E2001A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/167/71801/0:0,400:400-0-0-70/ee90b"},{"b":68,"r":"N. Vinokurov","n":"Nicolya","t":"XDS Astana Team","c":"#00A9CE","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/68/71863/0:0,400:400-0-0-70/f2c60"},{"b":66,"r":"M. Teunissen","n":"Mike","t":"XDS Astana Team","c":"#00A9CE","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/66/71848/0:0,400:400-0-0-70/7e784"},{"b":53,"r":"C. Bol","n":"Cees","t":"Decathlon CMA CGM Team","c":"#0082C3","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/53/71745/0:0,400:400-0-0-70/589ab"},{"b":177,"r":"B. Van Moer","n":"Brent","t":"Pinarello Q36.5","c":"#009CA6","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/177/71788/0:0,400:400-0-0-70/c659c"},{"b":14,"r":"V. Campenaerts","n":"Victor","t":"Visma-Lease a Bike","c":"#E3C400","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/14/72249/0:0,400:400-0-0-70/c120c"},{"b":112,"r":"P. Ackermann","n":"Pascal","t":"Team Jayco AlUla","c":"#00A94F","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/112/71881/0:0,400:400-0-0-70/86e00"},{"b":214,"r":"J. Degenkolb","n":"John","t":"Team Picnic PostNL","c":"#FF6900","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/214/71823/0:0,400:400-0-0-70/f4770"},{"b":115,"r":"M. Matthews","n":"Michael","t":"Team Jayco AlUla","c":"#00A94F","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/115/71883/0:0,400:400-0-0-70/406d7"},{"b":145,"r":"M. Heßmann","n":"Michel","t":"Movistar Team","c":"#009DDC","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/145/71780/0:0,400:400-0-0-70/0c161"},{"b":156,"r":"L. Van Eetvelt","n":"Lennert","t":"Lotto-Intermarché","c":"#A6093D","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/156/71785/0:0,400:400-0-0-70/e6887"},{"b":103,"r":"S. Dillier","n":"Silvan","t":"Alpecin-Premier Tech","c":"#6B0F1A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/103/71877/0:0,400:400-0-0-70/94a35"},{"b":54,"r":"D. Hoole","n":"Daan","t":"Decathlon CMA CGM Team","c":"#0082C3","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/54/71740/0:0,400:400-0-0-70/3c6af"},{"b":6,"r":"F. Vermeersch","n":"Florian","t":"UAE Team Emirates XRG","c":"#d4111e","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/6/71856/0:0,400:400-0-0-70/5ff50"},{"b":97,"r":"I. Van Wilder","n":"Ilan","t":"Soudal Quick-Step","c":"#0033A0","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/97/71754/0:0,400:400-0-0-70/1eb65"},{"b":135,"r":"M. Louvel","n":"Matis","t":"NSN Cycling Team","c":"#F7A600","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/135/71773/0:0,400:400-0-0-70/86ba7"},{"b":65,"r":"H. Tejada","n":"Harold","t":"XDS Astana Team","c":"#00A9CE","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/65/71857/0:0,400:400-0-0-70/3e52b"},{"b":146,"r":"N. Oliveira","n":"Nelson","t":"Movistar Team","c":"#009DDC","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/146/71796/0:0,400:400-0-0-70/c475a"},{"b":24,"r":"J. Hindley","n":"Jai","t":"Red Bull-BORA-hansgrohe","c":"#223971","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/24/71723/0:0,400:400-0-0-70/e7635"},{"b":94,"r":"J. Stuyven","n":"Jasper","t":"Soudal Quick-Step","c":"#0033A0","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/94/71755/0:0,400:400-0-0-70/eba02"},{"b":98,"r":"L. Vervaeke","n":"Louis","t":"Soudal Quick-Step","c":"#0033A0","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/98/71757/0:0,400:400-0-0-70/3cd99"},{"b":117,"r":"L. Plapp","n":"Luke","t":"Team Jayco AlUla","c":"#00A94F","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/117/71765/0:0,400:400-0-0-70/4eca0"},{"b":63,"r":"A. Gate","n":"Aaron Murray","t":"XDS Astana Team","c":"#00A9CE","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/63/71858/0:0,400:400-0-0-70/203e5"},{"b":95,"r":"D. Van Baarle","n":"Dylan","t":"Soudal Quick-Step","c":"#0033A0","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/95/71868/0:0,400:400-0-0-70/c7d59"},{"b":191,"r":"J. Alaphilippe","n":"Julian","t":"Tudor Pro Cycling","c":"#2B2B2B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/191/71807/0:0,400:400-0-0-70/f8344"},{"b":71,"r":"L. Martinez","n":"Lenny","t":"Bahrain Victorious","c":"#C8102E","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/71/71847/0:0,400:400-0-0-70/751a2"},{"b":16,"r":"M. Jorgenson","n":"Matteo","t":"Visma-Lease a Bike","c":"#E3C400","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/16/72254/0:0,400:400-0-0-70/b0595"},{"b":134,"r":"M. Frigo","n":"Marco","t":"NSN Cycling Team","c":"#F7A600","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/134/71892/0:0,400:400-0-0-70/c8db3"},{"b":147,"r":"J. Romo","n":"Javier","t":"Movistar Team","c":"#009DDC","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/147/71833/0:0,400:400-0-0-70/9341f"},{"b":58,"r":"M. Riccitello","n":"Matthew","t":"Decathlon CMA CGM Team","c":"#0082C3","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/58/71724/0:0,400:400-0-0-70/68f13"},{"b":184,"r":"E. Costiou","n":"Ewen","t":"Groupama-FDJ United","c":"#26429B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/184/71802/0:0,400:400-0-0-70/426d0"},{"b":162,"r":"P. Allegaert","n":"Piet","t":"Cofidis","c":"#E2001A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/162/71783/0:0,400:400-0-0-70/3c1ac"},{"b":56,"r":"A. Paret Peintre","n":"Aurélien","t":"Decathlon CMA CGM Team","c":"#0082C3","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/56/71869/0:0,400:400-0-0-70/45bd4"},{"b":76,"r":"R. Stannard","n":"Robert","t":"Bahrain Victorious","c":"#C8102E","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/76/71852/0:0,400:400-0-0-70/3a1bc"},{"b":93,"r":"V. Paret Peintre","n":"Valentin","t":"Soudal Quick-Step","c":"#0033A0","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/93/71872/0:0,400:400-0-0-70/433fd"},{"b":187,"r":"Q. Pacher","n":"Quentin","t":"Groupama-FDJ United","c":"#26429B","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/187/71808/0:0,400:400-0-0-70/2a953"},{"b":74,"r":"K. Gradek","n":"Kamil","t":"Bahrain Victorious","c":"#C8102E","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/74/71746/0:0,400:400-0-0-70/5f073"},{"b":15,"r":"P. Hagenes","n":"Per Strand","t":"Visma-Lease a Bike","c":"#E3C400","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/15/72255/0:0,400:400-0-0-70/6e9fc"},{"b":62,"r":"D. Ballerini","n":"Davide","t":"XDS Astana Team","c":"#00A9CE","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/62/71726/0:0,400:400-0-0-70/1c851"},{"b":213,"r":"P. Bittner","n":"Pavel","t":"Team Picnic PostNL","c":"#FF6900","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/213/71820/0:0,400:400-0-0-70/44948"},{"b":92,"r":"P. Eenkhoorn","n":"Pascal","t":"Soudal Quick-Step","c":"#0033A0","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/92/71753/0:0,400:400-0-0-70/40ecb"},{"b":161,"r":"I. Izagirre","n":"Ion","t":"Cofidis","c":"#E2001A","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/161/71895/0:0,400:400-0-0-70/0594b"},{"b":216,"r":"N. Märkl","n":"Niklas","t":"Team Picnic PostNL","c":"#FF6900","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/216/71825/0:0,400:400-0-0-70/eca4d"},{"b":206,"r":"M. Le Berre","n":"Mathis","t":"TotalEnergies","c":"#F04E23","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/206/71815/0:0,400:400-0-0-70/b6f6e"},{"b":128,"r":"S. Wærenskjold","n":"Soren","t":"Uno-X Mobility","c":"#FF5C39","p":"https://img.aso.fr/core_app/img-cycling-tdf-png/128/71887/0:0,400:400-70-0-70/0551b"}];
 function _nrm(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\u00e6/g,'ae').replace(/\u00f8/g,'o').replace(/\u00df/g,'ss').replace(/\u0142/g,'l');}
 // "The Climb" loader (rebuilt lightweight from Design's source): a cyclist scaling
 // the col with the road drawing in behind, looping until the board loads. Defined
@@ -1179,6 +1235,15 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 const $=id=>document.getElementById(id);
 let myEmail=null,isOwner=false,poolId=null,pool=null,STAGE=null,ORDER=[],SNAKE=[],PMETA={},JUDGE=null,myCode=null,isJudge=false,draft=null,unsub=null,chosen=null;
 const DEFAULT_POOL='col-du-fantasy';
+// Pool routing. A pool with its own skinned board file must open THAT file: the
+// switcher used to send every pool to the generic /board.html, so the Vuelta
+// loaded its data inside the Tour's gold shell. boardPath on the pool doc wins
+// when set; POOL_PAGE is the fallback so routing is correct with no data edit.
+const POOL_PAGE={'col-du-fantasy':'/tour.html','vuelta-2026':'/vuelta.html'};
+function poolHref(pid,path){ var p=path||POOL_PAGE[pid]||'/board.html'; return location.origin+p+'?pool='+encodeURIComponent(pid); }
+// True when this page is already the right board file for that pool. Lets the
+// checked entry still navigate when the pool is right but the shell is wrong.
+function onPoolPage(pid){ var w=POOL_PAGE[pid]; if(!w) return true; var h=location.pathname.toLowerCase(); if(h===w) return true; if(w==='/tour.html'&&(h==='/'||h==='/index.html')) return true; return false; }
 const paramPool=new URLSearchParams(location.search).get('pool')||DEFAULT_POOL||null;
 function showGate(msg,err,asHtml){ document.documentElement.classList.remove('gated'); document.body.classList.remove('gated'); var g=$('gate'); if(g){g.style.display='block'; g.classList.add('ask'); if(msg){var m=$('gate-msg')||$('gmsg'); if(m){ if(asHtml){m.innerHTML=msg;}else{m.textContent=msg;} m.className='gate-msg'+(err?' err':'');}}} }
 // Show the spinner (never the login card) with a status label. Used the instant
@@ -1296,7 +1361,7 @@ auth.onAuthStateChanged(async user=>{
           var _mine=(_idx.exists?(_idx.data().pools||[]):[]).filter(function(p){return p && p!==paramPool;});
           if(_mine.length){
             diag('not a member of '+paramPool+'; rerouting to '+_mine[0]);
-            location.replace(location.origin+'/board.html?pool='+encodeURIComponent(_mine[0])+'&rr=1');
+            location.replace(poolHref(_mine[0],null)+'&rr=1');
             return;
           }
         }catch(_re){ diag('reroute lookup failed: '+(_re&&(_re.code||_re.message||_re))); }
@@ -1429,12 +1494,12 @@ async function buildAcctMenu(){
     var who=$('acctWho'); if(who) who.textContent=myEmail||'';
     var ft=$('acctFabTxt'); if(ft) ft.textContent=(myCode || (myEmail? myEmail[0].toUpperCase() : 'CDF'));
     var pools=[];
-    if(isOwner){ var all=await db.collection('pools').get(); all.forEach(function(d){ pools.push({id:d.id,name:(d.data().name||d.id)}); }); }
+    if(isOwner){ var all=await db.collection('pools').get(); all.forEach(function(d){ pools.push({id:d.id,name:(d.data().name||d.id),path:(d.data().boardPath||'')}); }); }
     else { var idx=await db.doc('userPools/'+myEmail).get(); var list=(idx.exists&&idx.data().pools)||[];
-      for(var i=0;i<list.length;i++){ try{ var s=await db.doc('pools/'+list[i]).get(); if(s.exists) pools.push({id:list[i],name:(s.data().name||list[i])}); }catch(e){} } }
-    if(!pools.some(function(p){return p.id===poolId;})) pools.unshift({id:poolId,name:(pool&&pool.name)||poolId});
+      for(var i=0;i<list.length;i++){ try{ var s=await db.doc('pools/'+list[i]).get(); if(s.exists) pools.push({id:list[i],name:(s.data().name||list[i]),path:(s.data().boardPath||'')}); }catch(e){} } }
+    if(!pools.some(function(p){return p.id===poolId;})) pools.unshift({id:poolId,name:(pool&&pool.name)||poolId,path:(pool&&pool.boardPath)||''});
     var box=$('acctPools');
-    if(box){ box.innerHTML=pools.map(function(p){ return '<button class="acct-pool'+(p.id===poolId?' cur':'')+'" type="button" data-pool="'+esc(p.id)+'">'+esc(p.name)+'</button>'; }).join(''); }
+    if(box){ box.innerHTML=pools.map(function(p){ return '<button class="acct-pool'+(p.id===poolId?' cur':'')+'" type="button" data-pool="'+esc(p.id)+'" data-href="'+esc(poolHref(p.id,p.path))+'">'+esc(p.name)+'</button>'; }).join(''); }
     fab.classList.add('show');
   }catch(e){ console.error('acct menu',e); }
 }
@@ -1442,7 +1507,7 @@ document.addEventListener('click',function(e){
   var t=e.target;
   if(t.closest&&t.closest('#acctFab')){ var p=$('acctPanel'); if(p) p.classList.toggle('show'); return; }
   var pb=t.closest&&t.closest('.acct-pool');
-  if(pb){ var pid=pb.getAttribute('data-pool'); if(pid && pid!==poolId){ location.href=location.origin+'/board.html?pool='+encodeURIComponent(pid); } else { var pn=$('acctPanel'); if(pn) pn.classList.remove('show'); } return; }
+  if(pb){ var pid=pb.getAttribute('data-pool'); var href=pb.getAttribute('data-href')||poolHref(pid,null); if(pid && (pid!==poolId || !onPoolPage(pid))){ location.href=href; } else { var pn=$('acctPanel'); if(pn) pn.classList.remove('show'); } return; }
   if(t.closest&&t.closest('#acctOut')){ cdfSignOut(); return; }
   var pnl=$('acctPanel'); if(pnl&&pnl.classList.contains('show') && !(t.closest&&t.closest('#acctPanel'))){ pnl.classList.remove('show'); }
 });
@@ -1536,12 +1601,32 @@ async function loadPool(id){
 const USA_RIDERS=[
  {r:"Q. Simmons",t:"Lidl-Trek",site:"https://www.simmonscyclingco.com/team/quinn-simmons",siteLabel:"simmonscyclingco.com",bio:"Born 2001 in Durango, Colorado. Junior world road champion at 18, two-time US national road champion (2023 and 2025), and a 2025 stage winner at both the Tour de Suisse and the Volta a Catalunya. The mustachioed breakaway artist has a taste for this race's combativity award: one at the 2022 Tour, and another on Stage 15 of this one."},
  {r:"S. Quinn",t:"EF Education-EasyPost",bio:"Born 2000 in Los Angeles. Beat McNulty in a two-man sprint to win the 2024 US national road title and took back-to-back combativity awards at the 2025 Vuelta with long aggressive breakaways. Off the bike he produces electronic music, brings a MIDI keyboard to grand tours, and has tracks on Spotify."},
- {r:"B. McNulty",t:"UAE Team Emirates XRG",bio:"Born 1998 in Phoenix, Arizona. Junior world time trial champion in 2016, repeat US time trial champion, and a grand tour stage winner at the 2023 Giro and the 2024 Vuelta, where he won the opening time trial. Won the 2025 Tour de Pologne overall; the obvious American to watch when the race goes against the clock."},
+ {r:"B. McNulty",t:"UAE Team Emirates XRG",out:true,bio:"Born 1998 in Phoenix, Arizona. Junior world time trial champion in 2016, repeat US time trial champion, and a grand tour stage winner at the 2023 Giro and the 2024 Vuelta, where he won the opening time trial. Won the 2025 Tour de Pologne overall; the obvious American to watch when the race goes against the clock. Abandoned the 2026 Tour and is no longer selectable."},
  {r:"S. Kuss",t:"Visma-Lease a Bike",site:"https://seppkuss.cc/",siteLabel:"seppkuss.cc",bio:"Born 1994 in Durango, Colorado. Won the 2023 Vuelta a Espa\u00f1a, the first American grand tour victory in a decade, in a season where he finished all three grand tours. The Eagle of Durango has stage wins at the Tour and the Vuelta and has carried teammates to six grand tour titles as the sport's premier climbing domestique."},
  {r:"M. Jorgenson",t:"Visma-Lease a Bike",bio:"Born 1999, raised in Boise, Idaho. Back-to-back winner of Paris-Nice in 2024 and 2025, the first American to take it since 2006, and winner of the 2024 Dwars door Vlaanderen cobbled classic. Eighth overall at the 2024 Tour; with Vingegaard out, the 6-foot-3 all-rounder now carries Visma's hopes in this race."},
  {r:"M. Riccitello",t:"Decathlon CMA CGM Team",bio:"Born 2002 in Tucson, Arizona, the youngest of the six. Broke through with fifth overall and the best young rider jersey at the 2025 Vuelta, then opened 2026 by winning the Tour de la Provence for his new French team. A pure climber built for the high mountains."}
 ];
 const SHARED_UPCOMING = {
+  21: { route:"Thoiry > Paris (Champs-Elysees)", type:"Hilly finale / Montmartre", km:133,
+    intel:{
+      summary:"The final stage into Paris, and no longer a procession: 133 km from Thoiry with three cobbled ascents of the Cote de la Butte Montmartre before the run to the Champs-Elysees, where a late attacker can still deny the sprinters.",
+      facts:[
+        "133 km from Thoiry into Paris, the closing stage of the Tour",
+        "Three ascents of the Cote de la Butte Montmartre (1.1 km at 5.9%) on a 16.7 km finishing circuit",
+        "The final Montmartre crest comes 10.3 km from the line",
+        "Sprinters' teams against the attackers on the Champs-Elysees finish"
+      ]
+    } },
+  20: { route:"Bourg d'Oisans > Alpe d'Huez", type:"Queen stage summit finish", km:170.9,
+    intel:{
+      summary:"The queen stage and the last day in the mountains: 170.9 km and about 5,450 m of climbing from Bourg d'Oisans over the Croix de Fer, the Telegraphe and the Galibier (2,642 m, the roof of this Tour), then the Col de Sarenne straight into a second Alpe d'Huez finish. Whatever the overall still holds is decided here.",
+      facts:[
+        "170.9 km with about 5,450 m of climbing, the hardest day of the race",
+        "Croix de Fer (24 km at 5.2%), Telegraphe (11.9 km at 7.1%) and Galibier (17.7 km at 6.9%, 2,642 m) stack up the damage",
+        "The Col de Sarenne (12.8 km at 7.3%) crests late before the drop to the foot of the Alpe",
+        "Finishes up Alpe d'Huez (final 3.7 km at 6.2%) for the second day running"
+      ]
+    } },
   17: { route:"Chambery > Voiron", type:"Sprint or breakaway", km:174.7,
     intel:{
       summary:"A deceptive transition day from Chambery to Voiron: 174.7 km that reads flat but hides about 2,400 m of climbing, with a late rise inside the closing kilometres before a downhill-and-flat run to the line. A bunch sprint if the fast men's teams keep it together, a breakaway win if they let it slip.",
@@ -1638,17 +1723,17 @@ async function buildCDF(){
   let draftDoc={};
   try{ const dsnap=await db.doc('pools/'+poolId+'/drafts/'+STAGE).get();
     if(dsnap.exists){ draftDoc=dsnap.data()||{}; (draftDoc.picks||[]).forEach(p=>{ if(p&&p.player&&p.rider&&upPicks[p.player]) upPicks[p.player].push(p.rider); }); } }catch(e){}
-  const su=(SHARED_UPCOMING&&SHARED_UPCOMING[Number(STAGE)])||{};
+  const su=((pool.boardConfig&&pool.boardConfig.sharedUpcoming&&pool.boardConfig.sharedUpcoming[Number(STAGE)])||(SHARED_UPCOMING&&SHARED_UPCOMING[Number(STAGE)]))||{};
   // Course intel and pre-race reads are data-driven (2026-07-23): the draft doc in
   // Firestore wins, the baked SHARED_UPCOMING is the fallback. This is what lets the
   // draft-done endpoint post reads with no board redeploy.
   const dIntel=(draftDoc.intel&&draftDoc.intel.summary)?draftDoc.intel:null;
-  const upcoming={ n:Number(STAGE), order:ORDER.slice(), route:(draftDoc.route||su.route||''), type:(draftDoc.type||su.type||''), km:(draftDoc.km||su.km||0), intel:(dIntel||su.intel||{summary:'',facts:[]}), reads:(draftDoc.reads||su.reads||null), picks:upPicks };
+  const upcoming={ n:Number(STAGE), order:ORDER.slice(), route:(draftDoc.route||su.route||''), type:(draftDoc.type||su.type||''), km:(draftDoc.km||su.km||0), intel:(dIntel||su.intel||{summary:'',facts:[]}), reads:(draftDoc.reads||su.reads||null), flag:(draftDoc.flag||su.flag||null), picks:upPicks };
   const official=pool.official||{ through:0, placement:Object.assign({},zero), rank:Object.assign({},zero) };
   const ledger=pool.personaLedger||{order:ORDER.slice(),by:{},seen:{}};
   const rp=pool.riderProfile||riderProfile;
   const seats=seatList.slice();
-  return { players, order:ORDER.slice(), seats, riderProfile:rp, personaLedger:ledger, official, stages, upcoming, editorial:pool.editorial||null };
+  return { players, order:ORDER.slice(), seats, riderProfile:rp, personaLedger:ledger, official, stages, upcoming, editorial:pool.editorial||null, boardConfig:pool.boardConfig||null };
 }
 /* ---------------- draft engine (per pool) ---------------- */
 function draftRef(){ return db.doc('pools/'+poolId+'/drafts/'+STAGE); }
@@ -1747,8 +1832,8 @@ function renderMerica(){
   const mine=myCode?(picks[myCode]||null):null;
   // The featured rider in the wide top slot: your current pick (seats), or the
   // last rider an observer tapped (local bio browsing, nothing written).
-  const featured=myCode?mine:(window.__merOpen||null);
-  const shield='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path fill="#3C3B6E" d="M12 8.2l1.15 2.33 2.57.37-1.86 1.81.44 2.56L12 14.06l-2.3 1.21.44-2.56-1.86-1.81 2.57-.37z"/></svg>';
+  const featured=window.__merOpen||(myCode?mine:null);
+  const shield='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#B31942" stroke-width="1.7"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="#3C3B6E" stroke-width="1.7"/><path fill="#3C3B6E" d="M12 8.2l1.15 2.33 2.57.37-1.86 1.81.44 2.56L12 14.06l-2.3 1.21.44-2.56-1.86-1.81 2.57-.37z"/></svg>';
   const avOf=u=>{ const RR=(typeof RIDERS!=='undefined')?RIDERS.find(x=>x.r===u.r):null; const p=(RR&&RR.p)||''; return p?'<img class="mer-av" src="'+esc(p)+'" alt="" onerror="this.style.display=\'none\'">':''; };
   // Once the stage's draft is locked, the card collapses to a thin bar under the
   // main picks minibar (Allen, 2026-07-19) so the Break Tracker stays above the
@@ -1758,7 +1843,7 @@ function renderMerica(){
   // everyone picks blind, then the reveal happens on the collapsed bar.
   const callersOf=u=>{ if(!stageOn) return ''; const cs=ORDER.filter(c=>picks[c]===u.r); return cs.length?'<span class="mer-callers">'+cs.map(esc).join(' ')+'</span>':''; };
   if(stageOn && !window.__merExpand){
-    const shieldMini='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path fill="#3C3B6E" d="M12 8.2l1.15 2.33 2.57.37-1.86 1.81.44 2.56L12 14.06l-2.3 1.21.44-2.56-1.86-1.81 2.57-.37z"/></svg>';
+    const shieldMini='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#B31942" stroke-width="1.7"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="#3C3B6E" stroke-width="1.7"/><path fill="#3C3B6E" d="M12 8.2l1.15 2.33 2.57.37-1.86 1.81.44 2.56L12 14.06l-2.3 1.21.44-2.56-1.86-1.81 2.57-.37z"/></svg>';
     const entries=ORDER.filter(c=>picks[c]).map(c=>{
       const r=picks[c]; const RR=(typeof RIDERS!=='undefined')?RIDERS.find(x=>x.r===r):null;
       const img=(RR&&RR.p)?'<img src="'+esc(RR.p)+'" onerror="this.remove()">':'';
@@ -1778,14 +1863,14 @@ function renderMerica(){
   const fu=featured?USA_RIDERS.find(x=>x.r===featured):null;
   if(fu){
     const bio=esc(fu.bio)+(fu.site?' <a class="mer-site" href="'+esc(fu.site)+'" target="_blank" rel="noopener">'+esc(fu.siteLabel||'website')+'</a>':'');
-    const tag=myCode?'<span class="mer-tag">Your pick</span>':'<span class="mer-tag obs">Rider bio</span>';
+    const tag=fu.out?'<span class="mer-tag obs">Abandoned - not selectable</span>':((myCode&&featured===mine)?'<span class="mer-tag">Your pick</span>':'<span class="mer-tag obs">Rider bio</span>');
     topCard='<div class="mer-top">'+avOf(fu)
       +'<div class="mer-open-body"><div class="mer-line1"><span class="mer-name">'+esc(fu.r)+'</span><span class="mer-team">'+esc(fu.t)+'</span>'+callersOf(fu)+tag+'</div>'
       +'<div class="mer-bio">'+bio+'</div></div></div>';
   }
   const chips=USA_RIDERS.filter(u=>u.r!==featured).map(u=>{
-    return '<div class="mer-chip" data-r="'+esc(u.r)+'">'+avOf(u)
-      +'<span class="mer-name">'+esc(u.r)+'</span><span class="mer-team">'+esc(u.t)+'</span>'+callersOf(u)+'</div>';
+    return '<div class="mer-chip'+(u.out?' mer-out':'')+'" data-r="'+esc(u.r)+'"'+(u.out?' data-out="1"':'')+'>'+avOf(u)
+      +'<span class="mer-name">'+esc(u.r)+'</span><span class="mer-team">'+esc(u.t)+'</span>'+(u.out?'<span class="mer-outtag">Abandoned</span>':'')+callersOf(u)+'</div>';
   }).join('');
   const foot=myCode?(mine?('Your call: '+esc(mine)+'. Tap another rider below to switch any time before the stage is scored.'):'Tap a rider to make your call for this stage. Your pick moves up top with their story.'):'Watching only - pool seats make the calls. Tap a rider to read their bio.';
   const minBtn=stageOn?'<button type="button" class="mer-minbtn">Minimize</button>':'';
@@ -1795,8 +1880,11 @@ function renderMerica(){
   mm.querySelectorAll('.mer-chip').forEach(ch=>{
     ch.addEventListener('click', async ()=>{
       const r=ch.getAttribute('data-r');
-      if(!myCode){ window.__merOpen=r; renderMerica(); return; }
+      const isOut=ch.getAttribute('data-out')==='1';
+      // abandoned riders: open the bio for reading, never selectable (Allen, 2026-07-23)
+      if(!myCode || isOut){ window.__merOpen=r; renderMerica(); return; }
       if(!draft) return;
+      window.__merOpen=null; // a real pick clears any bio-preview so the top card shows your call
       try{ await draftRef().update(new firebase.firestore.FieldPath('merica', myCode), r); }
       catch(e){ const f=mm.querySelector('.mer-foot'); if(f) f.textContent='Could not save the call: '+(e&&e.message||e); }
     });
@@ -1897,8 +1985,10 @@ const PERSONA_LEDGER = CDF.personaLedger;
 
 const OFFICIAL = CDF.official;
 
-/* Full 21-stage calendar. win:"" + upcoming:true for stages not yet raced. */
-const RACE = [
+/* Full 21-stage calendar. win:"" + upcoming:true for stages not yet raced.
+   BAKED FALLBACK: the live value is CDF.boardConfig.race (Firestore) when present;
+   this array is the last-good fallback used only if that read is empty/absent. */
+const RACE_BAKED = [
   { n:1,  date:"Jul 4",  route:"Barcelona TTT",            type:"Team time trial",   win:"Team Visma-Lease a Bike", extra:"Vingegaard in yellow" },
   { n:2,  date:"Jul 5",  route:"Tarragona > Barcelona",    type:"Hilly / Montjuic",  win:"Isaac del Toro",          extra:"UAE 1-2, Pogacar led him out" },
   { n:3,  date:"Jul 6",  route:"Granollers > Les Angles",  type:"Mountain",          win:"Tadej Pogacar",           extra:"Takes yellow, 2s on Vingegaard" },
@@ -1913,14 +2003,16 @@ const RACE = [
   { n:12, date:"Jul 16", route:"Magny-Cours > Chalon-sur-Saone", type:"Flat sprint", win:"Tim Merlier", extra:"Merlier doubles up" },
   { n:13, date:"Jul 17", route:"Dole > Belfort",           type:"Hilly / Ballon d'Alsace", win:"Mauro Schmid",  extra:"Longest stage, break stays away" },
   { n:14, date:"Jul 18", route:"Mulhouse > Le Markstein",  type:"Mountain / Vosges", win:"T. Pogacar", extra:"Seven climbs, 155.3 km" },
-  { n:15, date:"Jul 19", route:"Plateau de Solaison",      type:"Summit finish",     win:"", upcoming:true, extra:"New summit finish" },
-  { n:16, date:"Jul 21", route:"Evian-les-Bains ITT",      type:"Individual TT",     win:"", upcoming:true, extra:"26.1 km, Lake Geneva" },
-  { n:17, date:"Jul 22", route:"Flat stage",               type:"Flat sprint",       win:"", upcoming:true, extra:"Sprinters' chance" },
-  { n:18, date:"Jul 23", route:"Orcieres-Merlette",        type:"Summit finish",     win:"", upcoming:true, extra:"Alpine summit" },
-  { n:19, date:"Jul 24", route:"Gap > Alpe d'Huez",        type:"Summit finish",     win:"", upcoming:true, extra:"128 km, 21 hairpins" },
-  { n:20, date:"Jul 25", route:"Alpe d'Huez (queen)",      type:"Queen stage",       win:"", upcoming:true, extra:"Galibier + Sarenne, 5,600 m" },
-  { n:21, date:"Jul 26", route:"Paris > Champs-Elysees",   type:"Finale / Montmartre",win:"", upcoming:true, extra:"Three Montmartre climbs" }
+  { n:15, date:"Jul 19", route:"Champagnole > Plateau de Solaison", type:"Summit finish", win:"Remco Evenepoel", extra:"New summit finish; Evenepoel over Pogacar" },
+  { n:16, date:"Jul 21", route:"Evian-les-Bains > Thonon-les-Bains", type:"Individual TT", win:"Remco Evenepoel", extra:"Back-to-back; beat Pogacar against the clock" },
+  { n:17, date:"Jul 22", route:"Chambery > Voiron",        type:"Hilly sprint",      win:"Jasper Philipsen",  extra:"Third stage win of his Tour" },
+  { n:18, date:"Jul 23", route:"Voiron > Orcieres-Merlette", type:"Summit finish",   win:"Richard Carapaz",   extra:"Soloed from the break in the Alps" },
+  { n:19, date:"Jul 24", route:"Gap > Alpe d'Huez",        type:"Summit finish",     win:"Tadej Pogacar",           extra:"Soloed clear for the Alpe d'Huez win" },
+  { n:20, date:"Jul 25", route:"Bourg d'Oisans > Alpe d'Huez", type:"Queen stage",    win:"R. Carapaz", extra:"Won the second Alpe d'Huez stage ahead of Evenepoel and Kuss" },
+  { n:21, date:"Jul 26", route:"Thoiry > Paris (Champs-Elysees)", type:"Finale / Montmartre",win:"", upcoming:true, extra:"Three Montmartre climbs" }
 ];
+/* Firestore wins, baked is fallback. Updating Full Results is now a boardConfig write, no rebuild. */
+const RACE = (CDF.boardConfig&&Array.isArray(CDF.boardConfig.race)&&CDF.boardConfig.race.length) ? CDF.boardConfig.race : RACE_BAKED;
 
 /* Official top 5 finishers per scored stage (shared race fact, same for every pool).
    Stage 1 is the team time trial, so those are teams. Sources: cyclingstage.com,
@@ -1951,17 +2043,16 @@ const UPCOMING = CDF.upcoming;
 /* Next-stage weather. The widget on the Stats tab fetches a live forecast from
    Open-Meteo (free, no key) for the finish town on `date`. Update place/lat/lon/date
    each time you roll UPCOMING to the next stage. Coordinates are the finish town. */
-const WEATHER = {
-  stage: 17, place: "Voiron", finish: "Chambery > Voiron",
-  lat: 45.366, lon: 5.591, date: "2026-07-22"
+const WEATHER_BAKED = {
+  stage: 21, place: "Paris (Champs-Elysees)", finish: "Thoiry > Paris (Champs-Elysees)",
+  lat: 48.8698, lon: 2.3078, date: "2026-07-26"
 };
+const WEATHER = (CDF.boardConfig&&CDF.boardConfig.weather) || WEATHER_BAKED;
 
 /* The stage AFTER upcoming, for the "Next two stages" card on Stats. Brief course
    info only (no picks). Update it each time UPCOMING rolls forward. */
-const NEXT2 = {
-  n: 18, route: "Voiron > Orcieres-Merlette", type: "Mountain summit finish", km: 185.2,
-  line: "The Alps arrive: 185.2 km from Voiron with about 3,900 m of climbing, closing on the Orcieres-Merlette summit, an 11.5 km climb at 5.4 percent to the line. A GC day where the climbers and yellow-jersey contenders settle it."
-};
+const NEXT2_BAKED = null; /* Stage 21 is the final stage; there is no stage after upcoming. */
+const NEXT2 = (CDF.boardConfig && CDF.boardConfig.next2 !== undefined) ? CDF.boardConfig.next2 : NEXT2_BAKED;
 
 /* "Who's in the break?" live widget. Paste the deployed Cloudflare Worker URL here
    (see break-widget-setup.md). While it is empty the widget stays hidden, so no one
@@ -2572,7 +2663,7 @@ const PERSONA_BY = (function(){
    profile-pic slot and the running medal count (awards add up across the season). */
 (function(){
   const el=document.getElementById('palmares'); if(!el) return;
-  const merIC='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path fill="#3C3B6E" d="M12 8.2l1.15 2.33 2.57.37-1.86 1.81.44 2.56L12 14.06l-2.3 1.21.44-2.56-1.86-1.81 2.57-.37z"/></svg>';
+  const merIC='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#B31942" stroke-width="1.7"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="#3C3B6E" stroke-width="1.7"/><path fill="#3C3B6E" d="M12 8.2l1.15 2.33 2.57.37-1.86 1.81.44 2.56L12 14.06l-2.3 1.21.44-2.56-1.86-1.81 2.57-.37z"/></svg>';
   const MER={}; PL4.forEach(function(p){MER[p]=0;});
   STAGES.forEach(function(s){ ((s.merica&&s.merica.correct)||[]).forEach(function(c){ if(MER[c]!=null) MER[c]++; }); });
   const jerseySVG='<svg viewBox="0 0 48 48" class="pc-jersey" aria-hidden="true"><path d="M17 8l-8 4-4 9 5 3 2-3v16h24V21l2 3 5-3-4-9-8-4-4 4-4 0z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M20 8a4 4 0 008 0" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
@@ -2728,7 +2819,7 @@ function stageCard(st){
           ?`<div class="verify-line"><span class="vflag">NEEDS VERIFY</span> ${st.verify}</div>`
           :`<div class="pending-line">Finishes pending: ${st.verify}</div>`):''}
        ${awardsRow(st)}
-       ${st.merica?`<div class="mer-line"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path fill="#3C3B6E" d="M12 8.2l1.15 2.33 2.57.37-1.86 1.81.44 2.56L12 14.06l-2.3 1.21.44-2.56-1.86-1.81 2.57-.37z"/></svg><span><b>Captain 'Merica:</b> ${st.merica.top} (${ordinal(st.merica.f)})${st.merica.correct&&st.merica.correct.length?' - called by '+st.merica.correct.join(', '):' - nobody called it'}</span></div>`:''}
+       ${st.merica?`<div class="mer-line"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#B31942" stroke-width="1.7"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="#3C3B6E" stroke-width="1.7"/><path fill="#3C3B6E" d="M12 8.2l1.15 2.33 2.57.37-1.86 1.81.44 2.56L12 14.06l-2.3 1.21.44-2.56-1.86-1.81 2.57-.37z"/></svg><span><b>Captain 'Merica:</b> ${st.merica.top} (${ordinal(st.merica.f)})${st.merica.correct&&st.merica.correct.length?' - called by '+st.merica.correct.join(', '):' - nobody called it'}</span></div>`:''}
        <div class="note"><span class="lab">The read</span>${st.reads?codes.filter(k=>st.reads[k]).map(k=>`<div class="readrow"><b>${k}</b> ${st.reads[k]}</div>`).join(''):st.note}</div>`;
   }
   const right = st.voidStage ? `<div class="dns-stamp">DNS</div>`
@@ -2882,7 +2973,7 @@ document.getElementById('stages').insertAdjacentHTML('afterbegin',
   `<div class="stage live open">
     <div class="stage-head" onclick="this.parentElement.classList.toggle('open')">
       <div class="stnum g">ST ${up.n}<small>${up.km} KM</small></div>
-      <div class="stinfo"><div class="route">${up.route}</div>
+      <div class="stinfo"><div class="route">${up.route}${up.flag?` <span class="stage-flag" style="display:inline-block;background:#cf2530;color:#fff;font-weight:800;font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:6px;margin-left:8px;vertical-align:middle">${up.flag}</span>`:''}</div>
         <div class="sub"><span class="type">${up.type}</span><span>&middot;</span><span style="color:var(--gold-d);font-weight:700">${upHasPicks?'Picks in progress':'Next up'}</span></div></div>
       ${profileSVG(up.type)}
       <div class="st-right">Status<br><b style="color:var(--gold-d)">Live</b></div>
@@ -3004,7 +3095,46 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   const wrap=document.getElementById('teamTableWrap'); if(wrap) wrap.innerHTML=html;
   const btn=document.getElementById('seeTableBtn');
   if(btn&&wrap){ btn.addEventListener('click',()=>{ if(wrap.hasAttribute('hidden')){wrap.removeAttribute('hidden');btn.textContent='Hide data table';} else {wrap.setAttribute('hidden','');btn.textContent='See data table';} }); }
+  /* Le Maillot Arlequin bar: distinct 2026 teams drafted, progress toward all 23. */
+  const arlEl=document.getElementById('arlequinBar');
+  if(arlEl){
+    const COL=(function(){var _p=['#c9971a','#26347e','#2f8f52','#cf2530'],_s=CDF.order.slice().sort(),o={};_s.forEach(function(c,i){o[c]=_p[i%_p.length];});return o;})();
+    const nameOf=c=>(CDF.names&&CDF.names[c])||c;
+    const MIN=15, MAXT=23;
+    const scores=PL.map(p=>({p,n:Object.keys(counts[p]).length})).sort((a,b)=>b.n-a.n||a.p.localeCompare(b.p));
+    const leader=scores[0]||{p:null,n:0};
+    const anyQual=scores.some(s=>s.n>=MIN);
+    const holder=anyQual?`${nameOf(leader.p)} leads at ${leader.n} teams`:`No one has cleared ${MIN} yet &middot; ${nameOf(leader.p)} leads with ${leader.n}`;
+    const rows=scores.map((s,i)=>{
+      const pct=Math.round(s.n/MAXT*100), col=COL[s.p]||'#c9971a', qual=s.n>=MIN, hold=qual&&i===0;
+      return `<div class="arl-row${hold?' lead':''}"><span class="arl-pos">${i+1}</span><span class="arl-nm">${nameOf(s.p)}</span><span class="arl-track"><span class="arl-thresh" style="left:${(MIN/MAXT*100).toFixed(1)}%" title="15 to qualify"></span><span class="arl-fill" style="width:${Math.max(pct,4)}%;background:${col}"></span></span><span class="arl-val">${s.n}${qual?'<small class="arl-ck">&#10003;</small>':''}</span></div>`;
+    }).join('');
+    arlEl.innerHTML=`<div class="arl-emblem"><img src="emblem-arlequin.png" alt="Le Maillot Arlequin" onerror="this.closest('.arl-emblem').style.display='none'"></div><div class="arl-body"><div class="arl-h">Le Maillot Arlequin</div><div class="arl-tag">Largest variety of teams</div><div class="arl-sub">Goes to whoever ends the Tour having drafted the largest variety of teams. Everyone stays in the running; ${MIN} teams is the minimum to qualify, and the gold line marks it.</div><div class="arl-hold">${holder}</div><div class="arl-rows">${rows}</div></div>`;
+  }
 })();
+
+;
+
+/* Captain 'Merica season tracker: shield tally + stage-by-stage American watch, from STAGES.merica. */
+(function(){ try{
+  const el=document.getElementById('mericaTracker'); if(!el) return;
+  const S=(typeof STAGES!=='undefined')?STAGES:[]; if(!S.length){ el.innerHTML='<div class="msub">The tracker fills in as stages are scored.</div>'; return; }
+  const PL=(CDF.seats||CDF.order).slice();
+  const COL=(function(){var _p=['#c9971a','#26347e','#2f8f52','#cf2530'],_s=CDF.order.slice().sort(),o={};_s.forEach(function(c,i){o[c]=_p[i%_p.length];});return o;})();
+  const nameOf=c=>(CDF.names&&CDF.names[c])||c;
+  function ord(n){ const s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+  const SH='<svg class="mt-shico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#B31942" stroke-width="2"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="#3C3B6E" stroke-width="2"/><path fill="#3C3B6E" d="M12 8.2l1.15 2.33 2.57.37-1.86 1.81.44 2.56L12 14.06l-2.3 1.21.44-2.56-1.86-1.81 2.57-.37z"/></svg>';
+  const MER={}; PL.forEach(p=>MER[p]=0); const watch=[];
+  S.forEach(s=>{ if(s.merica&&s.merica.top){ watch.push(s); (s.merica.correct||[]).forEach(c=>{ if(MER[c]!=null) MER[c]++; }); } });
+  watch.sort((a,b)=>b.n-a.n);
+  const max=Math.max(0,...PL.map(p=>MER[p]));
+  const holders=PL.filter(p=>MER[p]===max&&max>0);
+  const holderTxt=holders.length?(holders.length===1?nameOf(holders[0])+' holds the jersey':holders.map(nameOf).join(' & ')+' share the lead'):'Up for grabs';
+  const board=PL.map(p=>({p,n:MER[p]})).sort((a,b)=>b.n-a.n||a.p.localeCompare(b.p));
+  const tally=board.map(b=>{const hold=max>0&&b.n===max;const sh=b.n>0?Array(Math.min(b.n,10)).fill(SH).join(''):'<span class="mt-none">no shields yet</span>';return `<div class="mt-row${hold?' hold':''}"><span class="mt-nm">${nameOf(b.p)}</span><span class="mt-shields">${sh}</span><span class="mt-ct" style="color:${COL[b.p]||'#1b1a17'}">${b.n}</span></div>`;}).join('');
+  const wrows=watch.map(s=>{const cor=(s.merica.correct||[]).map(nameOf);const who=cor.length?cor.join(', '):'no call took it';return `<div class="mt-wrow"><span class="mt-wn">St ${s.n}</span><span class="mt-wr">${s.merica.top} <em>${ord(s.merica.f)}</em></span><span class="mt-ww">${who}</span></div>`;}).join('');
+  el.innerHTML=`<div class="mt-top"><div class="mt-emblem"><img src="emblem-captain.png" alt="Captain 'Merica" onerror="this.closest('.mt-emblem').style.display='none'"></div><div class="mt-tally"><div class="mt-hold"><span class="mt-holdlab">Current holder</span><span class="mt-holdnm">${holderTxt}</span></div>${tally}</div></div>${watch.length?`<div class="mt-watch"><div class="mt-wlab">Stage-by-stage American watch</div>${wrows}</div>`:''}`;
+}catch(e){ console.error('merica tracker',e); } })();
 
 ;
 
@@ -3077,9 +3207,11 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
     return r;
   }
   const rCur=crank(cur,true), rPts=crank(pts,false);
-  const leadCur=Math.min(...PL.map(p=>cur[p])), leadPts=Math.max(...PL.map(p=>pts[p]))||1;
+  const leadCur=Math.min(...PL.map(p=>cur[p])), maxCur=Math.max(...PL.map(p=>cur[p]))||1, leadPts=Math.max(...PL.map(p=>pts[p]))||1;
   const bar=(w,c)=>`<span class="wi-track"><span class="wi-fill" style="width:${Math.max(w,6).toFixed(0)}%;background:${c}"></span></span>`;
-  const rowT=p=>`<div class="wi-row"><span class="wi-rank">${rCur[p]}</span><span class="wi-p" style="color:${COL[p]}">${p}</span>${bar(leadCur/cur[p]*100,COL[p])}<span class="wi-val">${cur[p]} <small>total</small></span></div>`;
+  // Placement bar is proportional to the actual total (lowest leads), so a bigger
+  // number draws a bigger bar - the bar reads the same direction as the score.
+  const rowT=p=>`<div class="wi-row"><span class="wi-rank">${rCur[p]}</span><span class="wi-p" style="color:${COL[p]}">${p}</span>${bar(cur[p]/maxCur*100,COL[p])}<span class="wi-val">${cur[p]} <small>total</small></span></div>`;
   const rowP=p=>{ const d=rCur[p]-rPts[p];
     const move=d>0?`<span class="wi-move up">up ${d}</span>`:d<0?`<span class="wi-move down">down ${-d}</span>`:`<span class="wi-move same">holds</span>`;
     return `<div class="wi-row"><span class="wi-rank">${rPts[p]}</span><span class="wi-p" style="color:${COL[p]}">${p}</span>${bar(pts[p]/leadPts*100,COL[p])}<span class="wi-val">${pts[p]} <small>pts</small></span>${move}</div>`; };
@@ -3393,91 +3525,110 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
     return chips?'<span class="bw-jers">'+chips+'</span>':'';
   }
 
+  function ordN(n){ n=Number(n)||0; var s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+
   function render(data){
     if(!data || data.error){ BODY.className='bw-body has'; BODY.innerHTML=controlsRow('')+'<div class="bw-muted">Could not reach the live feed right now. Hit Refresh in a moment.</div>'; wireRefresh(); return; }
-    if(!data.live || !data.groups || !data.groups.length){ BODY.className='bw-body has'; BODY.innerHTML=controlsRow('')+'<div class="bw-muted">No live race on the road right now. This lights up once the stage rolls out.</div>'; wireRefresh(); return; }
-    var groups=data.groups.slice();
+    var groups=(data.live && data.groups)?data.groups.slice():[];
+    var finished=Array.isArray(data.finished)?data.finished:[];
+    if(!groups.length && !finished.length){ BODY.className='bw-body has'; BODY.innerHTML=controlsRow(stampNow(data))+'<div class="bw-muted">No live race on the road right now. This lights up once the stage rolls out.</div>'; wireRefresh(); stopPoll(); return; }
     var jerseys=data.jerseys||null;
-    var front=groups[0]; // Worker sorts by order, so [0] is the front of the race
-    var peloton=null;
-    for(var i=0;i<groups.length;i++){ if(/peloton|bunch/i.test(groups[i].name||'')){ peloton=groups[i]; break; } }
-    if(!peloton){ peloton=groups.reduce(function(a,b){return b.count>a.count?b:a;},groups[0]); }
-    var hasBreak=groups.length>1 && front!==peloton;
 
-    // label every group: Breakaway / Chase 1..N / Peloton / Dropped 1..N
-    var pIdx=groups.indexOf(peloton), chase=0, dropped=0;
-    groups.forEach(function(g,idx){
-      if(g===peloton){ g.label='Peloton'; }
-      else if(idx===0 && hasBreak){ g.label='Breakaway'; }
-      else if(idx<pIdx){ chase++; g.label='Chase '+chase; }
-      else { dropped++; g.label='Dropped'+(groups.length-pIdx>2?' '+dropped:''); }
-    });
-    if(!hasBreak) front.label='Peloton';
+    // Split pool picks: finishers (over the line, from the stage classification)
+    // versus those still out on the road. A finisher always wins over any on-road
+    // group so a rider who has crossed the line never shows as "Off the back".
+    function finEntry(rider){ for(var k=0;k<finished.length;k++){ if(matches(finished[k].name,rider)) return finished[k]; } return null; }
+    var allPicks=poolPicks();
+    var finPicks=[], picks=[];
+    allPicks.forEach(function(pp){ var fe=finEntry(pp.rider); if(fe){ finPicks.push({pp:pp,pos:fe.pos}); } else { picks.push(pp); } });
+    finPicks.sort(function(a,b){return (a.pos||999)-(b.pos||999);});
 
-    var picks=poolPicks();
-    var rows=picks.map(function(pp){
-      var grp=null;
-      groups.forEach(function(g){ if(!grp && g.riders.some(function(rn){return matches(rn,pp.rider);})) grp=g; });
-      var status,cls;
-      if(!grp){ status='Not shown'; cls='out'; }
-      else if(grp===front && hasBreak){ status='In the break'; cls='break'; }
-      else if(grp===peloton){ status='In the bunch'; cls='bunch'; }
-      else { status=grp.label; cls='chase'; }
-      return {pp:pp,cls:cls,status:status};
-    });
-    var order={break:0,chase:1,bunch:2,out:3};
-    rows.sort(function(a,b){return order[a.cls]-order[b.cls];});
-    var nBreak=rows.filter(function(r){return r.cls==='break';}).length;
+    var finHtml = finPicks.length
+      ? '<div class="bw-grp"><div class="bw-div"><span class="bw-gname bw-glead">Over the line</span>'
+        +'<span class="bw-rule"></span><span class="bw-gcount">'+finPicks.length+' in</span></div>'
+        +'<div class="bw-gours">'+finPicks.map(function(f){
+            return '<span class="bw-pick"><b style="color:'+COL[f.pp.p]+'">'+f.pp.p+'</b>'+esc(f.pp.rider)+' &middot; '+(f.pos?ordN(f.pos):'in')+'</span>';
+          }).join('')+'</div></div>'
+      : '';
 
-    var head = hasBreak
-      ? 'A break of <b>'+front.count+'</b> is up the road, <b>'+nBreak+'</b> of ours in it.'
-      : 'No break has gone yet, the race is all together.';
-    var meta = hasBreak
-      ? front.kmToGo+' km to go &middot; peloton at +'+gapStr(peloton.gap)
-      : (front.kmToGo?front.kmToGo+' km to go':'');
+    var front=null, peloton=null, hasBreak=false, ladder='', head='', meta='';
+    if(groups.length){
+      front=groups[0]; // Worker sorts by order, so [0] is the front of the race
+      for(var i=0;i<groups.length;i++){ if(/peloton|bunch/i.test(groups[i].name||'')){ peloton=groups[i]; break; } }
+      if(!peloton){ peloton=groups.reduce(function(a,b){return b.count>a.count?b:a;},groups[0]); }
+      hasBreak=groups.length>1 && front!==peloton;
 
-    // one structure: each group is a label-and-line divider with the gap and
-    // count riding the line, our picks as compact cards inside their group,
-    // and a roster expander per group. No separate status list.
-    var ladder = groups.map(function(g,idx){
-      var ours=picks.filter(function(pp){ return g.riders.some(function(rn){return matches(rn,pp.rider);}); });
-      var oursHtml=ours.length?'<div class="bw-gours">'+ours.map(function(pp){
-        return '<span class="bw-pick"><b style="color:'+COL[pp.p]+'">'+pp.p+'</b>'+esc(pp.rider)+'</span>';
-      }).join('')+'</div>':'';
-      var names=g.riders.map(function(rn){
-        var mine=picks.some(function(pp){return matches(rn,pp.rider);});
-        return '<span class="bw-name'+(mine?' ours':'')+'">'+esc(rn)+'</span>';
+      // label every group: Breakaway / Chase 1..N / Peloton / Dropped 1..N
+      var pIdx=groups.indexOf(peloton), chase=0, dropped=0;
+      groups.forEach(function(g,idx){
+        if(g===peloton){ g.label='Peloton'; }
+        else if(idx===0 && hasBreak){ g.label='Breakaway'; }
+        else if(idx<pIdx){ chase++; g.label='Chase '+chase; }
+        else { dropped++; g.label='Dropped'+(groups.length-pIdx>2?' '+dropped:''); }
+      });
+      if(!hasBreak) front.label='Peloton';
+
+      var nBreak=picks.filter(function(pp){ return hasBreak && front.riders.some(function(rn){return matches(rn,pp.rider);}); }).length;
+      head = hasBreak
+        ? 'A break of <b>'+front.count+'</b> is up the road, <b>'+nBreak+'</b> of ours in it.'
+        : 'No break has gone yet, the race is all together.';
+      meta = hasBreak
+        ? front.kmToGo+' km to go &middot; peloton at +'+gapStr(peloton.gap)
+        : (front.kmToGo?front.kmToGo+' km to go':'');
+
+      // one structure: each group is a label-and-line divider with the gap and
+      // count riding the line, our picks as compact cards inside their group,
+      // and a roster expander per group. No separate status list.
+      ladder = groups.map(function(g,idx){
+        var ours=picks.filter(function(pp){ return g.riders.some(function(rn){return matches(rn,pp.rider);}); });
+        var oursHtml=ours.length?'<div class="bw-gours">'+ours.map(function(pp){
+          return '<span class="bw-pick"><b style="color:'+COL[pp.p]+'">'+pp.p+'</b>'+esc(pp.rider)+'</span>';
+        }).join('')+'</div>':'';
+        var names=g.riders.map(function(rn){
+          var mine=picks.some(function(pp){return matches(rn,pp.rider);});
+          return '<span class="bw-name'+(mine?' ours':'')+'">'+esc(rn)+'</span>';
+        }).join('');
+        var gapTxt = idx===0 ? (g.kmToGo?g.kmToGo+' km to go':'front') : '+'+gapStr(g.gap);
+        var lead=(idx===0&&hasBreak);
+        return '<div class="bw-grp">'
+          +'<div class="bw-div"><span class="bw-gname'+(lead?' bw-glead':'')+'">'+esc(g.label)+'</span>'
+          +jerseyChips(g,jerseys)
+          +'<button class="bw-gbtn" type="button" data-bwg="'+idx+'">Show all riders &gt;</button>'
+          +'<span class="bw-rule"></span>'
+          +'<span class="bw-ggap">'+gapTxt+'</span>'
+          +'<span class="bw-gcount">'+g.count+' rider'+(g.count===1?'':'s')+'</span></div>'
+          +oursHtml
+          +'<div class="bw-glist" data-bwl="'+idx+'" style="display:none">'+names+'</div>'
+          +'</div>';
       }).join('');
-      var gapTxt = idx===0 ? (g.kmToGo?g.kmToGo+' km to go':'front') : '+'+gapStr(g.gap);
-      var lead=(idx===0&&hasBreak);
-      return '<div class="bw-grp">'
-        +'<div class="bw-div"><span class="bw-gname'+(lead?' bw-glead':'')+'">'+esc(g.label)+'</span>'
-        +jerseyChips(g,jerseys)
-        +'<button class="bw-gbtn" type="button" data-bwg="'+idx+'">Show all riders &gt;</button>'
-        +'<span class="bw-rule"></span>'
-        +'<span class="bw-ggap">'+gapTxt+'</span>'
-        +'<span class="bw-gcount">'+g.count+' rider'+(g.count===1?'':'s')+'</span></div>'
-        +oursHtml
-        +'<div class="bw-glist" data-bwl="'+idx+'" style="display:none">'+names+'</div>'
-        +'</div>';
-    }).join('');
+    } else {
+      // no on-road groups: the stage is finishing/done, only finishers remain
+      head = finPicks.length ? 'Riders are crossing the line.' : 'The stage is wrapping up.';
+    }
 
-    // picks the feed does not place right now stay visible under their own line
-    var missing=rows.filter(function(r){return r.cls==='out';});
+    // picks still on the road that the feed cannot place (grupetto, or all done)
+    var missing=picks.filter(function(pp){ return !groups.some(function(g){return g.riders.some(function(rn){return matches(rn,pp.rider);});}); });
+    var missLabel=groups.length?'Off the back':'Still out there';
     var missingHtml=missing.length
-      ? '<div class="bw-grp"><div class="bw-div"><span class="bw-gname">Off the back</span><span class="bw-rule"></span></div>'
-        +'<div class="bw-gours">'+missing.map(function(r){
-          return '<span class="bw-pick"><b style="color:'+COL[r.pp.p]+'">'+r.pp.p+'</b>'+esc(r.pp.rider)+'</span>';
+      ? '<div class="bw-grp"><div class="bw-div"><span class="bw-gname">'+missLabel+'</span><span class="bw-rule"></span></div>'
+        +'<div class="bw-gours">'+missing.map(function(pp){
+          return '<span class="bw-pick"><b style="color:'+COL[pp.p]+'">'+pp.p+'</b>'+esc(pp.rider)+'</span>';
         }).join('')+'</div></div>'
       : '';
 
+    var allIn = allPicks.length>0 && finPicks.length>=allPicks.length;
+    var foot = allIn
+      ? 'Every one of our picks is over the line. Placings settle when the stage is made official.'
+      : 'Live from the official race feed. Finishers move to Over the line with their placing as they cross, and the panel keeps refreshing until all of ours are in. The feed only tracks race-relevant groups, so a rider dropped into an untracked grupetto sits under '+missLabel+' until it picks them up.';
+
     BODY.className='bw-body has';
     BODY.innerHTML=controlsRow(stampNow(data))
-      +'<div class="bw-headline">'+head+'</div>'
+      +(head?'<div class="bw-headline">'+head+'</div>':'')
       +(meta?'<div class="bw-meta">'+meta+'</div>':'')
+      +finHtml
       +ladder
       +missingHtml
-      +'<div class="bw-foot">Live from the official race feed, which only tracks the race-relevant groups - riders dropped into an untracked grupetto sit under Off the back until the feed picks their group up again. Jersey cards mark where the classification leaders are riding. Hit Refresh for a new snapshot.</div>';
+      +'<div class="bw-foot">'+foot+'</div>';
 
     BODY.querySelectorAll('.bw-gbtn').forEach(function(btn){
       btn.addEventListener('click',function(){
@@ -3488,6 +3639,20 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
       });
     });
     wireRefresh();
+    schedulePoll(data, allIn);   // auto-refresh until every pick is over the line
+  }
+
+  /* Auto-refresh (Allen, 2026-07-24): while the panel is open and a stage is live
+     or finishing, re-pull every 45s so finishers land in "Over the line" on their
+     own; stop the moment all of our picks are in, or the panel closes. */
+  var bwPoll=null;
+  function stopPoll(){ if(bwPoll){ clearTimeout(bwPoll); bwPoll=null; } }
+  function schedulePoll(data, allIn){
+    stopPoll();
+    if(!bwOpen || allIn) return;
+    var alive = data && (data.live || (Array.isArray(data.finished) && data.finished.length));
+    if(!alive || !poolPicks().length) return;
+    bwPoll=setTimeout(function(){ if(bwOpen) doFetch(); }, 45000);
   }
 
   /* Endpoint failover + last-good snapshot (2026-07-22 rebuild).
@@ -3526,6 +3691,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   }
 
   function doFetch(){
+    stopPoll();   // a fresh pull (manual or scheduled) resets the auto-refresh cycle
     var rf=document.getElementById('bwRefresh'); if(rf) rf.disabled=true;
     BODY.className='bw-body has'; BODY.innerHTML='<div class="bw-muted">Reading the race...</div>';
     var stage=(typeof UPCOMING!=='undefined'&&UPCOMING.n)?UPCOMING.n:'';
@@ -3550,7 +3716,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   }
 
   var bwOpen=false;
-  function setOpen(o){ bwOpen=o; BODY.style.display=o?'':'none'; BTN.textContent=o?'Hide':"Who's in the break?"; }
+  function setOpen(o){ bwOpen=o; if(!o) stopPoll(); BODY.style.display=o?'':'none'; BTN.textContent=o?'Hide':"Who's in the break?"; }
   setOpen(false);
 
   BTN.addEventListener('click',function(){
@@ -3702,3 +3868,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 <div id="cdfBuild" title="Build version - if this differs from the newest, the page is cached">pool v2026.07.23-breakfix</div>
 </body>
 </html>
+<!-- redeploy: rebuild stale staging copy, 2026-08-09T15:02Z -->
