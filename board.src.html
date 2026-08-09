@@ -1235,6 +1235,15 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 const $=id=>document.getElementById(id);
 let myEmail=null,isOwner=false,poolId=null,pool=null,STAGE=null,ORDER=[],SNAKE=[],PMETA={},JUDGE=null,myCode=null,isJudge=false,draft=null,unsub=null,chosen=null;
 const DEFAULT_POOL='{{DEFAULT_POOL}}';
+// Pool routing. A pool with its own skinned board file must open THAT file: the
+// switcher used to send every pool to the generic /board.html, so the Vuelta
+// loaded its data inside the Tour's gold shell. boardPath on the pool doc wins
+// when set; POOL_PAGE is the fallback so routing is correct with no data edit.
+const POOL_PAGE={'col-du-fantasy':'/tour.html','vuelta-2026':'/vuelta.html'};
+function poolHref(pid,path){ var p=path||POOL_PAGE[pid]||'/board.html'; return location.origin+p+'?pool='+encodeURIComponent(pid); }
+// True when this page is already the right board file for that pool. Lets the
+// checked entry still navigate when the pool is right but the shell is wrong.
+function onPoolPage(pid){ var w=POOL_PAGE[pid]; if(!w) return true; var h=location.pathname.toLowerCase(); if(h===w) return true; if(w==='/tour.html'&&(h==='/'||h==='/index.html')) return true; return false; }
 const paramPool=new URLSearchParams(location.search).get('pool')||DEFAULT_POOL||null;
 function showGate(msg,err,asHtml){ document.documentElement.classList.remove('gated'); document.body.classList.remove('gated'); var g=$('gate'); if(g){g.style.display='block'; g.classList.add('ask'); if(msg){var m=$('gate-msg')||$('gmsg'); if(m){ if(asHtml){m.innerHTML=msg;}else{m.textContent=msg;} m.className='gate-msg'+(err?' err':'');}}} }
 // Show the spinner (never the login card) with a status label. Used the instant
@@ -1352,7 +1361,7 @@ auth.onAuthStateChanged(async user=>{
           var _mine=(_idx.exists?(_idx.data().pools||[]):[]).filter(function(p){return p && p!==paramPool;});
           if(_mine.length){
             diag('not a member of '+paramPool+'; rerouting to '+_mine[0]);
-            location.replace(location.origin+'/board.html?pool='+encodeURIComponent(_mine[0])+'&rr=1');
+            location.replace(poolHref(_mine[0],null)+'&rr=1');
             return;
           }
         }catch(_re){ diag('reroute lookup failed: '+(_re&&(_re.code||_re.message||_re))); }
@@ -1485,12 +1494,12 @@ async function buildAcctMenu(){
     var who=$('acctWho'); if(who) who.textContent=myEmail||'';
     var ft=$('acctFabTxt'); if(ft) ft.textContent=(myCode || (myEmail? myEmail[0].toUpperCase() : 'CDF'));
     var pools=[];
-    if(isOwner){ var all=await db.collection('pools').get(); all.forEach(function(d){ pools.push({id:d.id,name:(d.data().name||d.id)}); }); }
+    if(isOwner){ var all=await db.collection('pools').get(); all.forEach(function(d){ pools.push({id:d.id,name:(d.data().name||d.id),path:(d.data().boardPath||'')}); }); }
     else { var idx=await db.doc('userPools/'+myEmail).get(); var list=(idx.exists&&idx.data().pools)||[];
-      for(var i=0;i<list.length;i++){ try{ var s=await db.doc('pools/'+list[i]).get(); if(s.exists) pools.push({id:list[i],name:(s.data().name||list[i])}); }catch(e){} } }
-    if(!pools.some(function(p){return p.id===poolId;})) pools.unshift({id:poolId,name:(pool&&pool.name)||poolId});
+      for(var i=0;i<list.length;i++){ try{ var s=await db.doc('pools/'+list[i]).get(); if(s.exists) pools.push({id:list[i],name:(s.data().name||list[i]),path:(s.data().boardPath||'')}); }catch(e){} } }
+    if(!pools.some(function(p){return p.id===poolId;})) pools.unshift({id:poolId,name:(pool&&pool.name)||poolId,path:(pool&&pool.boardPath)||''});
     var box=$('acctPools');
-    if(box){ box.innerHTML=pools.map(function(p){ return '<button class="acct-pool'+(p.id===poolId?' cur':'')+'" type="button" data-pool="'+esc(p.id)+'">'+esc(p.name)+'</button>'; }).join(''); }
+    if(box){ box.innerHTML=pools.map(function(p){ return '<button class="acct-pool'+(p.id===poolId?' cur':'')+'" type="button" data-pool="'+esc(p.id)+'" data-href="'+esc(poolHref(p.id,p.path))+'">'+esc(p.name)+'</button>'; }).join(''); }
     fab.classList.add('show');
   }catch(e){ console.error('acct menu',e); }
 }
@@ -1498,7 +1507,7 @@ document.addEventListener('click',function(e){
   var t=e.target;
   if(t.closest&&t.closest('#acctFab')){ var p=$('acctPanel'); if(p) p.classList.toggle('show'); return; }
   var pb=t.closest&&t.closest('.acct-pool');
-  if(pb){ var pid=pb.getAttribute('data-pool'); if(pid && pid!==poolId){ location.href=location.origin+'/board.html?pool='+encodeURIComponent(pid); } else { var pn=$('acctPanel'); if(pn) pn.classList.remove('show'); } return; }
+  if(pb){ var pid=pb.getAttribute('data-pool'); var href=pb.getAttribute('data-href')||poolHref(pid,null); if(pid && (pid!==poolId || !onPoolPage(pid))){ location.href=href; } else { var pn=$('acctPanel'); if(pn) pn.classList.remove('show'); } return; }
   if(t.closest&&t.closest('#acctOut')){ cdfSignOut(); return; }
   var pnl=$('acctPanel'); if(pnl&&pnl.classList.contains('show') && !(t.closest&&t.closest('#acctPanel'))){ pnl.classList.remove('show'); }
 });

@@ -163,11 +163,14 @@ right skin, then Share and Add to Home Screen.
 
 ## Open items
 
-- Pool switch routing fix: patch written as `patch_pool_routing.py`, validated,
-  not yet pushed as of 2026-08-09. Run the script against fresh HEAD, rebuild,
-  validate, push.
-- Optional follow-on: set `boardPath: '/vuelta.html'` on `pools/vuelta-2026` so
-  routing is data-driven and the next race needs no code edit.
+- Pool switch routing fix: SHIPPED 2026-08-09. `patch_pool_routing.py` applied to
+  both sources, rebuilt, validated, pushed to main. The switcher and the sign-in
+  roster reroute now go through `poolHref()`, and `onPoolPage()` gives the
+  checked entry an escape hatch when the shell is wrong. The script is idempotent
+  and now a no-op against these sources; keep it as the record of the edit.
+- Optional follow-on, still open: set `boardPath: '/vuelta.html'` on
+  `pools/vuelta-2026` so routing is data-driven and the next race needs no code
+  edit. The code already prefers `boardPath` over the `POOL_PAGE` map.
 - `og:image` on the Vuelta board is still `tour-og.png`, so link shares preview a
   Tour graphic. Needs a Vuelta asset.
 - `SHARED_UPCOMING` and `RACE_BAKED` in `vuelta.src.html` still hold Tour data.
