@@ -437,6 +437,21 @@
   .foot-bar{margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,.12);font-size:11px;color:#8f8a7f;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .src{word-break:break-word;color:#9a958a}
 
+  /* ---- Sponsors band (above footer, data-driven from boardConfig.sponsors) ---- */
+  .sponsors{margin-top:44px;background:var(--paper2);border:1px solid var(--line);border-radius:20px;padding:26px 30px 30px;text-align:center;box-shadow:var(--sh)}
+  .spon-k{font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;letter-spacing:2.6px;text-transform:uppercase;color:var(--mute)}
+  .spon-k::before,.spon-k::after{content:"";display:inline-block;width:26px;height:2px;border-radius:2px;background:var(--gold);vertical-align:middle;margin:0 12px 3px}
+  .spon-sub{font-size:12.5px;color:var(--mute);margin-top:7px}
+  .spon-row{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:16px;margin-top:22px}
+  .spon-tile{flex:0 0 auto;display:flex;align-items:center;justify-content:center;height:80px;min-width:168px;padding:14px 24px;background:#fff;border-radius:16px;box-shadow:var(--sh);text-decoration:none;transition:transform .15s,box-shadow .15s}
+  a.spon-tile:hover{transform:translateY(-2px);box-shadow:var(--sh-lg)}
+  .spon-tile img{max-height:48px;max-width:180px;object-fit:contain;filter:grayscale(1);opacity:.72;transition:filter .2s,opacity .2s}
+  a.spon-tile:hover img{filter:none;opacity:1}
+  .spon-tile .spon-name{font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;letter-spacing:.2px;color:var(--ink)}
+  .spon-tile.empty{background:#f0ede4;box-shadow:none}
+  .spon-tile.empty span{font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--grayd)}
+  @media(max-width:560px){ .sponsors{padding:22px 18px 24px;border-radius:16px} .spon-tile{min-width:130px;height:66px;padding:10px 16px} .spon-tile img{max-height:38px;max-width:130px} }
+
   @media(max-width:760px){
     .info{grid-template-columns:1fr;gap:26px}
     .twocol{grid-template-columns:1fr;gap:22px}
@@ -1310,6 +1325,12 @@
     <div class="hm-value" id="hmValue"></div>
     <h3 class="hm-h" style="margin-top:20px">Best value nobody else touched</h3>
     <div id="hmSolo"></div>
+  </section>
+
+  <section class="sponsors" id="sponsorBand" aria-label="Sponsors">
+    <div class="spon-k">Sponsors</div>
+    <div class="spon-sub" id="sponSub"></div>
+    <div class="spon-row" id="sponsorRow"></div>
   </section>
 
   <footer class="foot">
@@ -2392,6 +2413,34 @@ document.getElementById('heroLead').innerHTML = `
   }
   placeRace();
   window.addEventListener('resize', placeRace);
+})();
+
+/* Sponsors band: data-driven from CDF.boardConfig.sponsors (array of
+   {name, logo, url}). Logo tiles link out (new tab, grayscale > color on hover);
+   a sponsor with no logo shows its name as a wordmark. Empty = tasteful
+   "space available" slots. Adding a sponsor is a boardConfig write, no rebuild. */
+(function(){
+  try{
+    var row=document.getElementById('sponsorRow'); if(!row) return;
+    var sub=document.getElementById('sponSub');
+    var list=(CDF.boardConfig&&Array.isArray(CDF.boardConfig.sponsors))?CDF.boardConfig.sponsors.filter(function(s){return s&&(s.logo||s.name);}):[];
+    if(list.length){
+      if(sub) sub.style.display='none';
+      row.innerHTML=list.map(function(s){
+        var inner=s.logo
+          ? '<img src="'+esc(s.logo)+'" alt="'+esc(s.name||'Sponsor')+'" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'spon-name\',textContent:'+JSON.stringify(s.name||'Sponsor')+'}))">'
+          : '<span class="spon-name">'+esc(s.name||'Sponsor')+'</span>';
+        return s.url
+          ? '<a class="spon-tile" href="'+esc(s.url)+'" target="_blank" rel="noopener noreferrer" title="'+esc(s.name||'Sponsor')+'">'+inner+'</a>'
+          : '<div class="spon-tile" title="'+esc(s.name||'Sponsor')+'">'+inner+'</div>';
+      }).join('');
+    }else{
+      if(sub){ sub.textContent='This space is available.'; sub.style.display=''; }
+      var slots=3, out='';
+      for(var i=0;i<slots;i++){ out+='<div class="spon-tile empty"><span>Available</span></div>'; }
+      row.innerHTML=out;
+    }
+  }catch(e){ console.error('sponsors render',e); }
 })();
 
 /* callouts */
