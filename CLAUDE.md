@@ -6,6 +6,10 @@ does not. Keep this file updated in the same commit as any change it describes.
 
 Operator: Allen Abbott. Owner account: allen@ascentpartnersltd.com.
 
+`Vuelta-Fantasy-Build-Plan.md` is referenced in instructions but lives in Allen's
+Claude project knowledge, not in this repo. Do not go looking for it here. Ask
+Allen to paste the relevant section if a task depends on it.
+
 ## What this is
 
 A private, operator-run daily-pick fantasy cycling pool. Four players per pool,
@@ -261,10 +265,17 @@ leader chips, trend-line captions) has to follow that race's profile.
   `pools/vuelta-2026` so routing is data-driven and the next race needs no code
   edit. The code already prefers `boardPath` over the `POOL_PAGE` map.
 - `og:image` on the Vuelta board is still `tour-og.png`, so link shares preview a
-  Tour graphic. BLOCKED 2026-08-10: the swap needs `vuelta-og.png` and
-  `make_vuelta_og.py`, which have not landed in the repo. `board.src.html` already
+  Tour graphic. BLOCKED, asked for twice, 2026-08-10. The swap needs `vuelta-og.png`
+  and `make_vuelta_og.py`. Both have been reported as "in the chat" and then as
+  "saved to Downloads"; neither has actually appeared in either place. Nothing is
+  wrong with the plan, the two files just have not landed. `board.src.html` already
   has the full absolute-URL og set pointing at `tour-og.png`, which is correct for
   the Tour; mirror that block into `vuelta.src.html` the moment the asset exists.
+  Gate before flipping og:image: `https://coldufantasy.com/vuelta-og.png` must
+  return 200 with content-type image/png, and the PNG must be 1200x630.
+- Rename `gcPlace` and `barsPlace`, which now render Fantasy Points on the Vuelta
+  board and so are misleadingly named. Approved 2026-08-10 as its OWN commit, not
+  bundled with feature work.
 - `SHARED_UPCOMING` and `RACE_BAKED` in `vuelta.src.html` still hold Tour data.
   They sit below the Vuelta calendar in the fallback chain and are only reachable
   as a last resort. Could be emptied.

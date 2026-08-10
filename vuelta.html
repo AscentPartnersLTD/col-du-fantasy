@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260810-224021Z -->
+<head><!-- build:20260810-225213Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -345,15 +345,19 @@
   .medal.mer.zero{background:#f3f1ea}
   .medal.mer.zero svg circle{stroke:#c2bcae}
   .medal.mer.zero svg path{fill:#c2bcae}
-  .pc-story{font-size:11.5px;line-height:1.5;color:var(--ink2);border-top:1px solid var(--line);padding-top:11px;margin-top:2px}
-  .pc-jerseys{margin-top:11px;border-top:1px solid var(--line);padding-top:9px}
-  .pc-jerseys summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:'Montserrat',sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--red,#c8102e)}
-  .pc-jerseys summary::-webkit-details-marker{display:none}
-  .pc-jerseys summary .jtog{width:15px;height:15px;position:relative;flex:none}
-  .pc-jerseys summary .jtog::before,.pc-jerseys summary .jtog::after{content:'';position:absolute;background:currentColor;border-radius:2px}
-  .pc-jerseys summary .jtog::before{left:2px;right:2px;top:6.5px;height:2px}
-  .pc-jerseys summary .jtog::after{top:2px;bottom:2px;left:6.5px;width:2px;transition:opacity .18s}
-  .pc-jerseys[open] summary .jtog::after{opacity:0}
+  /* The rider-profile blurb and the jersey case are the two collapsible sections on a
+     player card. They share one set of rules so the summaries are identical: same font,
+     size, weight, color, padding, caret, and native-marker hiding. The <details> wrapper
+     owns the divider, so .pc-story itself carries no border. */
+  .pc-story{font-size:11.5px;line-height:1.5;color:var(--ink2);margin-top:9px}
+  .pc-jerseys,.pc-story-d{margin-top:11px;border-top:1px solid var(--line);padding-top:9px}
+  .pc-jerseys summary,.pc-story-d summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:'Montserrat',sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--red,#c8102e)}
+  .pc-jerseys summary::-webkit-details-marker,.pc-story-d summary::-webkit-details-marker{display:none}
+  .pc-jerseys summary .jtog,.pc-story-d summary .jtog{width:15px;height:15px;position:relative;flex:none}
+  .pc-jerseys summary .jtog::before,.pc-jerseys summary .jtog::after,.pc-story-d summary .jtog::before,.pc-story-d summary .jtog::after{content:'';position:absolute;background:currentColor;border-radius:2px}
+  .pc-jerseys summary .jtog::before,.pc-story-d summary .jtog::before{left:2px;right:2px;top:6.5px;height:2px}
+  .pc-jerseys summary .jtog::after,.pc-story-d summary .jtog::after{top:2px;bottom:2px;left:6.5px;width:2px;transition:opacity .18s}
+  .pc-jerseys[open] summary .jtog::after,.pc-story-d[open] summary .jtog::after{opacity:0}
   .pc-jerseys summary .pc-tct{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;margin-left:7px;border-radius:8px;background:var(--red);color:#fff;font-size:10px;font-weight:800}
   .pc-jbody{margin-top:8px}
   .pc-trophies{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:9px}
@@ -3026,7 +3030,7 @@ const PERSONA_BY = (function(){
         <span class="medal win${WINS_BY[k]?'':' zero'}">${winIC}<b>${WINS_BY[k]}</b><span>${WINS_BY[k]===1?'Win':'Wins'}</span></span>
         <span class="medal mer${MER[k]?'':' zero'}"><img src="/emblem-belgium.png" alt="" style="width:18px;height:18px;object-fit:contain;vertical-align:-3px"><b>${MER[k]}</b><span>Cobbles</span></span>
       </div>
-      ${story?`<div class="pc-story">${story}</div>`:''}
+      ${story?`<details class="pc-story-d"><summary>My Rider Profile<span class="jtog"></span></summary><div class="pc-story">${story}</div></details>`:''}
       ${jerseysHtml}
     </div>`;
   }).join('');
@@ -3764,6 +3768,8 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
         <td><div class="rider">${k}${i===0?'<span class="lead-tag">LEADER</span>':''}</div><div class="full">${PLAYERS[k].name}</div></td>
         <td class="r big lead-val">${obj[k]}</td></tr>`).join('')+`</tbody>`;
   }
+  // Retired lens: Fantasy Points applied to the Rank board. Unreferenced since the
+  // Vuelta made Placement the explore view on every card. Kept deliberately.
   // Rank sorts ascending (low wins) but marks the winner gold, so render like renderBars
   function barsRankPts(obj){
     const ord=Object.keys(obj).sort((a,b)=>obj[a]-obj[b]);
@@ -4341,4 +4347,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy: vuelta fantasy-points scoring, 2026-08-10T22:40Z -->
+<!-- redeploy: collapse rider profiles, 2026-08-10T22:52Z -->
