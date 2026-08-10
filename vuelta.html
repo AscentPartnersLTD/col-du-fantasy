@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260810-013559Z hdr-next2 -->
+<head><!-- build:20260810-014807Z emptyguards -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -272,6 +272,7 @@
   .trendleg{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:12px}
   .trendleg span{display:inline-flex;align-items:center;gap:6px;font-family:'Montserrat',sans-serif;font-weight:700}
   .trendleg i{width:14px;height:3px;border-radius:2px;display:inline-block}
+  .chart-empty{margin-top:8px;padding:30px 18px;text-align:center;background:var(--paper2);border-radius:12px;color:var(--mute);font-size:12.5px;line-height:1.5}
   .pending-line{font-size:11.5px;color:var(--mute);margin-top:12px;font-style:italic;line-height:1.4}
 
   /* aggressive-selection award badges */
@@ -3008,11 +3009,11 @@ const PERSONA_BY = (function(){
 
 /* bars (lower is better: leader = smallest value = shortest bar, gold) */
 function renderBars(el, obj){
-  const ord=orderBy(obj), max=Math.max(...Object.values(obj));
+  const ord=orderBy(obj), max=Math.max(1,...Object.values(obj));
   el.innerHTML=ord.map((k,i)=>`
     <div class="bar-row ${i===0?'lead':''}">
       <div class="who">${k}</div>
-      <div class="bar-track"><div class="bar-fill" style="width:${obj[k]/max*100}%"></div></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(obj[k]/max*100).toFixed(1)}%"></div></div>
       <div class="bar-val">${obj[k]}</div>
     </div>`).join('');
 }
@@ -3197,11 +3198,12 @@ document.getElementById('stages').addEventListener('click',e=>{
 
   // 4. cumulative trend SVG
   const order=STAGES.filter(s=>!s.voidStage).map(s=>s.n).sort((a,b)=>a-b);
+  if(!order.length){ document.getElementById('mTrend').innerHTML='<div class="chart-empty">The stage-by-stage lines appear here once the first stage is scored.</div>'; return; }
   const cum={}; players.forEach(p=>cum[p]=0); const series={}; players.forEach(p=>series[p]=[]);
   order.forEach(n=>{ const st=STAGES.find(s=>s.n===n);
     players.forEach(p=>{ if(st.days&&st.days[p]!=null)cum[p]+=st.days[p]; series[p].push(cum[p]); }); });
   const W=680,H=196,pl=38,pr=12,pt=12,pb=24, iw=W-pl-pr, ih=H-pt-pb;
-  const ymax=Math.max(...players.flatMap(p=>series[p]))*1.05;
+  const ymax=Math.max(1,...players.flatMap(p=>series[p]))*1.05;
   const xf=i=>pl+(order.length<2?0:i/(order.length-1)*iw);
   const yf=v=>pt+ih-(v/ymax)*ih;
   let g=`<g stroke="#eadfc2" stroke-width="1">`;
@@ -3778,6 +3780,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   // Stats: cumulative points trend SVG (mirrors mTrend, higher line is ahead)
   function trendPtsHTML(){
     const order=STAGES.filter(s=>!s.voidStage).map(s=>s.n).sort((a,b)=>a-b);
+    if(!order.length) return '<div class="chart-empty">The stage-by-stage lines appear here once the first stage is scored.</div>';
     const cum={}; PL.forEach(p=>cum[p]=0); const series={}; PL.forEach(p=>series[p]=[]);
     order.forEach(n=>{ const st=STAGES.find(s=>s.n===n);
       PL.forEach(p=>{ let add=0; (st.picks&&st.picks[p]||[]).forEach(([r,f])=>{ add+=P(f); }); cum[p]+=add; series[p].push(cum[p]); }); });
