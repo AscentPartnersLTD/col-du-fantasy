@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260810-014807Z emptyguards -->
+<head><!-- build:20260810-020649Z kasseijersey -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -1085,6 +1085,14 @@
       <style>
         #kasseiTrackerBox .mt-top{display:flex;gap:18px;align-items:flex-start;margin-top:10px}
         #kasseiTrackerBox .mt-emblem img{width:96px;height:auto;display:block;filter:drop-shadow(0 4px 10px rgba(0,0,0,.28))}
+        #kasseiTrackerBox .mt-prize{flex:none;width:196px;display:flex;flex-direction:column;gap:8px}
+        #kasseiTrackerBox .mt-jerseys{display:flex;gap:8px;align-items:flex-end}
+        #kasseiTrackerBox .mt-jerseys img{border-radius:9px;background:#f0ede4;box-shadow:0 4px 12px rgba(0,0,0,.16);display:block}
+        #kasseiTrackerBox .mt-jfront{width:118px;height:auto}
+        #kasseiTrackerBox .mt-jback{width:70px;height:auto;margin-bottom:2px}
+        #kasseiTrackerBox .mt-prizecap{font-family:'Montserrat',sans-serif;font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);line-height:1.35}
+        #kasseiTrackerBox .mt-prizecap b{display:block;color:var(--vred2);font-size:10.5px;letter-spacing:.04em}
+        @media(max-width:560px){#kasseiTrackerBox .mt-prize{width:100%;align-items:center;text-align:center}#kasseiTrackerBox .mt-jerseys{justify-content:center}}
         #kasseiTrackerBox .mt-tally{flex:1;min-width:0}
         #kasseiTrackerBox .mt-hold{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;padding-bottom:9px;border-bottom:1px solid var(--line)}
         #kasseiTrackerBox .mt-holdlab{font-family:'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:var(--mute)}
@@ -2947,7 +2955,7 @@ const PERSONA_BY = (function(){
     yellow:'<img class="jsy" src="/jersey-yellow.jpg" alt="Yellow jersey" loading="lazy">',
     merica:'<img class="jsy" src="/jersey-merica.jpg" alt="Captain Merica jersey" loading="lazy">',
     arlequin:'<img class="jsy" src="/jersey-arlequin.jpg" alt="Arlequin jersey" loading="lazy">',
-    kassei:'<img class="jsy" src="/jersey-kasseistampers.jpg" alt="Kasseistampers jersey" loading="lazy">'
+    kassei:'<img class="jsy" src="/jersey-kasseistampers-front.jpg" alt="Kasseistampers jersey" loading="lazy">'
   };
   const rp=(typeof RIDER_PROFILE!=='undefined')?RIDER_PROFILE:{};
   el.innerHTML = placeOrder.map((k,i)=>{
@@ -3517,7 +3525,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   const board=PL.map(p=>({p,n:MER[p]})).sort((a,b)=>b.n-a.n||a.p.localeCompare(b.p));
   const tally=board.map(b=>{const hold=max>0&&b.n===max;const sh=b.n>0?Array(Math.min(b.n,10)).fill(SH).join(''):'<span class="mt-none">no cobbles yet</span>';return `<div class="mt-row${hold?' hold':''}"><span class="mt-nm">${nameOf(b.p)}</span><span class="mt-shields">${sh}</span><span class="mt-ct" style="color:${COL[b.p]||'#1b1a17'}">${b.n}</span></div>`;}).join('');
   const wrows=watch.map(s=>{const cor=(s.kassei.correct||[]).map(nameOf);const who=cor.length?cor.join(', '):'no call took it';return `<div class="mt-wrow"><span class="mt-wn">St ${s.n}</span><span class="mt-wr">${s.kassei.top} <em>${ord(s.kassei.f)}</em></span><span class="mt-ww">${who}</span></div>`;}).join('');
-  el.innerHTML=`<div class="mt-top"><div class="mt-emblem"><img src="emblem-belgium.png" alt="Kasseistampers" onerror="this.closest('.mt-emblem').style.display='none'"></div><div class="mt-tally"><div class="mt-hold"><span class="mt-holdlab">Current holder</span><span class="mt-holdnm">${holderTxt}</span></div>${tally}</div></div>${watch.length?`<div class="mt-watch"><div class="mt-wlab">Stage-by-stage Belgian watch</div>${wrows}</div>`:''}`;
+  el.innerHTML=`<div class="mt-top"><div class="mt-prize"><div class="mt-jerseys"><img class="mt-jfront" src="/jersey-kasseistampers-front.jpg" alt="Koning der Kasseistampers jersey, front" loading="lazy" onerror="this.closest('.mt-prize').style.display='none'"><img class="mt-jback" src="/jersey-kasseistampers-back.jpg" alt="Koning der Kasseistampers jersey, back" loading="lazy" onerror="this.style.display='none'"></div><div class="mt-prizecap"><b>The season prize</b>Koning der Kasseistampers jersey - most cobbles wins it</div></div><div class="mt-tally"><div class="mt-hold"><span class="mt-holdlab">Current holder</span><span class="mt-holdnm">${holderTxt}</span></div>${tally}</div></div>${watch.length?`<div class="mt-watch"><div class="mt-wlab">Stage-by-stage Belgian watch</div>${wrows}</div>`:''}`;
 }catch(e){ console.error('kassei tracker',e); } })();
 
 ;
