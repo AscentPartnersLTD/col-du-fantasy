@@ -59,7 +59,7 @@
   .num{font-family:'Montserrat',sans-serif;font-variant-numeric:tabular-nums}
 
   header.mast{position:relative;overflow:hidden;background:linear-gradient(157deg,#7c0a1a 0%,#c8102e 62%,#e01235 100%);border-bottom:3px solid #ffffff;padding:24px 0 30px}
-  header.mast .profile{position:absolute;left:0;right:0;bottom:0;width:100%;height:190px;z-index:1;pointer-events:none;display:block;object-fit:cover;object-position:bottom;opacity:.55;mix-blend-mode:multiply}
+  header.mast .profile{position:absolute;left:0;right:0;bottom:0;width:100%;height:auto;z-index:1;pointer-events:none;display:block;opacity:.5;mix-blend-mode:multiply}
   header.mast .wrap{position:relative;z-index:2}
   .mast-in{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
   .mast-logo{height:64px;width:64px;border-radius:14px;display:block;flex:none;box-shadow:0 7px 22px rgba(0,0,0,.42)}
@@ -3649,8 +3649,17 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 (function(){
   const el=document.getElementById('nsBody'); if(!el) return;
   const U=(typeof UPCOMING!=='undefined')?UPCOMING:null;
-  const N2=(typeof NEXT2!=='undefined')?NEXT2:null;
   if(!U){ el.innerHTML='<span class="ns-muted">No upcoming stage set.</span>'; return; }
+  // Stage after upcoming: an explicit boardConfig.next2 wins; otherwise derive it from
+  // the Vuelta calendar (RACE) so the card self-maintains as upcoming advances and the
+  // stage-2 profile (/2.jpg) shows without any per-stage upkeep. Null past the final stage.
+  let N2=(typeof NEXT2!=='undefined')?NEXT2:null;
+  if(!N2 && typeof RACE!=='undefined' && Array.isArray(RACE)){
+    const nn=Number((U&&U.n)||0)+1;
+    const rr=RACE.find(r=>Number(r.n)===nn);
+    if(rr) N2={ n:nn, route:rr.route||'', type:rr.type||'', km:rr.km||0, profile:rr.profile||null,
+                line:rr.line||(rr.intel&&rr.intel.summary)||'' };
+  }
   function orderFor(n){
     try{
       if(n===((U&&U.n)||-1) && typeof todaysOrder==='function') return todaysOrder();
