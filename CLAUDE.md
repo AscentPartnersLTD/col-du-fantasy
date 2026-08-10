@@ -9,8 +9,8 @@ Operator: Allen Abbott. Owner account: allen@ascentpartnersltd.com.
 ## What this is
 
 A private, operator-run daily-pick fantasy cycling pool. Four players per pool,
-each picks two riders per stage, lower cumulative placement points wins. Two live
-races share one codebase:
+each picks two riders per stage. The winning direction depends on the race, see
+Per-race scoring profiles below. Two live races share one codebase:
 
 - Tour de France 2026 pool `col-du-fantasy`, board `/tour.html` (gold skin)
 - Vuelta a Espana 2026 pool `vuelta-2026`, board `/vuelta.html` (red skin)
@@ -161,11 +161,69 @@ an existing install. To get a correct home screen icon: delete the old icon, ope
 the board URL in Safari directly rather than inside an installed app, confirm the
 right skin, then Share and Add to Home Screen.
 
-## Scoring, locked
+## Per-race launch checklist
 
-- Placement points: sum of both picks' actual finish positions, lower is better.
-- Rank points: all eight picks in a stage ranked 1 to 8 by finish; a player's day
-  is the sum of their two picks' ranks; exactly 36 rank points per stage.
+Every one of these ships in the same commit as a new race board, or the board is
+half-wired in a way that is not obvious until someone hits it:
+
+1. Board file, `<race>.html`, built from its own `<race>.src.html`.
+2. `POOL_PAGE` entry mapping the pool id to that board file.
+3. `<poolId>.webmanifest` whose `start_url` is that board.
+4. Icon set: 32, 180, 192, 512, and a 512 maskable.
+5. og-card: a race-specific image with an ABSOLUTE `og:image`, plus
+   `og:image:width`, `og:image:height`, `og:image:alt`, `og:site_name`, and
+   `twitter:image`. A relative og:image does not resolve for scrapers.
+6. Scoring profile decided and written into the table above before launch.
+
+## ASO rider images
+
+The photo URLs are signed over the whole transform path. The trailing hex is a
+signature, not an id. They cannot be resized, recropped, or synthesized: editing
+any part of the path returns HTTP 401. Harvest them exactly as ASO emits them, or
+do not use them.
+
+`img-cycling-tdf-png` is Tour-specific. `img.aso.fr` is a CNAME for
+`sni.www.letour.fr.edgekey.net`. The Vuelta bucket is `img-cycling-vue-png` and it
+is keyed by editorial slug, not by bib, so a tdf URL cannot be mechanically
+translated into a vue one. Hotlinking either bucket from coldufantasy.com is
+outside any ASO terms and breaks all at once if signatures rotate.
+
+## Copying a board to start a new race
+
+When a new board is created by copying an existing one, the race-specific data
+arrays must be decoupled in the SAME commit or they stay shared by accident.
+`vuelta.src.html` was copied from `board.src.html` on 2026-08-08 and its `RIDERS`
+array stayed byte-identical to the Tour's until 2026-08-09, so the Vuelta board
+was serving the Tour startlist. Decouple at minimum: `RIDERS`, the team list, team
+colors and art maps, the race calendar, and any baked fallback arrays.
+
+## Per-race scoring profiles
+
+The two races do NOT score the same way. Never apply one race's rule to the other.
+The three methods are named exactly `Placement`, `Rank`, and `Fantasy Points`.
+Never write "Placement points" or "Rank points"; Fantasy Points is the only method
+whose name contains "points".
+
+| | Tour, `/tour.html` | Vuelta, `/vuelta.html` |
+|---|---|---|
+| System of record | Placement | Fantasy Points |
+| Second board | Rank | Rank |
+| Third view | Fantasy Points, toggle-only | Placement, toggle-only |
+| Card toggle reads | See Fantasy Points | See Placement |
+
+Direction is the thing that silently breaks. Fantasy Points is highest-leads.
+Placement and Rank are lowest-leads. `orderBy()` sorts ascending and is correct
+only for Placement and Rank; Fantasy Points must sort descending. Anything keyed
+to the primary board (standings sort, day-winner-on-top in stage cards, hero
+leader chips, trend-line captions) has to follow that race's profile.
+
+## Scoring math, locked
+
+- Placement: sum of both picks' actual finish positions, lower is better.
+- Rank: all eight picks in a stage ranked 1 to 8 by finish; a player's day is the
+  sum of their two picks' ranks; exactly 36 per stage.
+- Fantasy Points: top-15 scale, 25 for a win down to 1 for 15th, nothing past
+  15th, higher is better.
 - Missed pick: scores one slot behind the worst actual pick anyone made that
   stage.
 - Standings are computed from the stage data array. A player's hand tally is not
@@ -185,16 +243,28 @@ right skin, then Share and Add to Home Screen.
 
 ## Open items
 
-- Pool switch routing fix: SHIPPED 2026-08-09. `patch_pool_routing.py` applied to
-  both sources, rebuilt, validated, pushed to main. The switcher and the sign-in
-  roster reroute now go through `poolHref()`, and `onPoolPage()` gives the
-  checked entry an escape hatch when the shell is wrong. The script is idempotent
-  and now a no-op against these sources; keep it as the record of the edit.
+- Pool switch routing fix: SHIPPED 2026-08-09, REGRESSED, RE-APPLIED 2026-08-10.
+  `patch_pool_routing.py` puts `poolHref()`/`onPoolPage()` into both sources; it is
+  idempotent and a no-op once applied. Keep it as the record of the edit.
+  How it regressed, because this will happen again: commit `9abcb7d` was titled
+  "Vuelta combativity awards" but its diff also reverted every routing edit AND the
+  `{{BUILD_STAMP}}` placeholder in `vuelta.src.html` and `vuelta.html`, restoring
+  the frozen July literal. `board.src.html` was untouched, which is why only the
+  Vuelta side lost the fix. That is the signature of editing a STALE local copy of
+  a source file and committing it: git records the reversal as part of the same
+  diff. It was NOT the build. The Vuelta build is a pure substitution, so it can
+  only ever mirror whatever `vuelta.src.html` already contains.
+  Guard: before editing either source, confirm it is at origin/main, and after any
+  Vuelta commit re-check `POOL_PAGE` is 4, old `/board.html?pool=` routes are 0,
+  and `{{BUILD_STAMP}}` is present.
 - Optional follow-on, still open: set `boardPath: '/vuelta.html'` on
   `pools/vuelta-2026` so routing is data-driven and the next race needs no code
   edit. The code already prefers `boardPath` over the `POOL_PAGE` map.
 - `og:image` on the Vuelta board is still `tour-og.png`, so link shares preview a
-  Tour graphic. Needs a Vuelta asset.
+  Tour graphic. BLOCKED 2026-08-10: the swap needs `vuelta-og.png` and
+  `make_vuelta_og.py`, which have not landed in the repo. `board.src.html` already
+  has the full absolute-URL og set pointing at `tour-og.png`, which is correct for
+  the Tour; mirror that block into `vuelta.src.html` the moment the asset exists.
 - `SHARED_UPCOMING` and `RACE_BAKED` in `vuelta.src.html` still hold Tour data.
   They sit below the Vuelta calendar in the fallback chain and are only reachable
   as a last resort. Could be emptied.

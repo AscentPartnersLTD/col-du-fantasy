@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260715-143742 stage11 JJ=Girmay+Bauhaus -->
+<head>{{BUILD_STAMP}}
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -922,11 +922,11 @@
     <h2 class="eyebrow mt">Standings</h2>
     <div class="scoring">
       <b>How it scores</b>
-      <p>Three ways to read the same picks. <b style="text-transform:none;font-size:13px;letter-spacing:0">Placement</b> is the system of record: add up each pick's actual stage finish, lowest total leads. <b style="text-transform:none;font-size:13px;letter-spacing:0">Rank</b> is the running second board: each stage the eight picks are ranked 1 to 8 by finish (the pool's best gets 1), and you carry the sum, lowest leads. <b style="text-transform:none;font-size:13px;letter-spacing:0">Fantasy Points</b> is the optional lens: a top-15 scale worth 25 for a win down to 1 for 15th, highest total leads. Placement and Rank decide the pool all season; Fantasy Points is there to explore, on the <b style="text-transform:none;font-size:13px;letter-spacing:0">See Fantasy Points</b> toggle on any card.</p>
+      <p>Three ways to read the same picks. <b style="text-transform:none;font-size:13px;letter-spacing:0">Fantasy Points</b> is the system of record: a top-15 scale worth 25 for a stage win down to 1 for 15th, highest total leads. <b style="text-transform:none;font-size:13px;letter-spacing:0">Rank</b> is the running second board: each stage the eight picks are ranked 1 to 8 by finish (the pool's best gets 1), and the sum carries forward, lowest leads. <b style="text-transform:none;font-size:13px;letter-spacing:0">Placement</b> is the third view: add up each pick's actual stage finish, lowest total leads. Fantasy Points and Rank decide the pool all season; Placement is there to explore, on the <b style="text-transform:none;font-size:13px;letter-spacing:0">See Placement</b> toggle on any card.</p>
     </div>
     <div class="twocol">
       <div>
-        <div class="eyebrow" style="margin-bottom:10px">Placement &middot; primary</div>
+        <div class="eyebrow" style="margin-bottom:10px">Placement &middot; explore</div>
         <table class="gc" id="gcPlace"></table>
       </div>
       <div>
@@ -987,11 +987,11 @@
     </style>
     <h2 class="eyebrow">The Numbers</h2>
     <div class="whatif" id="whatif">
-      <div class="wi-title">Placement vs Fantasy Points, side by side</div>
-      <div class="wi-sub"><b style="text-transform:none;letter-spacing:0">Placement</b>, the system of record, adds up each pick's finishing place and the lowest total leads. <b style="text-transform:none;letter-spacing:0">Fantasy Points</b> instead gives more for a better finish on a top-15 scale, nothing past 15th, and the highest total leads. Here is the current board both ways, with each bar showing how close a manager is to the lead in that system. This is the what-if lens, not a rule change.</div>
+      <div class="wi-title">Fantasy Points vs Placement, side by side</div>
+      <div class="wi-sub"><b style="text-transform:none;letter-spacing:0">Fantasy Points</b>, the system of record, gives more for a better finish on a top-15 scale, nothing past 15th, and the highest total leads. <b style="text-transform:none;letter-spacing:0">Placement</b> instead adds up each pick's finishing place and the lowest total leads. Here is the current board both ways, with each bar showing how close a manager is to the lead in that system.</div>
       <div class="wi-cols">
-        <div class="wi-col"><div class="wi-ch">Placement &middot; add up finishes &middot; <b>lowest leads</b></div><div id="wiToday"></div></div>
         <div class="wi-col"><div class="wi-ch">Fantasy Points &middot; top-15 scale &middot; <b>highest leads</b></div><div id="wiPts"></div></div>
+        <div class="wi-col"><div class="wi-ch">Placement &middot; add up finishes &middot; <b>lowest leads</b></div><div id="wiToday"></div></div>
       </div>
       <div class="wi-note" id="wiNote"></div>
     </div>
@@ -1414,6 +1414,15 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 const $=id=>document.getElementById(id);
 let myEmail=null,isOwner=false,poolId=null,pool=null,STAGE=null,ORDER=[],SNAKE=[],PMETA={},JUDGE=null,myCode=null,isJudge=false,draft=null,unsub=null,chosen=null;
 const DEFAULT_POOL='{{DEFAULT_POOL}}';
+// Pool routing. A pool with its own skinned board file must open THAT file: the
+// switcher used to send every pool to the generic /board.html, so the Vuelta
+// loaded its data inside the Tour's gold shell. boardPath on the pool doc wins
+// when set; POOL_PAGE is the fallback so routing is correct with no data edit.
+const POOL_PAGE={'col-du-fantasy':'/tour.html','vuelta-2026':'/vuelta.html'};
+function poolHref(pid,path){ var p=path||POOL_PAGE[pid]||'/board.html'; return location.origin+p+'?pool='+encodeURIComponent(pid); }
+// True when this page is already the right board file for that pool. Lets the
+// checked entry still navigate when the pool is right but the shell is wrong.
+function onPoolPage(pid){ var w=POOL_PAGE[pid]; if(!w) return true; var h=location.pathname.toLowerCase(); if(h===w) return true; if(w==='/tour.html'&&(h==='/'||h==='/index.html')) return true; return false; }
 const paramPool=new URLSearchParams(location.search).get('pool')||DEFAULT_POOL||null;
 function showGate(msg,err,asHtml){ document.documentElement.classList.remove('gated'); document.body.classList.remove('gated'); var g=$('gate'); if(g){g.style.display='block'; g.classList.add('ask'); if(msg){var m=$('gate-msg')||$('gmsg'); if(m){ if(asHtml){m.innerHTML=msg;}else{m.textContent=msg;} m.className='gate-msg'+(err?' err':'');}}} }
 // Show the spinner (never the login card) with a status label. Used the instant
@@ -1531,7 +1540,7 @@ auth.onAuthStateChanged(async user=>{
           var _mine=(_idx.exists?(_idx.data().pools||[]):[]).filter(function(p){return p && p!==paramPool;});
           if(_mine.length){
             diag('not a member of '+paramPool+'; rerouting to '+_mine[0]);
-            location.replace(location.origin+'/board.html?pool='+encodeURIComponent(_mine[0])+'&rr=1');
+            location.replace(poolHref(_mine[0],null)+'&rr=1');
             return;
           }
         }catch(_re){ diag('reroute lookup failed: '+(_re&&(_re.code||_re.message||_re))); }
@@ -1664,12 +1673,12 @@ async function buildAcctMenu(){
     var who=$('acctWho'); if(who) who.textContent=myEmail||'';
     var ft=$('acctFabTxt'); if(ft) ft.textContent=(myCode || (myEmail? myEmail[0].toUpperCase() : 'CDF'));
     var pools=[];
-    if(isOwner){ var all=await db.collection('pools').get(); all.forEach(function(d){ pools.push({id:d.id,name:(d.data().name||d.id)}); }); }
+    if(isOwner){ var all=await db.collection('pools').get(); all.forEach(function(d){ pools.push({id:d.id,name:(d.data().name||d.id),path:(d.data().boardPath||'')}); }); }
     else { var idx=await db.doc('userPools/'+myEmail).get(); var list=(idx.exists&&idx.data().pools)||[];
-      for(var i=0;i<list.length;i++){ try{ var s=await db.doc('pools/'+list[i]).get(); if(s.exists) pools.push({id:list[i],name:(s.data().name||list[i])}); }catch(e){} } }
-    if(!pools.some(function(p){return p.id===poolId;})) pools.unshift({id:poolId,name:(pool&&pool.name)||poolId});
+      for(var i=0;i<list.length;i++){ try{ var s=await db.doc('pools/'+list[i]).get(); if(s.exists) pools.push({id:list[i],name:(s.data().name||list[i]),path:(s.data().boardPath||'')}); }catch(e){} } }
+    if(!pools.some(function(p){return p.id===poolId;})) pools.unshift({id:poolId,name:(pool&&pool.name)||poolId,path:(pool&&pool.boardPath)||''});
     var box=$('acctPools');
-    if(box){ box.innerHTML=pools.map(function(p){ return '<button class="acct-pool'+(p.id===poolId?' cur':'')+'" type="button" data-pool="'+esc(p.id)+'">'+esc(p.name)+'</button>'; }).join(''); }
+    if(box){ box.innerHTML=pools.map(function(p){ return '<button class="acct-pool'+(p.id===poolId?' cur':'')+'" type="button" data-pool="'+esc(p.id)+'" data-href="'+esc(poolHref(p.id,p.path))+'">'+esc(p.name)+'</button>'; }).join(''); }
     fab.classList.add('show');
   }catch(e){ console.error('acct menu',e); }
 }
@@ -1677,7 +1686,7 @@ document.addEventListener('click',function(e){
   var t=e.target;
   if(t.closest&&t.closest('#acctFab')){ var p=$('acctPanel'); if(p) p.classList.toggle('show'); return; }
   var pb=t.closest&&t.closest('.acct-pool');
-  if(pb){ var pid=pb.getAttribute('data-pool'); if(pid && pid!==poolId){ location.href=location.origin+'/board.html?pool='+encodeURIComponent(pid); } else { var pn=$('acctPanel'); if(pn) pn.classList.remove('show'); } return; }
+  if(pb){ var pid=pb.getAttribute('data-pool'); var href=pb.getAttribute('data-href')||poolHref(pid,null); if(pid && (pid!==poolId || !onPoolPage(pid))){ location.href=href; } else { var pn=$('acctPanel'); if(pn) pn.classList.remove('show'); } return; }
   if(t.closest&&t.closest('#acctOut')){ cdfSignOut(); return; }
   var pnl=$('acctPanel'); if(pnl&&pnl.classList.contains('show') && !(t.closest&&t.closest('#acctPanel'))){ pnl.classList.remove('show'); }
 });
@@ -2350,12 +2359,17 @@ const orderBy = obj => Object.keys(obj).sort((a,b)=>obj[a]-obj[b]); // ascending
 /* Our cumulative, computed from the stage data across every completed stage (void stage skipped, today held off). */
 const PL4 = (CDF.seats||CDF.order);
 const COMPLETED = STAGES.filter(s=>!s.voidStage && s.days).map(s=>s.n).sort((a,b)=>a-b);
-const OURS = { through: COMPLETED.length?Math.max(...COMPLETED):0, placement:{}, rank:{} };
-PL4.forEach(p=>{OURS.placement[p]=0;OURS.rank[p]=0;});
+/* Top-15 fantasy scale. The Vuelta scores on Fantasy Points, so the total has to be
+   available this early, before the hero strip and the standings tables render. */
+const FP_SCALE={1:25,2:20,3:16,4:13,5:11,6:10,7:9,8:8,9:7,10:6,11:5,12:4,13:3,14:2,15:1};
+const OURS = { through: COMPLETED.length?Math.max(...COMPLETED):0, placement:{}, rank:{}, fantasy:{} };
+PL4.forEach(p=>{OURS.placement[p]=0;OURS.rank[p]=0;OURS.fantasy[p]=0;});
 COMPLETED.forEach(n=>{
   const st=STAGES.find(s=>s.n===n);
   PL4.forEach(p=>{ if(st.days[p]!=null) OURS.placement[p]+=st.days[p]; });
-  // rank points: rank every pick that day (8 of them) 1..8 by finish, sum each player's two ranks
+  // fantasy points: every scored pick on the top-15 scale, higher is better
+  PL4.forEach(p=>{ (st.picks[p]||[]).forEach(pk=>{ if(pk[1]!=null) OURS.fantasy[p]+=(FP_SCALE[pk[1]]||0); }); });
+  // Rank: rank every pick that day (8 of them) 1..8 by finish, sum each player's two ranks
   const allp=[];
   PL4.forEach(p=>{ (st.picks[p]||[]).forEach(pk=>{ if(pk[1]!=null) allp.push({p, fin:pk[1]}); }); });
   allp.sort((a,b)=>a.fin-b.fin);
@@ -2398,13 +2412,16 @@ COMPLETED.forEach(n=>{
 
 const placeOrder = orderBy(OURS.placement);
 const rankOrder  = orderBy(OURS.rank);
-const placeLeader = placeOrder[0], rankLeader = rankOrder[0];
+// Fantasy Points is highest-leads, so it sorts descending. Do NOT route it through
+// orderBy(), which is ascending and correct only for Placement and Rank.
+const fanOrder = Object.keys(OURS.fantasy).sort((a,b)=>OURS.fantasy[b]-OURS.fantasy[a]);
+const placeLeader = placeOrder[0], rankLeader = rankOrder[0], fanLeader = fanOrder[0];
 const THRU = OURS.through;
 
 /* hero live-leaders strip */
 document.getElementById('heroLead').innerHTML = `
-  <div class="hero-chip"><div class="badge">${placeLeader}</div><div class="meta"><span class="cap">Placement leader</span><span class="val"><em>${OURS.placement[placeLeader]}</em><small>pts, low wins</small></span></div></div>
-  <div class="hero-chip"><div class="badge">${rankLeader}</div><div class="meta"><span class="cap">Rank leader</span><span class="val"><em>${OURS.rank[rankLeader]}</em><small>pts, low wins</small></span></div></div>
+  <div class="hero-chip"><div class="badge">${fanLeader}</div><div class="meta"><span class="cap">Fantasy Points leader</span><span class="val"><em>${OURS.fantasy[fanLeader]}</em><small>points, high wins</small></span></div></div>
+  <div class="hero-chip"><div class="badge">${rankLeader}</div><div class="meta"><span class="cap">Rank leader</span><span class="val"><em>${OURS.rank[rankLeader]}</em><small>total, low wins</small></span></div></div>
   <div class="hero-chip"><div class="badge">${WINS_PICKED}</div><div class="meta"><span class="cap">Winners picked</span><span class="val"><em>${WINS_PICKED}/${COMPLETED.length}</em><small>scored days</small></span></div></div>
   <a class="hero-chip tm-chip" href="https://wedu.team/blogs/the-move" target="_blank" rel="noopener noreferrer" aria-label="Listen to The Move podcast"><div class="tm-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M18 12h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1z"/><path d="M6 12H5a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h1z"/></svg></div><div class="meta"><span class="cap">Listen to</span><span class="val">The Move</span></div></a>`;
 
@@ -2459,9 +2476,9 @@ document.getElementById('callouts').innerHTML = `
   <div class="callout"><div class="n">${WINS_PICKED}/${COMPLETED.length}</div><div class="l">Winners picked</div><div class="d">Stages where someone in the pool drafted the actual stage winner, across the ${COMPLETED.length} scored days.</div></div>
   <div class="insight">
     <svg class="arrow" viewBox="0 0 38 26" fill="none"><path d="M2 13H30M30 13L21 4M30 13L21 22" stroke="#c8102e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <div class="txt">${placeLeader===rankLeader
-      ? `<b>${placeLeader}</b> leads both boards: out front on <span class="hl">placement</span> by drafting consistent low finishes, and on <span class="hl">rank</span> by landing the actual stage winner more than anyone.`
-      : `Two leaders, two boards. <b>${placeLeader}</b> is out front on <span class="hl">placement</span> by drafting consistent low finishes; <b>${rankLeader}</b> leads <span class="hl">rank</span> by repeatedly landing the actual stage winner.`}</div>
+    <div class="txt">${fanLeader===rankLeader
+      ? `<b>${fanLeader}</b> leads both boards: out front on <span class="hl">fantasy points</span> by stacking top-15 finishes, and on <span class="hl">rank</span> by landing the actual stage winner more than anyone.`
+      : `Two leaders, two boards. <b>${fanLeader}</b> is out front on <span class="hl">fantasy points</span> by stacking top-15 finishes; <b>${rankLeader}</b> leads <span class="hl">rank</span> by repeatedly landing the actual stage winner.`}</div>
   </div>
   `;
 
@@ -3016,27 +3033,29 @@ const PERSONA_BY = (function(){
 })();
 
 /* bars (lower is better: leader = smallest value = shortest bar, gold) */
-function renderBars(el, obj){
+function barsLoHTML(obj){
   const ord=orderBy(obj), max=Math.max(1,...Object.values(obj));
-  el.innerHTML=ord.map((k,i)=>`
+  return ord.map((k,i)=>`
     <div class="bar-row ${i===0?'lead':''}">
       <div class="who">${k}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${(obj[k]/max*100).toFixed(1)}%"></div></div>
       <div class="bar-val">${obj[k]}</div>
     </div>`).join('');
 }
+function renderBars(el, obj){ el.innerHTML=barsLoHTML(obj); }
 renderBars(document.getElementById('barsPlace'), OURS.placement);
 renderBars(document.getElementById('barsRank'),  OURS.rank);
 
 /* GC tables */
-function renderGC(el, obj, label){
+function gcLoHTML(obj, label){
   const ord=orderBy(obj);
-  el.innerHTML=`<thead><tr><th class="pos"></th><th>Rider</th><th class="r">${label}</th></tr></thead><tbody>`+
+  return `<thead><tr><th class="pos"></th><th>Rider</th><th class="r">${label}</th></tr></thead><tbody>`+
     ord.map((k,i)=>`<tr class="${i===0?'lead':''}">
       <td class="pos">${i+1}</td>
       <td><div class="rider">${k}${i===0?'<span class="lead-tag">LEADER</span>':''}</div><div class="full">${PLAYERS[k].name}</div></td>
       <td class="r big lead-val">${obj[k]}</td></tr>`).join('')+`</tbody>`;
 }
+function renderGC(el, obj, label){ el.innerHTML=gcLoHTML(obj,label); }
 renderGC(document.getElementById('gcPlace'), OURS.placement, 'Placement');
 renderGC(document.getElementById('gcRank'),  OURS.rank, 'Rank');
 
@@ -3050,8 +3069,8 @@ function profileSVG(type){
   return `<svg class="profile" viewBox="0 0 96 36" fill="none"><path d="${d} L96,36 L0,36 Z" fill="${col}" opacity="0.12"/><path d="${d}" stroke="${col}" stroke-width="1.7" fill="none"/></svg>`;
 }
 function placeSum(picks){ if(!picks||!picks.length) return null; const v=picks.map(p=>p[1]).filter(x=>typeof x==="number"); return v.length===picks.length?v.reduce((a,b)=>a+b,0):null; }
-/* Per-stage-card points toggle uses the same top-15 scale as the summary cards and the what-if.
-   Placement stays the system of record; this is only an alternate lens on each card. */
+/* Per-stage-card scale, the same top-15 scale as the summary cards and the what-if.
+   Fantasy Points is the Vuelta's system of record; Placement is the explore view. */
 const SC_PT={1:25,2:20,3:16,4:13,5:11,6:10,7:9,8:8,9:7,10:6,11:5,12:4,13:3,14:2,15:1};
 
 function ordinal(n){ const s=["th","st","nd","rd"], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
@@ -3081,8 +3100,9 @@ function stageCard(st){
   } else {
     // per-player day total: prefer confirmed st.days, else compute from complete picks
     const codes=(CDF.seats||CDF.order).slice();
-    // one table per view: 'place' = sum of finishes (low wins, the system of record),
-    // 'points' = top-15 fantasy points (high wins, the what-if lens). Placement math is untouched.
+    // one table per view: 'points' = top-15 Fantasy Points (high wins, the system of
+    // record and the default), 'place' = sum of finishes (low wins, the explore view).
+    // Both totals are computed the same way as before; only which one leads changed.
     function scoreTable(mode){
       const rowsData=codes.map(k=>{
         const picks = st.picks[k];
@@ -3115,8 +3135,8 @@ function stageCard(st){
       const col = mode==='points' ? 'fantasy' : 'finish';
       return `<table class="picks"><thead><tr><th>Rider</th><th>Picks (${col})</th><th class="r">${lab}</th></tr></thead><tbody>${rows}</tbody></table>`;
     }
-    body = `<div class="stage-scoring" data-view="place">
-        <div class="sc-head"><button type="button" class="pt-btn sc-toggle">See Fantasy Points</button></div>
+    body = `<div class="stage-scoring" data-view="points">
+        <div class="sc-head"><button type="button" class="pt-btn sc-toggle on">See Placement</button></div>
         <div class="sc-view sc-place">${scoreTable('place')}</div>
         <div class="sc-view sc-points">${scoreTable('points')}</div>
       </div>
@@ -3140,13 +3160,14 @@ function stageCard(st){
     <div class="stage-body">${body}</div></div>`;
 }
 document.getElementById('stages').innerHTML = STAGES.slice().reverse().map(stageCard).join('');
-/* Per-stage-card See Fantasy Points / See Placement toggle (placement stays the system of record). */
+/* Per-stage-card toggle. Fantasy Points is the Vuelta system of record and renders
+   first; Placement is the explore view behind "See Placement". */
 document.getElementById('stages').addEventListener('click',e=>{
   const b=e.target.closest('.sc-toggle'); if(!b) return;
   const box=b.closest('.stage-scoring'); if(!box) return;
   const toPts=box.getAttribute('data-view')!=='points';
   box.setAttribute('data-view', toPts?'points':'place');
-  b.textContent = toPts?'See Placement':'See Fantasy Points';
+  b.textContent = toPts?'See Placement':'Back to Fantasy Points';
   b.classList.toggle('on',toPts);
 });
 
@@ -3343,7 +3364,7 @@ document.getElementById('resultsTable').innerHTML =
   }).join('')+`</tbody>`;
 
 /* stats */
-const stats=[{k:"Placement leader",v:OURS.placement[placeLeader],d:`${placeLeader}, lowest total (primary standing). Next: ${placeOrder.slice(1).map(k=>k+' '+OURS.placement[k]).join(', ')}.`},
+const stats=[{k:"Fantasy Points leader",v:OURS.fantasy[fanLeader],d:`${fanLeader}, highest total (system of record). Next: ${fanOrder.slice(1).map(k=>k+' '+OURS.fantasy[k]).join(', ')}.`},
   {k:"Rank leader",v:OURS.rank[rankLeader],ink:true,d:`${rankLeader}, lowest rank total. ${rankOrder.slice(1).map(k=>k+' '+OURS.rank[k]).join(', ')} behind.`},
   {k:"Stage winners picked",v:`${WINS_PICKED}/${COMPLETED.length}`,d:`Days the pool drafted the actual winner, across ${COMPLETED.length} scored stages.`}].concat((CDF.editorial&&CDF.editorial.stats&&CDF.editorial.stats.length)?CDF.editorial.stats:[{k:'Stats and notes',v:'',d:'This fills in with the pool\'s highlights and records as stages are scored.'}]);
 const DP_TYPES={standing:{lab:'Standings',c:'#c9971a'},record:{lab:'Records',c:'#26347e'},history:{lab:'History',c:'#2f8f52'},moment:{lab:'Moments',c:'#cf2530'}};
@@ -3743,7 +3764,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
         <td><div class="rider">${k}${i===0?'<span class="lead-tag">LEADER</span>':''}</div><div class="full">${PLAYERS[k].name}</div></td>
         <td class="r big lead-val">${obj[k]}</td></tr>`).join('')+`</tbody>`;
   }
-  // rank points sorts ascending (low wins) but marks the winner gold, so render like renderBars
+  // Rank sorts ascending (low wins) but marks the winner gold, so render like renderBars
   function barsRankPts(obj){
     const ord=Object.keys(obj).sort((a,b)=>obj[a]-obj[b]);
     const max=Math.max(1,...Object.values(obj));
@@ -3814,65 +3835,76 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
       `<div class="msub" style="margin-top:6px">X axis is stage number. Higher line is further ahead.</div>`;
   }
 
-  /* ---- generic wiring: capture the current (place) view, swap to points on click ---- */
-  function wire(host, bodyId, pointsHTML, caps, backLabel){
+  /* ---- generic wiring: one card, two views.
+     `domHTML` is whatever already rendered into the page, `altHTML` is the other view.
+     altIsPrimary promotes the alt view to the default at load, which is how Fantasy
+     Points takes over the cards that used to lead with Placement. Placement is always
+     the explore side, so the forward label is always "See Placement" and the return
+     label names whichever board is primary for that card. ---- */
+  function wire(host, bodyId, altHTML, caps, primaryLabel, altIsPrimary){
     const body=document.getElementById(bodyId);
     if(!host||!body) return;
-    const back = 'See ' + (backLabel || 'Placement');
     host.classList.add('pt-host');
-    const placeBody=body.innerHTML;
-    const capState=(caps||[]).filter(c=>c&&c.el).map(c=>({el:c.el,place:c.el.innerHTML,points:c.points}));
+    const domHTML=body.innerHTML;
+    const capState=(caps||[]).filter(c=>c&&c.el).map(c=>({el:c.el,dom:c.el.innerHTML,alt:c.points}));
+    const primaryHTML = altIsPrimary?altHTML:domHTML;
+    const exploreHTML = altIsPrimary?domHTML:altHTML;
     const btn=document.createElement('button');
-    btn.type='button'; btn.className='pt-btn'; btn.textContent='See Fantasy Points';
-    let pts=false;
-    btn.addEventListener('click',()=>{
-      pts=!pts;
-      body.innerHTML = pts?pointsHTML:placeBody;
-      capState.forEach(c=>{ c.el.innerHTML = pts?c.points:c.place; });
-      btn.textContent = pts?back:'See Fantasy Points';
-      btn.classList.toggle('on',pts);
-    });
+    btn.type='button'; btn.className='pt-btn';
+    let explore=false;
+    function paint(){
+      body.innerHTML = explore?exploreHTML:primaryHTML;
+      capState.forEach(c=>{
+        const pri = altIsPrimary?c.alt:c.dom, exp = altIsPrimary?c.dom:c.alt;
+        c.el.innerHTML = explore?exp:pri;
+      });
+      btn.textContent = explore?('Back to '+(primaryLabel||'Fantasy Points')):'See Placement';
+      btn.classList.toggle('on',explore);
+    }
+    btn.addEventListener('click',()=>{ explore=!explore; paint(); });
     host.appendChild(btn);
+    paint();
   }
   const q=(el,sel)=>el?el.querySelector(sel):null;
   const chartOf=id=>{ const b=document.getElementById(id); return b?b.closest('.chart'):null; };
   const boxOf=id=>{ const b=document.getElementById(id); return b?b.closest('.metricbox'):null; };
   const colOf=id=>{ const t=document.getElementById(id); return t?t.closest('.twocol')&&t.parentElement:null; };
 
-  // --- Overview: bars ---
+  // --- Overview: bars. Fantasy Points leads, Placement is the explore view. ---
   const cPlace=chartOf('barsPlace');
   wire(cPlace,'barsPlace', barsHi(cumPts),
-    [{el:q(cPlace,'.ct'), points:`Fantasy Points <small>top-15 scale, 25 down to 1 &middot; higher wins</small>`}], 'Placement');
+    [{el:q(cPlace,'.ct'), points:`Fantasy Points <small>top-15 scale, 25 down to 1 &middot; higher wins</small>`}], 'Fantasy Points', true);
 
+  // Rank stays the secondary board and keeps rendering first; its toggle shows Placement.
   const cRank=chartOf('barsRank');
-  wire(cRank,'barsRank', barsRankPts(rankPts),
-    [{el:q(cRank,'.ct'), points:`Fantasy Points rank <small>the day's picks ranked by fantasy points &middot; lower wins</small>`}], 'Rank');
+  wire(cRank,'barsRank', barsLoHTML(OURS.placement),
+    [{el:q(cRank,'.ct'), points:`Placement <small>sum of actual stage finishes &middot; lower wins</small>`}], 'Rank', false);
 
   // --- Overview: GC tables ---
   const dPlace=colOf('gcPlace');
   wire(dPlace,'gcPlace', gcHi(cumPts,'Fantasy Pts'),
-    [{el:q(dPlace,'.eyebrow'), points:`Fantasy Points &middot; the what-if lens`}], 'Placement');
+    [{el:q(dPlace,'.eyebrow'), points:`Fantasy Points &middot; primary`}], 'Fantasy Points', true);
 
   const dRank=colOf('gcRank');
-  wire(dRank,'gcRank', gcRankPts(rankPts,'Fantasy rank'),
-    [{el:q(dRank,'.eyebrow'), points:`Fantasy Points rank &middot; the what-if lens`}], 'Rank');
+  wire(dRank,'gcRank', gcLoHTML(OURS.placement,'Placement'),
+    [{el:q(dRank,'.eyebrow'), points:`Placement &middot; explore`}], 'Rank', false);
 
   // --- Stats: average fantasy points per pick ---
   const bAvg=boxOf('mAvg');
   wire(bAvg,'mAvg', avgPtsHTML(),
     [{el:q(bAvg,'.mh'), points:`Average fantasy points per pick`},
-     {el:q(bAvg,'.msub'), points:`Rider picks only, Stage 2 on. Higher is sharper`}], 'Placement');
+     {el:q(bAvg,'.msub'), points:`Rider picks only, Stage 2 on. Higher is sharper`}], 'Fantasy Points', true);
 
   // --- Stats: signature rider, fantasy points ---
   const bSig=boxOf('mSig');
   wire(bSig,'mSig', sigPtsHTML(),
-    [{el:q(bSig,'.msub'), points:`Most-loved rider and the fantasy points earned`}], 'Placement');
+    [{el:q(bSig,'.msub'), points:`Most-loved rider and the fantasy points earned`}], 'Fantasy Points', true);
 
   // --- Stats: cumulative fantasy points trend ---
   const bTrend=boxOf('mTrend');
   wire(bTrend,'mTrend', trendPtsHTML(),
     [{el:q(bTrend,'.mh'), points:`Fantasy Points race, stage by stage`},
-     {el:q(bTrend,'.msub'), points:`Cumulative fantasy points, higher line is ahead`}], 'Placement');
+     {el:q(bTrend,'.msub'), points:`Cumulative fantasy points, higher line is ahead`}], 'Fantasy Points', true);
 })();
 
 ;
