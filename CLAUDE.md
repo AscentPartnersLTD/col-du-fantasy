@@ -283,3 +283,26 @@ leader chips, trend-line captions) has to follow that race's profile.
 - Allegiances has no per-team official links; lavuelta has no per-team pages.
 - The Vuelta reskin change list lives in Allen's Claude project knowledge rather
   than in this repo. Commit it here so it survives a lost conversation.
+- Persona bank expansion, 27 rows to 56: BLOCKED 2026-08-11. Needs
+  `persona-bank-additions.js` (29 rows: 4 winner, 25 style). It does not exist
+  anywhere on Dragon. This is the third file in three sessions reported as saved
+  from chat that never landed, after `vuelta-og.png` and `make_vuelta_og.py`. The
+  bank cannot be written from scratch here: every row carries a `/* src: URL */`
+  citation that has to be fetched and checked, and inventing either the blurb or
+  the citation would violate the never-invent rule above. Ask Allen to confirm the
+  file is on disk before starting.
+- `MER` cannot be added to `PSTATS` as written. `PSTATS` is an IIFE at
+  vuelta.src.html:2772 and builds `S[p]` at :2785. Every `MER` is declared later
+  and in a narrower scope: :2966 inside the palmares-cards IIFE that opens at
+  :2963, :3523 inside the Merica widget, :3545 inside the Kasseistampers widget.
+  Referencing `MER[p]` from the PSTATS builder throws `ReferenceError: MER is not
+  defined` at load and blanks the board. To expose a Kasseistampers count to the
+  persona engine, hoist ONE computation of it above :2772 and have the three
+  existing sites read that, in a commit of its own. Note :2966 and :3545 both
+  count `s.kassei.correct`, so the Kasseistampers tally is already duplicated.
+- Persona ART coverage is currently complete, 27 emblems for 27 rows. Any bank
+  growth that ships without emblems regresses that: 56 rows with 27 emblems is 48
+  percent coverage, and the uncovered rows fall through to the generic jersey
+  avatar. The fallback is safe, `ART[unknownId]` is undefined and the renderer
+  branches on falsy at :2986, so it degrades rather than errors. Ship art with
+  rows, or accept the mixed look deliberately.
