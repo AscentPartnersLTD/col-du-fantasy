@@ -192,6 +192,22 @@ is keyed by editorial slug, not by bib, so a tdf URL cannot be mechanically
 translated into a vue one. Hotlinking either bucket from coldufantasy.com is
 outside any ASO terms and breaks all at once if signatures rotate.
 
+## Harvesting images, two rules learned the hard way
+
+Both of these were real defects shipped in the same week, 2026-08-21.
+
+1. Always run `ImageOps.exif_transpose(im)` BEFORE cropping or resizing. Pillow's
+   `Image.open()` does not apply the EXIF orientation tag, so a source shot in
+   portrait (tag 6 or 8) gets cropped on its raw sensor pixels and ships rotated
+   90 degrees. This is how the Thibau Nys photo went out sideways with his head
+   clipped. Only 1 of 17 files carried a bad tag, so spot-checking will miss it.
+2. A file returning HTTP 200 with a valid free licence is NOT evidence that the
+   image shows the rider. Four of seventeen Commons images passed both checks and
+   were unusable: one was traffic cones with a distant rider, two were peloton
+   shots where the subject could not be identified. LOOK at every harvested image,
+   for example by tiling them into one contact sheet and reading it, before
+   shipping. Prefer the initials avatar over a photo that does not show the rider.
+
 ## Copying a board to start a new race
 
 When a new board is created by copying an existing one, the race-specific data
@@ -247,6 +263,19 @@ leader chips, trend-line captions) has to follow that race's profile.
 
 ## Open items
 
+- Jersey prediction colors use the OFFICIAL 2025 jersey art carried forward, because
+  lavuelta.es had not published the 2026 assets as of 2026-08-21: of the six ranking
+  jerseys only `2026/icg.png` (combined) existed, the other five returned 404. Values
+  sampled from the official 2025 PNGs are red `#d81830` general, dark green `#003018`
+  points, blue `#0060a8` mountains, white/grey young. RE-CHECK once
+  `lavuelta.es/img/ranking-jerseys/2026/*.png` fills in and correct them if the 2026
+  designs differ. Classification NAMES are confirmed for 2026: General, Puntos,
+  Montaña, Joven, plus Equipo and Combativo.
+- `barsRankPts()` was deleted 2026-08-21 along with the whole Overview bars block. It
+  was kept deliberately in an earlier pass as the retired Fantasy-Points-on-Rank lens;
+  that decision is now reversed on purpose, because with no bars anywhere on the board
+  a bars renderer has nothing to draw into. Do NOT restore it. The table twin
+  `gcRankPts()` is a separate function and still present.
 - Pool switch routing fix: SHIPPED 2026-08-09, REGRESSED, RE-APPLIED 2026-08-10.
   `patch_pool_routing.py` puts `poolHref()`/`onPoolPage()` into both sources; it is
   idempotent and a no-op once applied. Keep it as the record of the edit.
