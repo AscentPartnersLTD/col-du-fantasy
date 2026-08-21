@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260821-194416Z -->
+<head><!-- build:20260821-210647Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -350,6 +350,30 @@
      size, weight, color, padding, caret, and native-marker hiding. The <details> wrapper
      owns the divider, so .pc-story itself carries no border. */
   .pc-story{font-size:11.5px;line-height:1.5;color:var(--ink2);margin-top:9px}
+  /* Kasseistampers card: initials avatar under any photo, so a missing or broken
+     file degrades instead of leaving a hole. */
+  .mer-avwrap{position:relative;display:inline-block;flex:none}
+  .mer-ini{display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;letter-spacing:.04em;color:var(--paper);background:var(--vred)}
+  .mer-avwrap .mer-photo{position:absolute;left:0;top:0}
+  /* Anthem player. Palette and summary styling are the board's existing ones. */
+  .kas-anthem{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+  .kas-play{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-family:'Montserrat',sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--paper);background:var(--vred);border:0;border-radius:999px;padding:8px 14px}
+  .kas-play:hover{background:var(--vred2)}
+  .kas-play svg{width:11px;height:11px;flex:none;fill:var(--paper)}
+  .kas-play .ic-pause,.kas-play.on .ic-play{display:none}
+  .kas-play.on .ic-pause{display:inline}
+  .kas-lyr,.kas-cred{margin-top:10px;border-top:1px solid var(--line);padding-top:9px}
+  .kas-lyr summary,.kas-cred summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:'Montserrat',sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--vred)}
+  .kas-lyr summary::-webkit-details-marker,.kas-cred summary::-webkit-details-marker{display:none}
+  .kas-lyr summary .jtog,.kas-cred summary .jtog{width:15px;height:15px;position:relative;flex:none}
+  .kas-lyr summary .jtog::before,.kas-lyr summary .jtog::after,.kas-cred summary .jtog::before,.kas-cred summary .jtog::after{content:'';position:absolute;background:currentColor;border-radius:2px}
+  .kas-lyr summary .jtog::before,.kas-cred summary .jtog::before{left:2px;right:2px;top:6.5px;height:2px}
+  .kas-lyr summary .jtog::after,.kas-cred summary .jtog::after{top:2px;bottom:2px;left:6.5px;width:2px;transition:opacity .18s}
+  .kas-lyr[open] summary .jtog::after,.kas-cred[open] summary .jtog::after{opacity:0}
+  .kas-words{white-space:pre-line;font-size:11.5px;line-height:1.6;color:var(--ink2);margin-top:8px}
+  .kas-dir{color:var(--mute);font-style:italic}
+  .kas-cr{font-size:10.5px;color:var(--mute);line-height:1.5;margin-top:6px}
+
   .pc-jerseys,.pc-story-d{margin-top:11px;border-top:1px solid var(--line);padding-top:9px}
   .pc-jerseys summary,.pc-story-d summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:'Montserrat',sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--red,#c8102e)}
   .pc-jerseys summary::-webkit-details-marker,.pc-story-d summary::-webkit-details-marker{display:none}
@@ -1789,14 +1813,43 @@ const USA_RIDERS=[
  {r:"M. Jorgenson",t:"Visma-Lease a Bike",bio:"Born 1999, raised in Boise, Idaho. Back-to-back winner of Paris-Nice in 2024 and 2025, the first American to take it since 2006, and winner of the 2024 Dwars door Vlaanderen cobbled classic. Eighth overall at the 2024 Tour; with Vingegaard out, the 6-foot-3 all-rounder now carries Visma's hopes in this race."},
  {r:"M. Riccitello",t:"Decathlon CMA CGM Team",bio:"Born 2002 in Tucson, Arizona, the youngest of the six. Broke through with fifth overall and the best young rider jersey at the 2025 Vuelta, then opened 2026 by winning the Tour de la Provence for his new French team. A pure climber built for the high mountains."}
 ];
+/* Every Belgian in the 2026 Vuelta field, rebuilt from the official start list on
+   2026-08-21 and cross-checked between lavuelta.es and procyclingstats. Display
+   names match the RIDERS array exactly so a pick resolves; renderKassei asserts
+   that at load and drops any entry that does not. Photos are hosted in the repo,
+   never hotlinked, and the card falls back to an initials avatar without one. */
 const BELGIAN_RIDERS=[
- {r:"W. van Aert",t:"Visma-Lease a Bike",bio:"One of the great all-rounders of his generation: multiple Tour de France stage wins across sprints, mountains and time trials, a former cyclocross world champion, and a Milan-San Remo and Gent-Wevelgem winner. The engine every Belgian fan watches."},
- {r:"C. Uijtdebroeks",t:"Movistar Team",bio:"Young Belgian GC talent who took the best young rider jersey and a top-ten overall at the Vuelta as a neo-pro, climbing with the leaders in the high mountains."},
- {r:"T. Nys",t:"Lidl-Trek",bio:"Son of cyclocross great Sven Nys and a cyclocross star in his own right, now a WorldTour puncheur with stage wins on steep, hilly finishes."},
- {r:"L. De Plus",t:"Netcompany INEOS",bio:"A trusted grand-tour climbing domestique who has paced GC leaders through the biggest mountain stages for years."},
- {r:"J. Widar",t:"Lotto-Intermarche",bio:"A highly rated young Belgian climber and U23 Giro overall winner, stepping up to grand-tour racing."},
- {r:"G. Vermeersch",t:"Red Bull-BORA-hansgrohe",bio:"A powerful all-rounder and inaugural gravel world champion, at home on cobbles, crosswinds and rough terrain."},
- {r:"S. Cras",t:"Soudal Quick-Step",bio:"A rangy climber and breakaway rider who thrives on long mountain days and grand-tour escapes."}
+ /* src: https://en.wikipedia.org/wiki/Jordi_Meeus */
+ {r:"J. Meeus",t:"Red Bull-BORA-hansgrohe",photo:"belgian-meeus.jpg",bio:"A sprinter whose biggest win came on the Champs-Elysees, taking the final stage of the 2023 Tour de France ahead of Jasper Philipsen. Also won Paris-Bourges in 2021 and the Primus Classic in 2022."},
+ {r:"G. Vermeersch",t:"Red Bull-BORA-hansgrohe",photo:"belgian-vermeersch.jpg",bio:"A powerful all-rounder and inaugural gravel world champion, at home on cobbles, crosswinds and rough terrain."},
+ {r:"C. Uijtdebroeks",t:"Movistar Team",photo:"belgian-uijtdebroeks.jpg",bio:"Young Belgian GC talent who took the best young rider jersey and a top-ten overall at the Vuelta as a neo-pro, climbing with the leaders in the high mountains."},
+ {r:"W. van Aert",t:"Visma-Lease a Bike",photo:"belgian-vanaert.jpg",bio:"One of the great all-rounders of his generation: multiple Tour de France stage wins across sprints, mountains and time trials, a former cyclocross world champion, and a Milan-San Remo and Gent-Wevelgem winner. The engine every Belgian fan watches."},
+ /* src: https://www.procyclingstats.com/rider/sander-de-pestel */
+ {r:"S. de Pestel",t:"Decathlon CMA CGM Team",photo:"belgian-depestel.jpg",bio:"An all-rounder from Sint-Niklaas, with a stage podium at the 2025 Route d'Occitanie and a top ten overall at the 2025 Tour de la Provence."},
+ {r:"T. Nys",t:"Lidl-Trek",photo:"belgian-nys.jpg",bio:"Son of cyclocross great Sven Nys and a cyclocross star in his own right, now a WorldTour puncheur with stage wins on steep, hilly finishes."},
+ /* src: https://en.wikipedia.org/wiki/Lindsay_De_Vylder */
+ {r:"L. de Vylder",t:"Alpecin-Premier Tech",photo:"belgian-devylder.jpg",bio:"A road and track rider who represented Belgium at the 2024 Olympics, finishing seventh in the team pursuit and tenth in the madison alongside Fabio van den Bossche."},
+ /* src: https://www.procyclingstats.com/rider/ramses-debruyne */
+ {r:"R. Debruyne",t:"Alpecin-Premier Tech",photo:"belgian-debruyne.jpg",bio:"A young climber from Rollegem, second on a stage of the 2026 Tour Auvergne-Rhone-Alpes and second at the 2024 Youngster Coast Challenge."},
+ /* src: https://en.wikipedia.org/wiki/Sente_Sentjens */
+ {r:"S. Sentjens",t:"Alpecin-Premier Tech",photo:"belgian-sentjens.jpg",bio:"Born in 2005 and the son of former professional Roy Sentjens. Won the Grand Prix Cerami in 2024 and the Youngster Coast Challenge in 2025."},
+ /* src: https://en.wikipedia.org/wiki/Floris_Van_Tricht */
+ {r:"F. van Tricht",t:"NSN Cycling Team",bio:"Brother of professional Stan Van Tricht, moved up to the WorldTeam roster in July 2025 after Jakob Fuglsang announced his retirement. Won the Midden-Brabant Poort Omloop in 2024."},
+ /* src: https://en.wikipedia.org/wiki/Fabio_Van_Den_Bossche */
+ {r:"F. van den Bossche",t:"Soudal Quick-Step",photo:"belgian-vandenbossche.jpg",bio:"A road and track rider who took omnium bronze at the 2024 Olympics and finished seventh in the team pursuit."},
+ /* src: https://en.wikipedia.org/wiki/Mauri_Vansevenant */
+ {r:"M. Vansevenant",t:"Soudal Quick-Step",photo:"belgian-vansevenant.jpg",bio:"Son of former professional Wim Vansevenant, and named after Melcior Mauri, winner of the 1991 Vuelta a Espana."},
+ /* src: https://www.procyclingstats.com/rider/sylvain-moniquet */
+ {r:"S. Moniquet",t:"Cofidis",photo:"belgian-moniquet.jpg",bio:"A climber from Namur who won a stage of the 2025 Tour du Limousin and finished third overall in the same race."},
+ {r:"J. Widar",t:"Lotto-Intermarché",photo:"belgian-widar.jpg",bio:"A highly rated young Belgian climber and U23 Giro overall winner, stepping up to grand-tour racing."},
+ /* src: https://www.procyclingstats.com/rider/vito-braet */
+ {r:"V. Braet",t:"Lotto-Intermarché",photo:"belgian-braet.jpg",bio:"A fast finisher from Hulste with a stage podium at the 2024 Vuelta a Espana and second on a stage of the 2026 Paris-Nice."},
+ /* src: https://www.procyclingstats.com/rider/lars-craps */
+ {r:"L. Craps",t:"Lotto-Intermarché",photo:"belgian-craps.jpg",bio:"A stage-race rider from Aalst, fifth on a stage of the 2024 Tour of Norway and fourteenth overall at the 2026 Tour Auvergne-Rhone-Alpes."},
+ /* src: https://www.procyclingstats.com/rider/steffen-de-schuyteneer */
+ {r:"S. de Schuyteneer",t:"Lotto-Intermarché",photo:"belgian-deschuyteneer.jpg",bio:"A sprinter from Geraardsbergen, born 2005, with stage wins at the Tour of Taihu Lake and the Tour of Istanbul, and second at the 2026 Grand Prix la Marseillaise."},
+ /* src: https://www.procyclingstats.com/rider/luca-van-boven */
+ {r:"L. van Boven",t:"Lotto-Intermarché",photo:"belgian-vanboven.jpg",bio:"From Zottegem, second on a stage of the 2025 Itzulia Basque Country and fourth overall at the 2024 Four Days of Dunkirk."}
 ];
 const SHARED_UPCOMING = {
   21: { route:"Thoiry > Paris (Champs-Elysees)", type:"Hilly finale / Montmartre", km:133,
@@ -2088,6 +2141,67 @@ function renderMerica(){
     });
   });
 }
+
+/* ===== Kasseistampers anthem =====
+   One audio element for the whole page, created lazily and parked on <body>, so a
+   re-render of the card never restarts or orphans playback. Never autoplays: the
+   only path to play() is a click, which is also what iOS Safari requires. If the
+   mp3 is missing the control hides itself rather than erroring. */
+var KAS_SRC='/kasseistampers.mp3', KAS_AUDIO=null, KAS_DEAD=false;
+var KAS_LYRICS="<span class=\"kas-dir\">[Intro - crowd shout]</span>\nOp de kasseien! STAMP! STAMP! STAMP!\nWie pakt de trui? KO-NING... KAS-SEI-STAM-PERS!\n\n<span class=\"kas-dir\">[Verse 1]</span>\nWe can't ride the Ronde,\nWe can't climb a col,\nWe couldn't stamp a single kassei,\nBut we back the fastest Belgian of all!\n\n<span class=\"kas-dir\">[Chorus - big crowd]</span>\nOh, when the stampers come stomping in,\nOh when the Kasseistampers stomp in,\nGodverdomme, crack the pintjes,\nWhen the Kasseistampers stomp in!\n\n<span class=\"kas-dir\">[Verse 2]</span>\nLike the watch of old Aarschot,\nWe're clocking off the graft,\nWe stamp our clogs to sound like we're working,\nThen it's off to de kroeg for a draught!\n\n<span class=\"kas-dir\">[Chorus - big crowd]</span>\nOh, when the stampers come stomping in,\nOh when the Kasseistampers stomp in,\nGodverdomme, crack the pintjes,\nWhen the Kasseistampers stomp in!\n\n<span class=\"kas-dir\">[Bridge - stomp and clap]</span>\nFrietjes! Mayonaise!\nKasseien! Pintjes!\nKoning der Kasseistampers... ALLEZ!\n\n<span class=\"kas-dir\">[Verse 3]</span>\nThe kasseien rattle your kloten,\nThey'll shake your fillings free,\nBut the Koning don't flinch, he waves for another,\nNog een pintje, en eentje for me!\n\n<span class=\"kas-dir\">[Outro - full crowd, arms up]</span>\nAllez, allez, KAS-SEI-STAM-PERS,\nCobbles, beer, and glorie,\nAllez, allez, KAS-SEI-STAM-PERS...\nSANTE!";
+var KAS_CREDITS="<div class=\"kas-cr\"><b>J. Meeus</b> Nicola, CC BY-SA 4.0. <a href=\"https://commons.wikimedia.org/wiki/File:Rund_um_K\u00f6ln_2023_102.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a></div><div class=\"kas-cr\"><b>G. Vermeersch</b> J\u00e9r\u00e9my-G\u00fcnther-Heinz J\u00e4hnick, CC BY-SA 3.0. <a href=\"https://commons.wikimedia.org/wiki/File:Grotenberge_(Zottegem)_-_Omloop_Het_Nieuwsblad_Beloften,_4_juli_2015_(E15).JPG\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a></div><div class=\"kas-cr\"><b>C. Uijtdebroeks</b> Foveon producciones, CC BY-SA 4.0. <a href=\"https://commons.wikimedia.org/wiki/File:Vuelta_a_Espa\u00f1a_2023_Contrarreloj_Valladolid-15.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a></div><div class=\"kas-cr\"><b>W. van Aert</b> Cl\u00e9mence LN, CC BY-SA 4.0. <a href=\"https://commons.wikimedia.org/wiki/File:WVA_Paris-Roubaix_2022.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a></div><div class=\"kas-cr\"><b>S. de Pestel</b> Renhour48, CC0. <a href=\"https://commons.wikimedia.org/wiki/File:Les_4_jours_de_Dunkerque_2025_-_Sander_De_Pestel.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a></div><div class=\"kas-cr\"><b>T. Nys</b> Cs-wolves, CC BY-SA 4.0. <a href=\"https://commons.wikimedia.org/wiki/File:Thibau_Nys_-_2023_UCI_Road_World_Championships_(Men's_under-23_road_race).jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a></div><div class=\"kas-cr\"><b>L. de Vylder</b> Nicola, CC BY-SA 4.0. <a href=\"https://commons.wikimedia.org/wiki/File:2024_UEC_Track_Elite_European_Championships_178.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a></div><div class=\"kas-cr\"><b>R. Debruyne</b> Robin Krahl, CC BY-SA 4.0. <a href=\"https://commons.wikimedia.org/wiki/File:2022-07-27_0511_Ramses_Debruyne_(Tour_Alsace).jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a></div><div class=\"kas-cr\"><b>S. Sentjens</b> Cs-wolves, CC BY-SA 4.0. <a href=\"https://commons.wikimedia.org/wiki/File:Belgium_-_2023_UCI_Road_World_Championships_(Men's_junior_road_race).jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a></div><div class=\"kas-cr\"><b>F. van den Bossche</b> Nicola, CC BY-SA 4.0. <a href=\"https://commons.wikimedia.org/wiki/File:2024_UEC_Track_Elite_European_Championships_177.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a></div><div class=\"kas-cr\"><b>M. Vansevenant</b> filip bossuyt from Kortrijk, Belgium, CC BY 2.0. <a href=\"https://commons.wikimedia.org/wiki/File:GI220026_vansevenant_(52123252048).jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a></div><div class=\"kas-cr\"><b>S. Moniquet</b> Beno\u00eet Prieur, CC0. <a href=\"https://commons.wikimedia.org/wiki/File:Sylvain_Moniquet_(Lotto_Soudal)_au_matin_de_la_premi\u00e8re_\u00e9tape_du_Tour_de_l'Ain_2021.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a></div><div class=\"kas-cr\"><b>J. Widar</b> MFonzatti, CC BY-SA 4.0. <a href=\"https://commons.wikimedia.org/wiki/File:TDA2024_Jarno_Widar.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a></div><div class=\"kas-cr\"><b>V. Braet</b> J\u00e9r\u00e9my-G\u00fcnther-Heinz J\u00e4hnick, CC BY-SA 3.0. <a href=\"https://commons.wikimedia.org/wiki/File:Saint-Amand-les-Eaux_-_Paris-Roubaix_juniors,_9_avril_2017,_d\u00e9part_(A85).JPG\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a></div><div class=\"kas-cr\"><b>L. Craps</b> KvaraWolves88, CC0. <a href=\"https://commons.wikimedia.org/wiki/File:Lars_Craps_at_Renewi_Tour_2024.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a></div><div class=\"kas-cr\"><b>S. de Schuyteneer</b> Cs-wolves, CC BY-SA 4.0. <a href=\"https://commons.wikimedia.org/wiki/File:Steffen_De_Schuyteneer_-_2023_UCI_Road_World_Championships_(Men's_junior_road_race,_lap_4).jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a></div><div class=\"kas-cr\"><b>L. van Boven</b> Hoebele, CC BY-SA 4.0. <a href=\"https://commons.wikimedia.org/wiki/File:2024_Tour_de_Wallonie_-_4e_etappe_127_Luca_van_Boven.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a></div>";
+function kasHide(){ KAS_DEAD=true; document.querySelectorAll('.kas-play').forEach(function(b){ b.style.display='none'; }); }
+function kasSync(){
+  var on = !!(KAS_AUDIO && !KAS_AUDIO.paused);
+  document.querySelectorAll('.kas-play').forEach(function(b){
+    b.classList.toggle('on',on);
+    b.setAttribute('aria-pressed', on?'true':'false');
+    var l=b.querySelector('.kas-lab'); if(l) l.textContent = on?'Pause the anthem':'Play the anthem';
+  });
+}
+function kasEl(){
+  if(!KAS_AUDIO){
+    KAS_AUDIO=document.createElement('audio');
+    KAS_AUDIO.preload='none'; KAS_AUDIO.src=KAS_SRC;
+    KAS_AUDIO.addEventListener('error',kasHide);
+    KAS_AUDIO.addEventListener('play',kasSync);
+    KAS_AUDIO.addEventListener('pause',kasSync);
+    KAS_AUDIO.addEventListener('ended',kasSync);
+    document.body.appendChild(KAS_AUDIO);
+  }
+  return KAS_AUDIO;
+}
+function kasToggle(){
+  if(KAS_DEAD) return;
+  var a=kasEl();
+  if(a.paused){
+    /* one thing at a time: pause any other media, leave its position alone */
+    document.querySelectorAll('audio,video').forEach(function(m){ if(m!==a && !m.paused){ try{ m.pause(); }catch(e){} } });
+    var p=a.play(); if(p&&p.catch) p.catch(function(){ kasSync(); });
+  } else { a.pause(); }
+  kasSync();
+}
+function kasAnthemHTML(){
+  if(KAS_DEAD) return '';
+  return '<div class="kas-anthem">'
+    +'<button type="button" class="kas-play" aria-pressed="false">'
+    +'<svg class="ic-play" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1l8 5-8 5z"/></svg>'
+    +'<svg class="ic-pause" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1h3v10H2zM7 1h3v10H7z"/></svg>'
+    +'<span class="kas-lab">Play the anthem</span></button>'
+    +'<details class="kas-lyr"><summary>Lyrics<span class="jtog"></span></summary>'
+    +'<div class="kas-words">'+KAS_LYRICS+'</div></details>'
+    +(KAS_CREDITS?'<details class="kas-cred"><summary>Photo credits<span class="jtog"></span></summary>'+KAS_CREDITS+'</details>':'')
+    +'</div>';
+}
+document.addEventListener('click',function(e){
+  var b=e.target.closest && e.target.closest('.kas-play');
+  if(b){ e.preventDefault(); kasToggle(); }
+});
+/* hide the control if the file is not actually there */
+if(window.fetch){
+  fetch(KAS_SRC,{method:'HEAD'}).then(function(r){ if(!r.ok) kasHide(); }).catch(function(){ kasHide(); });
+}
+
 function renderKassei(){
   let mm=document.getElementById('kasseiMount');
   if(!mm){ const dm=document.getElementById('kasseiMount')||document.getElementById('draftMount'); if(!dm||!dm.parentNode) return; mm=document.createElement('div'); mm.id='kasseiMount'; dm.parentNode.insertBefore(mm, dm.nextSibling); }
@@ -2097,7 +2211,17 @@ function renderKassei(){
   // last rider an observer tapped (local bio browsing, nothing written).
   const featured=window.__kasOpen||(myCode?mine:null);
   const shield='<img class="kas-emb" src="/emblem-belgium.png" alt="Belgium">';
-  const avOf=u=>{ const RR=(typeof RIDERS!=='undefined')?RIDERS.find(x=>x.r===u.r):null; const p=(RR&&RR.p)||''; return p?'<img class="mer-av" src="'+esc(p)+'" alt="" onerror="this.style.display=\'none\'">':''; };
+  /* Locally hosted photo over an initials avatar. onerror strips the image and the
+     initials underneath show through, so a missing file never leaves a hole. */
+  const avOf=u=>{
+    const parts=String(u.r||'').split('. ');
+    const fi=(parts[0]||'?').trim().charAt(0).toUpperCase();
+    const sn=(parts.length>1?parts[1]:String(u.r||'')).trim().split(/\s+/).pop()||'';
+    const ini=esc(fi+(sn.charAt(0)||'').toUpperCase());
+    return '<span class="mer-avwrap"><span class="mer-av mer-ini">'+ini+'</span>'
+      +(u.photo?'<img class="mer-av mer-photo" src="'+esc(u.photo)+'" alt="" loading="lazy" onerror="this.remove()">':'')
+      +'</span>';
+  };
   // Once the stage's draft is locked, the card collapses to a thin bar under the
   // main picks minibar (Allen, 2026-07-19) so the Break Tracker stays above the
   // fold. Tap to reopen; picks stay editable until EOS.
@@ -2137,7 +2261,7 @@ function renderKassei(){
   }).join('');
   const foot=myCode?(mine?('Your call: '+esc(mine)+'. Tap another rider below to switch any time before the stage is scored.'):'Tap a rider to make your call for this stage. Your pick moves up top with their story.'):'Watching only - pool seats make the calls. Tap a rider to read their bio.';
   const minBtn=stageOn?'<button type="button" class="mer-minbtn">Minimize</button>':'';
-  mm.innerHTML='<div class="mer-card kassei"><div class="mer-h">'+shield+'<div><div class="mer-t">KASSEISTAMPERS - STAGE '+esc(String(STAGE))+'</div><div class="mer-s">Pick the top-finishing Belgian of the day. Right call earns a cobble on your card; most cobbles at season\'s end takes the Koning der Kasseistampers jersey. No draft order, no exclusivity - everybody just picks.</div></div>'+minBtn+'</div>'+topCard+'<div class="mer-chips">'+chips+'</div><div class="mer-foot">'+foot+'</div></div>';
+  mm.innerHTML='<div class="mer-card kassei"><div class="mer-h">'+shield+'<div><div class="mer-t">KASSEISTAMPERS - STAGE '+esc(String(STAGE))+'</div><div class="mer-s">Pick the top-finishing Belgian of the day. Right call earns a cobble on your card; most cobbles at season\'s end takes the Koning der Kasseistampers jersey. No draft order, no exclusivity - everybody just picks.</div></div>'+minBtn+'</div>'+topCard+'<div class="mer-chips">'+chips+'</div><div class="mer-foot">'+foot+'</div>'+kasAnthemHTML()+'</div>';
   const mb=mm.querySelector('.mer-minbtn');
   if(mb) mb.addEventListener('click',()=>{ window.__kasExpand=false; renderKassei(); });
   mm.querySelectorAll('.mer-chip').forEach(ch=>{
@@ -4523,4 +4647,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy: official vuelta startlist, 2026-08-21T19:44Z -->
+<!-- redeploy: kasseistampers upgrade, 2026-08-21T21:06Z -->
