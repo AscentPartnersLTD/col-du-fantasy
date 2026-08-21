@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260821-220434Z -->
+<head><!-- build:20260821-232140Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -3228,8 +3228,14 @@ const PERSONA_BY = (function(){
   const L=(typeof PERSONA_LEDGER!=='undefined')?PERSONA_LEDGER:{order:PL4.slice(),by:{},seen:{}};
   const byId=id=>PERSONA_BANK.find(x=>x.id===id)||null;
   const prevPos={}; (L.order||[]).forEach((p,i)=>prevPos[p]=i);
-  const curPos={}; placeOrder.forEach((p,i)=>curPos[p]=i);
-  const leader=placeOrder[0];
+  /* Standing here means the race's system of record, which on the Vuelta is Fantasy
+     Points, not Placement. Both lines have to read the same board: `leader` decides who
+     draws from the winner tier, and `curPos` decides who held their spot and therefore
+     keeps the persona they are wearing. Split them across two boards and the Fantasy
+     Points leader can hold a Placement position, keep a style persona, and never reach
+     the winner tier at all. The Tour board keeps placeOrder, which is correct there. */
+  const curPos={}; fanOrder.forEach((p,i)=>curPos[p]=i);
+  const leader=fanOrder[0];
   const assigned={}, used={};
   /* 1) explicit pin in RIDER_PROFILE always wins */
   PL4.forEach(p=>{ const pin=(rp[p]||{}).pin; if(pin){ const c=byId(pin); if(c && !used[pin]){ assigned[p]=c; used[pin]=1; } } });
@@ -3239,7 +3245,13 @@ const PERSONA_BY = (function(){
     if(assigned[p]) return;
     const held = (prevPos[p]!==undefined) && (prevPos[p]===curPos[p]);
     const prevId=(L.by||{})[p];
-    if(held && prevId && byId(prevId)){ assigned[p]=byId(prevId); used[prevId]=1; }
+    const prev=prevId?byId(prevId):null;
+    /* Holding a spot only keeps the persona if that persona still matches the tier the
+       player is owed. The leader wears a champion and everyone else wears a style, so a
+       new leader who held their position gives up a style name, and a former leader who
+       slipped gives the champion name back to the pool instead of sitting on it. */
+    const wantTier=(p===leader)?'winner':'style';
+    if(held && prev && prev.tier===wantTier){ assigned[p]=prev; used[prevId]=1; }
     else movers.push(p);
   });
   /* everything that was on the previous board is off-limits for a mover (no swaps, no hand-me-downs) */
@@ -4609,4 +4621,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy: overview rework, 2026-08-21T22:04Z -->
+<!-- redeploy: champion persona follows fantasy points, 2026-08-21T23:21Z -->
