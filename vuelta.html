@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260821-232140Z -->
+<head><!-- build:20260821-233839Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -377,6 +377,11 @@
   .kas-words{white-space:pre-line;font-size:11.5px;line-height:1.6;color:var(--ink2);margin-top:8px}
   .kas-dir{color:var(--mute);font-style:italic}
   .kas-cr{font-size:10.5px;color:var(--mute);line-height:1.5;margin-top:6px}
+  /* Deliberately quiet: it is a joke off the Verse 2 line about the watch of old
+     Aarschot, so it reads as a footnote rather than a call to action. */
+  .kas-aarwrap{margin-top:10px}
+  .kas-aar{font-size:10.5px;color:var(--mute);text-decoration:none;border-bottom:1px dotted var(--line2)}
+  .kas-aar:hover{color:var(--vred)}
 
   .pc-jerseys,.pc-story-d{margin-top:11px;border-top:1px solid var(--line);padding-top:9px}
   .pc-jerseys summary,.pc-story-d summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:'Montserrat',sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--red,#c8102e)}
@@ -2195,6 +2200,7 @@ function kasAnthemHTML(){
     +'<details class="kas-lyr"><summary>Lyrics<span class="jtog"></span></summary>'
     +'<div class="kas-words">'+KAS_LYRICS+'</div></details>'
     +(KAS_CREDITS?'<details class="kas-cred"><summary>Photo credits<span class="jtog"></span></summary>'+KAS_CREDITS+'</details>':'')
+    +'<div class="kas-aarwrap"><a class="kas-aar" href="https://www.tripadvisor.com/Attractions-g2147815-Activities-Aarschot_Flemish_Brabant_Province.html" target="_blank" rel="noopener noreferrer">Top 15 Things To Do in Aarschot</a></div>'
     +'</div>';
 }
 document.addEventListener('click',function(e){
@@ -2911,6 +2917,11 @@ const PSTATS = (function(){
     let sprintWins=0; COMPLETED.forEach(n=>{ const st=STAGES.find(s=>s.n===n);
       if(/sprint|flat/i.test(st.type) && (st.picks[p]||[]).some(([r,f])=>f===1)) sprintWins++; });
     const mvdp=(freq['MVANDERPOEL']||0);
+    /* placePos is DELIBERATELY the Placement board, not the race's system of record.
+       Five persona fit() functions are tuned against it (cooke, purito, voeckler,
+       cunego, schleckbros key on placePos 2, <=2, >=3, <=3), so repointing it at
+       fanOrder would silently re-tune which personas the bank hands out. It is named
+       for the board it reads. Do not "fix" it. */
     S[p]={ k:p, mvdp, placePos:placeOrder.indexOf(p)+1, rankPos:rankOrder.indexOf(p)+1,
       wins:WINS_BY[p], mostWins:(WINS_BY[p]===maxWins && maxWins>0),
       sel:AWARDS.selection[p], prix:AWARDS.prix[p], aggro:AWARDS.selection[p]+AWARDS.prix[p],
@@ -3296,7 +3307,10 @@ const PERSONA_BY = (function(){
     kassei:'<img class="jsy" src="/jersey-kasseistampers-front.jpg" alt="Kasseistampers jersey" loading="lazy">'
   };
   const rp=(typeof RIDER_PROFILE!=='undefined')?RIDER_PROFILE:{};
-  el.innerHTML = placeOrder.map((k,i)=>{
+  /* Cards run in system-of-record order so the row reads the same way as the callout
+     tiles directly above it, which lead with Fantasy Points. i===0 also drives the
+     lead styling and the crown, so both now sit with the Fantasy Points leader. */
+  el.innerHTML = fanOrder.map((k,i)=>{
     const prof=rp[k]||{};
     const persona=PERSONA_BY[k];
     const art=persona?ART[persona.id]:null;
@@ -3309,7 +3323,7 @@ const PERSONA_BY = (function(){
       ? `<div class="pc-persona">&ldquo;${persona.epithet}&rdquo;<span class="pc-rider">${persona.rider}</span></div>`
       : `<div class="pc-persona ph">persona to come</div>`;
     const story = persona ? `${persona.blurb} ${persona.why(PSTATS[k])}` : '';
-    const placePos=placeOrder.indexOf(k)+1, rankPos=rankOrder.indexOf(k)+1;
+    const fanPos=fanOrder.indexOf(k)+1, rankPos=rankOrder.indexOf(k)+1;
     const sel=AWARDS.selection[k], prix=AWARDS.prix[k];
     /* Jersey / honours history - bragging rights that carry forward across races.
        This-season line is computed from live medals; prior editions come from the
@@ -3338,7 +3352,7 @@ const PERSONA_BY = (function(){
         </div>
       </div>
       <div class="pc-standings">
-        <span class="pc-stat"><em>${ordinal(placePos)}</em><span class="pl-lab">Placement</span><b>${OURS.placement[k]}</b></span>
+        <span class="pc-stat"><em>${ordinal(fanPos)}</em><span class="pl-lab">Fantasy Points</span><b>${OURS.fantasy[k]}</b></span>
         <span class="pc-stat"><em>${ordinal(rankPos)}</em><span class="pl-lab">Rank</span><b>${OURS.rank[k]}</b></span>
       </div>
       <div class="pc-medals">
@@ -3856,7 +3870,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   const board=PL.map(p=>({p,n:MER[p]})).sort((a,b)=>b.n-a.n||a.p.localeCompare(b.p));
   const tally=board.map(b=>{const hold=max>0&&b.n===max;const sh=b.n>0?Array(Math.min(b.n,10)).fill(SH).join(''):'<span class="mt-none">no cobbles yet</span>';return `<div class="mt-row${hold?' hold':''}"><span class="mt-nm">${nameOf(b.p)}</span><span class="mt-shields">${sh}</span><span class="mt-ct" style="color:${COL[b.p]||'#1b1a17'}">${b.n}</span></div>`;}).join('');
   const wrows=watch.map(s=>{const cor=(s.kassei.correct||[]).map(nameOf);const who=cor.length?cor.join(', '):'no call took it';return `<div class="mt-wrow"><span class="mt-wn">St ${s.n}</span><span class="mt-wr">${s.kassei.top} <em>${ord(s.kassei.f)}</em></span><span class="mt-ww">${who}</span></div>`;}).join('');
-  el.innerHTML=`<div class="mt-top">${PRIZE}<div class="mt-tally"><div class="mt-hold"><span class="mt-holdlab">Current holder</span><span class="mt-holdnm">${holderTxt}</span></div>${tally}</div></div>${watch.length?`<div class="mt-watch"><div class="mt-wlab">Stage-by-stage Belgian watch</div>${wrows}</div>`:''}`;
+  el.innerHTML=`<div class="mt-top">${PRIZE}<div class="mt-tally"><div class="mt-hold"><span class="mt-holdlab">Current holder</span><span class="mt-holdnm">${holderTxt}</span></div>${tally}</div></div>${watch.length?`<div class="mt-watch"><div class="mt-wlab">Stage-by-stage Belgian watch</div>${wrows}</div>`:''}`+kasAnthemHTML();
 }catch(e){ console.error('kassei tracker',e); } })();
 
 ;
@@ -4621,4 +4635,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy: champion persona follows fantasy points, 2026-08-21T23:21Z -->
+<!-- redeploy: cards on fantasy points, anthem on stats, 2026-08-21T23:38Z -->
