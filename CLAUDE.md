@@ -263,6 +263,11 @@ leader chips, trend-line captions) has to follow that race's profile.
 
 ## Open items
 
+- Machine Gerald (bogie): the Claude Code Grep tool returns false negatives on this
+  machine. In the 2026-08-22 session it returned "No matches found" for POOL_PAGE,
+  mfb, header, mast, hero, body, and other strings that bash grep found in the same
+  files. Use `grep` or `rg` via Bash for existence checks on Gerald, and treat a
+  zero result from the Grep tool as unproven rather than as absence.
 - Jersey prediction colors use the OFFICIAL 2025 jersey art carried forward, because
   lavuelta.es had not published the 2026 assets as of 2026-08-21: of the six ranking
   jerseys only `2026/icg.png` (combined) existed, the other five returned 404. Values
