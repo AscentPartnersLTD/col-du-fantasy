@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260822-152311Z -->
+<head><!-- build:20260822-153603Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -780,7 +780,7 @@
       .mer-mini .mm-nm{font-size:11.5px;font-weight:700;color:var(--ink)}
       .mer-mini .mm-av{width:26px;height:26px;border-radius:50%;border:2px solid var(--card);position:relative;overflow:hidden;background:var(--line2);display:flex;align-items:center;justify-content:center;flex:none}
       .mer-mini .mm-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-      .mer-mini .mm-av .mfb{font-family:'Montserrat',sans-serif;font-weight:800;font-size:9px;color:#fff}
+      .mer-mini .mm-av .mfb{font-family:'Montserrat',sans-serif;font-weight:800;font-size:9px;color:#fff;width:100%;height:100%;border-radius:50%;display:flex;align-items:center;justify-content:center}
       .mer-mini .mm-more{font-size:11.5px;color:var(--mute);margin-left:9px;font-family:'Montserrat',sans-serif;font-weight:700}
       .mer-minbtn{margin-left:auto;flex:none;font-family:'Montserrat',sans-serif;font-weight:800;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);background:none;border:1px solid var(--line);border-radius:999px;padding:5px 12px;cursor:pointer}
       .mer-minbtn:hover{border-color:#B22234;color:#B22234}
@@ -857,7 +857,7 @@
       #draftMount .minibar .mb-avs{display:flex;margin-left:auto}
       #draftMount .minibar .mb-av{width:26px;height:26px;border-radius:50%;margin-left:-7px;border:2px solid var(--card);position:relative;overflow:hidden;background:var(--line2);display:flex;align-items:center;justify-content:center}
       #draftMount .minibar .mb-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-      #draftMount .minibar .mb-av .mfb{font-family:'Montserrat',sans-serif;font-weight:800;font-size:9px;color:#fff}
+      #draftMount .minibar .mb-av .mfb{font-family:'Montserrat',sans-serif;font-weight:800;font-size:9px;color:#fff;width:100%;height:100%;border-radius:50%;display:flex;align-items:center;justify-content:center}
       #draftMount .minibar .mb-more{font-size:11.5px;color:var(--mute);margin-left:9px;font-family:'Montserrat',sans-serif;font-weight:700}
       #draftMount .seedbar{font-size:10.5px;color:var(--mute);text-align:center;margin-top:8px}
       /* Mobile: stack the search field and its button so a long label never overruns the card,
@@ -2130,7 +2130,7 @@ function renderMerica(){
       const img=(RR&&RR.p)?'<img src="'+esc(RR.p)+'" onerror="this.remove()">':'';
       const col=(PMETA[c]&&PMETA[c].c)||'#888';
       const last=r.replace(/^[A-Z]\.\s*/,'');
-      return '<span class="mm-pick" title="'+esc(c)+' picked '+esc(r)+'"><b style="color:'+col+'">'+esc(c)+'</b><span class="mm-av" style="border-color:'+col+'">'+img+(img?'':'<span class="mfb" style="background:'+col+'">'+esc(c)+'</span>')+'</span><span class="mm-nm">'+esc(last)+'</span></span>';
+      return '<span class="mm-pick" title="'+esc(c)+' picked '+esc(r)+'"><b style="color:'+col+'">'+esc(c)+'</b><span class="mm-av"'+(img?' style="border-color:'+col+'"':'')+'>'+img+(img?'':'<span class="mfb" style="background:'+col+'">'+esc(c)+'</span>')+'</span><span class="mm-nm">'+esc(last)+'</span></span>';
     }).join('');
     const more=myCode&&!mine?'Tap to make your call':'Tap to view or change';
     mm.innerHTML='<div class="mer-mini" role="button" aria-label="Open Captain \'Merica">'
@@ -2403,7 +2403,7 @@ function renderKassei(){
       const img=(RR&&RR.p)?'<img src="'+esc(RR.p)+'" onerror="this.remove()">':'';
       const col=(PMETA[c]&&PMETA[c].c)||'#888';
       const last=r.replace(/^[A-Z]\.\s*/,'');
-      return '<span class="mm-pick" title="'+esc(c)+' picked '+esc(r)+'"><b style="color:'+col+'">'+esc(c)+'</b><span class="mm-av" style="border-color:'+col+'">'+img+(img?'':'<span class="mfb" style="background:'+col+'">'+esc(c)+'</span>')+'</span><span class="mm-nm">'+esc(last)+'</span></span>';
+      return '<span class="mm-pick" title="'+esc(c)+' picked '+esc(r)+'"><b style="color:'+col+'">'+esc(c)+'</b><span class="mm-av"'+(img?' style="border-color:'+col+'"':'')+'>'+img+(img?'':'<span class="mfb" style="background:'+col+'">'+esc(c)+'</span>')+'</span><span class="mm-nm">'+esc(last)+'</span></span>';
     }).join('');
     const more=myCode&&!mine?'Tap to make your call':'Tap to view or change';
     mm.innerHTML='<div class="mer-mini kassei" role="button" aria-label="Open Kasseistampers">'
@@ -2456,7 +2456,7 @@ function renderMini(picks){
   picks.slice(0,SNAKE.length).forEach(pk=>{
     const col=pk.color||'#888';
     const img=pk.photo?`<img src="${esc(pk.photo)}" onerror="this.remove()">`:'';
-    avs+=`<span class="mb-av" style="border-color:${col}" title="${esc(pk.rider)} (${pk.player})">${img}${img?'':`<span class="mfb" style="background:${col}">${pk.player}</span>`}</span>`;
+    avs+=`<span class="mb-av"${img?` style="border-color:${col}"`:''} title="${esc(pk.rider)} (${pk.player})">${img}${img?'':`<span class="mfb" style="background:${col}">${pk.player}</span>`}</span>`;
   });
   $('draftMount').innerHTML=`<div class="draft mini"><div class="minibar">`+
     `<div class="mb-t"><span class="mb-ico"><svg viewBox="0 0 40 40" fill="none"><path d="M4 31 L15 13 L21 22 L27 9 L36 31 Z" fill="#c8102e"/><circle cx="27" cy="9" r="3.2" fill="#c8102e"/></svg></span>Stage ${esc(STAGE)} draft locked</div>`+
@@ -4815,4 +4815,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy 20260822-152500Z -->
+<!-- redeploy 20260822-153742Z -->
