@@ -3453,6 +3453,53 @@ const PERSONA_BY = (function(){
   return assigned;
 })();
 
+
+/* ===== persona ledger persistence =====
+   Without this the ledger is a hand-maintained document: `by` is never written, so the
+   "held their spot" branch has nothing to restore and prevPos compares the current
+   standings against a seat order rather than against a previous standing.
+
+   Two rules keep it honest:
+   1. `order` is the standings AT THE MOMENT this assignment was made, so the next load
+      compares like with like.
+   2. It writes ONLY when the computed assignment differs from what is stored. Writing
+      on every load would make the next load see order == current, mark everyone as
+      having held, and freeze the personas permanently. That failure is silent, which is
+      why the guard is here rather than in a comment.
+
+   A mover can never redraw its own previous persona (movers exclude prevBoard), so any
+   standings move that reshuffles seats also changes `by`, and the snapshot advances.
+
+   Needs a Firestore rule allowing a member to update personaLedger and nothing else.
+   Until that is published every attempt is denied and swallowed, and the board behaves
+   exactly as it does today. */
+(async function persistPersonaLedger(){
+  try{
+    if(typeof db==='undefined' || !poolId || typeof PERSONA_BY==='undefined') return;
+    if(!myCode && !isOwner) return;                 // watchers never write
+    var want={}; PL4.forEach(function(p){ if(PERSONA_BY[p]) want[p]=PERSONA_BY[p].id; });
+    var have=(typeof PERSONA_LEDGER!=='undefined' && PERSONA_LEDGER && PERSONA_LEDGER.by)||{};
+    var same = PL4.every(function(p){ return want[p]===have[p]; })
+               && Object.keys(have).length===Object.keys(want).length;
+    if(same) return;                                // nothing moved, leave the snapshot alone
+    var ref=db.doc('pools/'+poolId);
+    await db.runTransaction(async function(tx){
+      var d=(await tx.get(ref)).data()||{};
+      var L=d.personaLedger||{order:[],by:{},seen:{}};
+      var cur={}; PL4.forEach(function(p){ if(PERSONA_BY[p]) cur[p]=PERSONA_BY[p].id; });
+      var already = PL4.every(function(p){ return cur[p]===(L.by||{})[p]; });
+      if(already) return;                           // another tab got there first
+      var seen=Object.assign({}, L.seen||{});
+      PL4.forEach(function(p){
+        var id=cur[p]; if(!id) return;
+        var arr=(seen[p]||[]).slice();
+        if(arr.indexOf(id)<0) arr.push(id);
+        seen[p]=arr;
+      });
+      tx.update(ref, {personaLedger:{order:fanOrder.slice(), by:cur, seen:seen}});
+    });
+  }catch(e){ /* denied until the rule ships, or a concurrent write won; either is fine */ }
+})();
 /* Palmarès cards: one per rider, ordered by the placement standing, each carrying a
    profile-pic slot and the running medal count (awards add up across the season). */
 (function(){
