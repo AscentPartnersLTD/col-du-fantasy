@@ -242,8 +242,9 @@ leader chips, trend-line captions) has to follow that race's profile.
 - Placement: sum of both picks' actual finish positions, lower is better.
 - Rank: all eight picks in a stage ranked 1 to 8 by finish; a player's day is the
   sum of their two picks' ranks; exactly 36 per stage.
-- Fantasy Points: top-15 scale, 25 for a win down to 1 for 15th, nothing past
-  15th, higher is better.
+- Fantasy Points: Vuelta uses top-30 scale, 50 for a win down to 1 for 30th;
+  Tour uses top-15 scale, 25 for a win down to 1 for 15th. Nothing past the
+  cutoff, higher is better.
 - Missed pick: scores one slot behind the worst actual pick anyone made that
   stage.
 - Standings are computed from the stage data array. A player's hand tally is not
