@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260821-233839Z -->
+<head><!-- build:20260822-000313Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -2190,6 +2190,11 @@ function kasToggle(){
   } else { a.pause(); }
   kasSync();
 }
+/* Rendered in TWO places on purpose: the draft card, which only exists mid-stage, and
+   the Kasseistampers tracker on Stats & Notes, which is always there. Two buttons, but
+   still exactly one <audio> on the page, created lazily on <body> and driven by both
+   through the delegated .kas-play handler, with kasSync keeping the labels in step.
+   Decided 2026-08-21. Removing either control is a product choice, not a dedupe fix. */
 function kasAnthemHTML(){
   if(KAS_DEAD) return '';
   return '<div class="kas-anthem">'
@@ -3323,6 +3328,10 @@ const PERSONA_BY = (function(){
       ? `<div class="pc-persona">&ldquo;${persona.epithet}&rdquo;<span class="pc-rider">${persona.rider}</span></div>`
       : `<div class="pc-persona ph">persona to come</div>`;
     const story = persona ? `${persona.blurb} ${persona.why(PSTATS[k])}` : '';
+    /* Two tiles by design, Fantasy Points then Rank. Placement is deliberately NOT on
+       the card: it is the third view on this race and stays one scroll away behind the
+       standings table's See Placement toggle. Decided 2026-08-21. Do not add a third
+       tile; the card has no See Placement toggle of its own to hang it on. */
     const fanPos=fanOrder.indexOf(k)+1, rankPos=rankOrder.indexOf(k)+1;
     const sel=AWARDS.selection[k], prix=AWARDS.prix[k];
     /* Jersey / honours history - bragging rights that carry forward across races.
@@ -4635,4 +4644,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy: cards on fantasy points, anthem on stats, 2026-08-21T23:38Z -->
+<!-- redeploy: record two design decisions, 2026-08-22T00:03Z -->
