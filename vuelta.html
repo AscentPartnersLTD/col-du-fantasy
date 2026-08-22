@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260822-000313Z -->
+<head><!-- build:20260822-002307Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -379,6 +379,38 @@
   .kas-cr{font-size:10.5px;color:var(--mute);line-height:1.5;margin-top:6px}
   /* Deliberately quiet: it is a joke off the Verse 2 line about the watch of old
      Aarschot, so it reads as a footnote rather than a call to action. */
+
+  /* ---- Jersey predictions ---------------------------------------------------
+     Palette, card surface and details/summary pattern are the board's existing
+     ones. Jersey swatch colors are sampled from the OFFICIAL 2025 ranking-jersey
+     artwork on lavuelta.es, carried forward because the 2026 art had not been
+     published as of 2026-08-21 (only ranking-jerseys/2026/icg.png existed; the
+     other five returned 404). Re-check when they publish. See CLAUDE.md. */
+  .jp-wrap{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  .jp-lede{font-size:13px;color:var(--ink2);line-height:1.5;max-width:640px}
+  .jp-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}
+  .jp-cell{background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:12px 12px 13px}
+  .jp-jk{display:flex;align-items:center;gap:8px;font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;color:var(--ink)}
+  .jp-sw{width:13px;height:13px;border-radius:3px;flex:none;border:1px solid rgba(0,0,0,.18)}
+  .jp-sub{font-size:10.5px;color:var(--mute);margin:3px 0 8px}
+  .jp-sel{width:100%;font-family:inherit;font-size:12.5px;padding:7px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--paper);color:var(--ink)}
+  .jp-sel:focus{outline:2px solid var(--vred);outline-offset:1px}
+  .jp-act{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:15px}
+  .jp-btn{font-family:'Montserrat',sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--paper);background:var(--vred);border:0;border-radius:999px;padding:9px 16px;cursor:pointer}
+  .jp-btn:hover{background:var(--vred2)}
+  .jp-btn[disabled]{background:var(--grayd);cursor:default}
+  .jp-note{font-size:11.5px;color:var(--mute)}
+  .jp-mine{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+  .jp-mrow{display:flex;gap:8px;align-items:baseline;font-size:12.5px;color:var(--ink2);padding:3px 0}
+  .jp-mrow .jp-mj{font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;font-size:9.5px;letter-spacing:.05em;color:var(--mute);min-width:112px}
+  .jp-matrix{width:100%;border-collapse:collapse;margin-top:14px;font-size:12.5px}
+  .jp-matrix th,.jp-matrix td{border:1px solid var(--line);padding:8px 9px;text-align:left}
+  .jp-matrix thead th{font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;font-size:9.5px;letter-spacing:.05em;color:var(--ink);background:var(--paper2);white-space:nowrap}
+  .jp-matrix tbody th{font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;color:var(--ink);background:var(--paper2);white-space:nowrap}
+  .jp-matrix td{color:var(--ink2)}
+  .jp-mwrap{overflow-x:auto}
+  @media(max-width:760px){ .jp-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media(max-width:440px){ .jp-grid{grid-template-columns:1fr} .jp-mrow .jp-mj{min-width:96px} }
   .kas-aarwrap{margin-top:10px}
   .kas-aar{font-size:10.5px;color:var(--mute);text-decoration:none;border-bottom:1px dotted var(--line2)}
   .kas-aar:hover{color:var(--vred)}
@@ -973,6 +1005,9 @@
     </div>
     <p style="font-size:12px;color:var(--mute);margin-top:8px">Standings are tallied straight from the race results across every completed stage, using each player's picks and real finishes. A live stage is held off until it finishes.</p>
     <div class="verify-panel" id="verifyPanel"></div>
+
+    <h2 class="eyebrow mt">Jersey predictions</h2>
+    <div id="jerseyPreds"></div>
   </section>
 
   <section class="tab" id="tab-ledger">
@@ -1993,7 +2028,7 @@ async function buildCDF(){
   const ledger=pool.personaLedger||{order:ORDER.slice(),by:{},seen:{}};
   const rp=pool.riderProfile||riderProfile;
   const seats=seatList.slice();
-  return { players, order:ORDER.slice(), seats, riderProfile:rp, personaLedger:ledger, official, stages, upcoming, editorial:pool.editorial||null, boardConfig:pool.boardConfig||null, carriedJerseys:pool.carriedJerseys||null };
+  return { players, order:ORDER.slice(), seats, riderProfile:rp, personaLedger:ledger, official, stages, upcoming, editorial:pool.editorial||null, boardConfig:pool.boardConfig||null, carriedJerseys:pool.carriedJerseys||null, predictionsLocked:pool.predictionsLocked===true };
 }
 /* ---------------- draft engine (per pool) ---------------- */
 function draftRef(){ return db.doc('pools/'+poolId+'/drafts/'+STAGE); }
@@ -2150,6 +2185,133 @@ function renderMerica(){
     });
   });
 }
+
+/* ===== Jersey predictions =====
+   One document per seat at pools/{poolId}/predictions/{seat}. The published Firestore
+   rules let a member read ONLY their own document until pools/{poolId}.predictionsLocked
+   is true, and let nobody write once it is. So the sealing is server-side: this code
+   never attempts a cross-seat read before lock, and the database would refuse it.
+   The lock itself is not something a client can force early: the rule only permits
+   flipping predictionsLocked to true once all four seat documents exist, so after any
+   submit the board simply tries, and a refusal just means the pool is not complete. */
+var JP_JERSEYS=[
+  {k:'gc',        name:'General',  sub:'La Roja',  color:'#d81830'},
+  {k:'points',    name:'Puntos',   sub:'Points',   color:'#003018'},
+  {k:'mountains', name:'Monta\u00f1a', sub:'Mountains', color:'#0060a8'},
+  {k:'young',     name:'Joven',    sub:'Young rider', color:'#c0c0c0'}
+];
+function jpRef(seat){ return db.doc('pools/'+poolId+'/predictions/'+seat); }
+function jpSeats(){ return (CDF.seats||CDF.order||[]).slice(); }
+var JP_MINE=null, JP_LOCKED=false, JP_ALL=null, JP_BUSY=false;
+
+function jpRiderOptions(sel){
+  var by={};
+  (typeof RIDERS!=='undefined'?RIDERS:[]).forEach(function(r){ (by[r.t]=by[r.t]||[]).push(r); });
+  var out='<option value="">Pick a rider</option>';
+  Object.keys(by).sort().forEach(function(t){
+    out+='<option disabled>&mdash; '+esc(t)+'</option>'.replace('&mdash;','-');
+    by[t].sort(function(a,b){return a.b-b.b;}).forEach(function(r){
+      out+='<option value="'+esc(r.r)+'"'+(sel===r.r?' selected':'')+'>'+esc(r.r)+'</option>';
+    });
+  });
+  return out;
+}
+
+function jpRender(){
+  var el=document.getElementById('jerseyPreds'); if(!el) return;
+  var seats=jpSeats(), nm=function(c){ return (CDF.players&&CDF.players[c]&&CDF.players[c].name)||c; };
+  if(JP_LOCKED && JP_ALL){
+    var head='<tr><th>Player</th>'+JP_JERSEYS.map(function(j){
+      return '<th><span class="jp-jk"><span class="jp-sw" style="background:'+j.color+'"></span>'+esc(j.name)+'</span></th>'; }).join('')+'</tr>';
+    var body=seats.map(function(c){
+      var d=JP_ALL[c]||{};
+      return '<tr><th>'+esc(c)+'</th>'+JP_JERSEYS.map(function(j){
+        return '<td>'+esc(d[j.k]||'no pick')+'</td>'; }).join('')+'</tr>';
+    }).join('');
+    el.innerHTML='<div class="jp-wrap"><div class="jp-lede">Locked. Every seat is in, so the picks are open. '
+      +'Each one names the rider expected to stand on the podium in that jersey when the race ends, not whoever leads it on a given day.</div>'
+      +'<div class="jp-mwrap"><table class="jp-matrix"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>';
+    return;
+  }
+  if(!myCode){
+    el.innerHTML='<div class="jp-wrap"><div class="jp-lede">Pool seats make the jersey picks. '
+      +'Everything opens once all four seats are in.</div></div>';
+    return;
+  }
+  var mine=JP_MINE||{}, hasAll=JP_JERSEYS.every(function(j){ return mine[j.k]; });
+  var cells=JP_JERSEYS.map(function(j){
+    return '<div class="jp-cell"><div class="jp-jk"><span class="jp-sw" style="background:'+j.color+'"></span>'+esc(j.name)+'</div>'
+      +'<div class="jp-sub">'+esc(j.sub)+'</div>'
+      +'<select class="jp-sel" data-j="'+j.k+'" aria-label="'+esc(j.name)+'">'+jpRiderOptions(mine[j.k]||'')+'</select></div>';
+  }).join('');
+  var mineBlock = hasAll ? '<div class="jp-mine">'+JP_JERSEYS.map(function(j){
+      return '<div class="jp-mrow"><span class="jp-mj">'+esc(j.name)+'</span><span>'+esc(mine[j.k])+'</span></div>'; }).join('')
+      +'<div class="jp-note" style="margin-top:8px">Picks are in for '+esc(myCode)+'. They can be changed until the last seat submits.</div></div>' : '';
+  el.innerHTML='<div class="jp-wrap">'
+    +'<div class="jp-lede">Four jerseys, one rider each, from anywhere in the 184-rider start list. '
+    +'A pick names the rider expected to stand on the podium in that jersey when the race ends, not whoever leads it on a given day. '
+    +'Two seats may name the same rider. Picks stay private until all four seats are in, then everything opens at once and nothing can be changed.</div>'
+    +'<div class="jp-grid">'+cells+'</div>'
+    +'<div class="jp-act"><button type="button" class="jp-btn" id="jpSave"'+(JP_BUSY?' disabled':'')+'>'+(hasAll?'Update picks':'Submit picks')+'</button>'
+    +'<span class="jp-note" id="jpMsg">'+(hasAll?'Waiting on the rest of the pool.':'All four jerseys need a rider before this can be submitted.')+'</span></div>'
+    +mineBlock+'</div>';
+  var btn=document.getElementById('jpSave');
+  if(btn) btn.addEventListener('click', jpSave);
+}
+
+async function jpSave(){
+  if(JP_BUSY) return;
+  var el=document.getElementById('jerseyPreds'), msg=document.getElementById('jpMsg');
+  var picks={};
+  el.querySelectorAll('.jp-sel').forEach(function(s){ picks[s.getAttribute('data-j')]=s.value; });
+  if(!JP_JERSEYS.every(function(j){ return picks[j.k]; })){
+    if(msg) msg.textContent='All four jerseys need a rider before this can be submitted.'; return;
+  }
+  JP_BUSY=true; if(msg) msg.textContent='Saving...';
+  try{
+    picks.seat=myCode; picks.at=Date.now();
+    await jpRef(myCode).set(picks);
+    JP_MINE=picks;
+    await jpTryLock();          // succeeds only when all four seats exist
+  }catch(e){
+    if(msg) msg.textContent='Could not save: '+((e&&e.code)||(e&&e.message)||e);
+  }
+  JP_BUSY=false;
+  jpRender();
+}
+
+/* The rule permits this only once all four seat docs exist, so a refusal is the normal
+   "not everyone is in yet" case and is swallowed rather than shown as an error. */
+async function jpTryLock(){
+  try{
+    await db.doc('pools/'+poolId).update({predictionsLocked:true});
+    JP_LOCKED=true;
+    await jpLoadAll();
+  }catch(e){ /* not complete yet, or already locked by someone else */ }
+}
+
+async function jpLoadAll(){
+  var seats=jpSeats(), out={};
+  for(var i=0;i<seats.length;i++){
+    try{ var d=await jpRef(seats[i]).get(); if(d.exists) out[seats[i]]=d.data(); }catch(e){}
+  }
+  JP_ALL=out;
+}
+
+(async function jpInit(){
+  if(typeof db==='undefined'||!document.getElementById('jerseyPreds')) return;
+  try{
+    JP_LOCKED=!!(CDF&&CDF.predictionsLocked);
+    if(myCode){ try{ var m=await jpRef(myCode).get(); if(m.exists) JP_MINE=m.data(); }catch(e){} }
+    if(JP_LOCKED) await jpLoadAll();
+    jpRender();
+    /* live reveal: when another seat's submit flips the lock, open without a reload */
+    db.doc('pools/'+poolId).onSnapshot(async function(snap){
+      var lk=!!(snap.exists&&snap.data().predictionsLocked);
+      if(lk&&!JP_LOCKED){ JP_LOCKED=true; await jpLoadAll(); jpRender(); }
+    }, function(){});
+  }catch(e){ console.error('jersey predictions',e); }
+})();
 
 /* ===== Kasseistampers anthem =====
    One audio element for the whole page, created lazily and parked on <body>, so a
@@ -4644,4 +4806,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy: record two design decisions, 2026-08-22T00:03Z -->
+<!-- redeploy: jersey predictions, 2026-08-22T00:23Z -->
