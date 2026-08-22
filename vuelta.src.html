@@ -2209,7 +2209,7 @@ function jpRiderOptions(sel){
   (typeof RIDERS!=='undefined'?RIDERS:[]).forEach(function(r){ (by[r.t]=by[r.t]||[]).push(r); });
   var out='<option value="">Pick a rider</option>';
   Object.keys(by).sort().forEach(function(t){
-    out+='<option disabled>&mdash; '+esc(t)+'</option>'.replace('&mdash;','-');
+    out+='<option disabled>- '+esc(t)+'</option>';
     by[t].sort(function(a,b){return a.b-b.b;}).forEach(function(r){
       out+='<option value="'+esc(r.r)+'"'+(sel===r.r?' selected':'')+'>'+esc(r.r)+'</option>';
     });

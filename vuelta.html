@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260822-002307Z -->
+<head><!-- build:20260822-002603Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -2209,7 +2209,7 @@ function jpRiderOptions(sel){
   (typeof RIDERS!=='undefined'?RIDERS:[]).forEach(function(r){ (by[r.t]=by[r.t]||[]).push(r); });
   var out='<option value="">Pick a rider</option>';
   Object.keys(by).sort().forEach(function(t){
-    out+='<option disabled>&mdash; '+esc(t)+'</option>'.replace('&mdash;','-');
+    out+='<option disabled>- '+esc(t)+'</option>';
     by[t].sort(function(a,b){return a.b-b.b;}).forEach(function(r){
       out+='<option value="'+esc(r.r)+'"'+(sel===r.r?' selected':'')+'>'+esc(r.r)+'</option>';
     });
@@ -4806,4 +4806,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy: jersey predictions, 2026-08-22T00:23Z -->
+<!-- redeploy: optgroup dash, 2026-08-22T00:26Z -->
