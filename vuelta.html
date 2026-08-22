@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260822-003030Z -->
+<head><!-- build:20260822-010424Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -1578,6 +1578,7 @@ auth.onAuthStateChanged(async user=>{
     // Confirm the session actually landed on disk a couple seconds after sign-in.
     try{ setTimeout(function(){ diagDiskCheck('post-signin'); }, 2500); }catch(e){}
     try{ window.__runBoard(CDF); }catch(e){ console.error('runBoard error',e); }
+    try{ jpBoot(CDF); }catch(e){ console.error('jersey predictions boot',e); }
     try{ if(CDF.editorial&&CDF.editorial.hlTiles&&CDF.editorial.hlTiles.length){
       const first=document.querySelector('.hl-tile[data-hl]');
       if(first){ const parent=first.parentNode;
@@ -2201,8 +2202,11 @@ var JP_JERSEYS=[
   {k:'young',     name:'Joven',    sub:'Young rider', color:'#c0c0c0'}
 ];
 function jpRef(seat){ return db.doc('pools/'+poolId+'/predictions/'+seat); }
-function jpSeats(){ return (CDF.seats||CDF.order||[]).slice(); }
-var JP_MINE=null, JP_LOCKED=false, JP_ALL=null, JP_BUSY=false;
+function jpSeats(){ var c=JP_CDF||{}; return (c.seats||c.order||[]).slice(); }
+/* CDF is NOT a global: it is local to the board-load function and passed into
+   window.__runBoard(CDF). The widget is handed the same object by jpBoot() once the
+   pool has loaded, which is also the first moment poolId and myCode are populated. */
+var JP_CDF=null, JP_MINE=null, JP_LOCKED=false, JP_ALL=null, JP_BUSY=false;
 
 function jpRiderOptions(sel){
   var by={};
@@ -2219,7 +2223,7 @@ function jpRiderOptions(sel){
 
 function jpRender(){
   var el=document.getElementById('jerseyPreds'); if(!el) return;
-  var seats=jpSeats(), nm=function(c){ return (CDF.players&&CDF.players[c]&&CDF.players[c].name)||c; };
+  var seats=jpSeats();
   if(JP_LOCKED && JP_ALL){
     var head='<tr><th>Player</th>'+JP_JERSEYS.map(function(j){
       return '<th><span class="jp-jk"><span class="jp-sw" style="background:'+j.color+'"></span>'+esc(j.name)+'</span></th>'; }).join('')+'</tr>';
@@ -2298,10 +2302,11 @@ async function jpLoadAll(){
   JP_ALL=out;
 }
 
-(async function jpInit(){
+async function jpBoot(cdf){
+  JP_CDF=cdf||{};
   if(typeof db==='undefined'||!document.getElementById('jerseyPreds')) return;
   try{
-    JP_LOCKED=!!(CDF&&CDF.predictionsLocked);
+    JP_LOCKED=!!(JP_CDF && JP_CDF.predictionsLocked);
     if(myCode){ try{ var m=await jpRef(myCode).get(); if(m.exists) JP_MINE=m.data(); }catch(e){} }
     if(JP_LOCKED) await jpLoadAll();
     jpRender();
@@ -2311,7 +2316,7 @@ async function jpLoadAll(){
       if(lk&&!JP_LOCKED){ JP_LOCKED=true; await jpLoadAll(); jpRender(); }
     }, function(){});
   }catch(e){ console.error('jersey predictions',e); }
-})();
+}
 
 /* ===== Kasseistampers anthem =====
    One audio element for the whole page, created lazily and parked on <body>, so a
@@ -4853,4 +4858,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy: persona ledger persistence, 2026-08-22T00:30Z -->
+<!-- redeploy: fix predictions CDF scope, 2026-08-22T01:04Z -->
