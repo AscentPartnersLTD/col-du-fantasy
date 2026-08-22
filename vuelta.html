@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260822-183740Z -->
+<head><!-- build:20260822-220526Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -1173,10 +1173,20 @@
         .mer-mini.kassei .mm-ico img{width:16px;height:16px;object-fit:contain}
         .mer-mini.kassei .mm-ico{color:#EF3340}
         .mer-card.kassei .mer-chip:hover{border-color:#EF3340}
-        .mer-card.kassei .mer-chip.on{border-color:#EF3340;background:rgba(239,51,64,.08);box-shadow:inset 0 0 0 1px #EF3340}
+        .mer-card.kassei .mer-chip.pick1{border-color:#EF3340;background:rgba(239,51,64,.12);box-shadow:inset 0 0 0 2px #EF3340}
+        .mer-card.kassei .mer-chip.pick2{border-color:#EF3340;background:rgba(239,51,64,.06);box-shadow:inset 0 0 0 1px #EF3340}
+        .mer-card.kassei .mer-chip .kas-slot{position:absolute;top:4px;right:4px;background:#EF3340;color:#fff;font-family:'Montserrat',sans-serif;font-size:8px;font-weight:800;padding:2px 5px;border-radius:3px;letter-spacing:.03em}
         .mer-card.kassei .mer-outtag,.mer-card.kassei .mer-callers{color:#EF3340}
         .mer-card.kassei .mer-top{border-color:#EF3340;background:rgba(239,51,64,.06)}
         .mer-card.kassei .mer-tag{background:#EF3340}
+        .mer-card.kassei .kas-picks{display:flex;gap:12px;margin:12px 0;padding:10px 12px;background:rgba(239,51,64,.04);border-radius:8px}
+        .mer-card.kassei .kas-pick{flex:1;min-width:0;padding:10px;background:#fff;border-radius:6px;border:1.5px dashed var(--line);text-align:center}
+        .mer-card.kassei .kas-pick.filled{border-style:solid;border-color:#EF3340}
+        .mer-card.kassei .kas-pick .kp-lab{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--mute);margin-bottom:6px}
+        .mer-card.kassei .kas-pick .kp-nm{font-size:13px;font-weight:600;color:var(--ink)}
+        .mer-card.kassei .kas-pick .kp-empty{font-size:12px;color:var(--gray);font-style:italic}
+        .mer-card.kassei .kas-pick .kp-x{display:inline-block;margin-left:6px;color:#EF3340;cursor:pointer;font-weight:700}
+        @media(max-width:420px){.mer-card.kassei .kas-picks{flex-direction:column;gap:8px}}
       </style>
       <div class="mh">Kasseistampers</div>
       <div class="msub">Top Belgian of the stage. Back the day's best-placed Belgian call to earn a cobble; most cobbles at season's end takes the Koning der Kasseistampers jersey. Named for the cobblestone stampers of Aarschot - night-watchmen who stamped their clogs on the pave to sound busy while they slipped back to the pub.</div>
@@ -2368,14 +2378,25 @@ if(window.fetch){
   fetch(KAS_SRC,{method:'HEAD'}).then(function(r){ if(!r.ok) kasHide(); }).catch(function(){ kasHide(); });
 }
 
+/* Kasseistampers storage: per-seat kassei value is now an ordered array of two
+   [firstChoice, tiebreaker]. Old single-string values are treated as [string, null].
+   Scored stages keep the old shape: {top, f, correct[]}. */
+function kasNormalize(val){
+  // Migration: string -> [string, null]; array -> as-is; falsy -> [null, null]
+  if(Array.isArray(val)) return [val[0]||null, val[1]||null];
+  if(typeof val==='string' && val) return [val, null];
+  return [null, null];
+}
 function renderKassei(){
   let mm=document.getElementById('kasseiMount');
   if(!mm){ const dm=document.getElementById('kasseiMount')||document.getElementById('draftMount'); if(!dm||!dm.parentNode) return; mm=document.createElement('div'); mm.id='kasseiMount'; dm.parentNode.insertBefore(mm, dm.nextSibling); }
-  const picks=(draft&&draft.kassei)||{};
-  const mine=myCode?(picks[myCode]||null):null;
-  // The featured rider in the wide top slot: your current pick (seats), or the
-  // last rider an observer tapped (local bio browsing, nothing written).
-  const featured=window.__kasOpen||(myCode?mine:null);
+  const rawPicks=(draft&&draft.kassei)||{};
+  // Normalize all picks to [firstChoice, tiebreaker] arrays
+  const picks={}; ORDER.forEach(c=>{ picks[c]=kasNormalize(rawPicks[c]); });
+  const mine=myCode?picks[myCode]:[null,null];
+  const pick1=mine[0], pick2=mine[1];
+  // The featured rider in the wide top slot: bio preview, or null
+  const featured=window.__kasOpen||null;
   const shield='<img class="kas-emb" src="/emblem-belgium.png" alt="Belgium">';
   /* Locally hosted photo over an initials avatar. onerror strips the image and the
      initials underneath show through, so a missing file never leaves a hole. */
@@ -2392,19 +2413,19 @@ function renderKassei(){
   // main picks minibar (Allen, 2026-07-19) so the Break Tracker stays above the
   // fold. Tap to reopen; picks stay editable until EOS.
   const stageOn=!!draft && ((draft.status==='complete') || ((draft.queue||[]).length===0 && (draft.picks||[]).length>0));
-  // Who called whom stays HIDDEN until the draft locks (Allen, 2026-07-19) -
-  // everyone picks blind, then the reveal happens on the collapsed bar.
-  const callersOf=u=>{ if(!stageOn) return ''; const cs=ORDER.filter(c=>picks[c]===u.r); return cs.length?'<span class="mer-callers">'+cs.map(esc).join(' ')+'</span>':''; };
+  // Who called whom (first choice only) stays HIDDEN until the draft locks (Allen, 2026-07-19)
+  const callersOf=u=>{ if(!stageOn) return ''; const cs=ORDER.filter(c=>picks[c][0]===u.r); return cs.length?'<span class="mer-callers">'+cs.map(esc).join(' ')+'</span>':''; };
   if(stageOn && !window.__kasExpand){
     const shieldMini='<img class="kas-emb" src="/emblem-belgium.png" alt="Belgium">';
-    const entries=ORDER.filter(c=>picks[c]).map(c=>{
-      const r=picks[c]; const RR=(typeof RIDERS!=='undefined')?RIDERS.find(x=>x.r===r):null;
+    const entries=ORDER.filter(c=>picks[c][0]).map(c=>{
+      const r=picks[c][0]; const RR=(typeof RIDERS!=='undefined')?RIDERS.find(x=>x.r===r):null;
       const img=(RR&&RR.p)?'<img src="'+esc(RR.p)+'" onerror="this.remove()">':'';
       const col=(PMETA[c]&&PMETA[c].c)||'#888';
       const last=r.replace(/^[A-Z]\.\s*/,'');
-      return '<span class="mm-pick" title="'+esc(c)+' picked '+esc(r)+'"><b style="color:'+col+'">'+esc(c)+'</b><span class="mm-av"'+(img?' style="border-color:'+col+'"':'')+'>'+img+(img?'':'<span class="mfb" style="background:'+col+'">'+esc(c)+'</span>')+'</span><span class="mm-nm">'+esc(last)+'</span></span>';
+      return '<span class="mm-pick" title="'+esc(c)+': '+esc(r)+(picks[c][1]?' / '+esc(picks[c][1]):'')+'"><b style="color:'+col+'">'+esc(c)+'</b><span class="mm-av"'+(img?' style="border-color:'+col+'"':'')+'>'+img+(img?'':'<span class="mfb" style="background:'+col+'">'+esc(c)+'</span>')+'</span><span class="mm-nm">'+esc(last)+'</span></span>';
     }).join('');
-    const more=myCode&&!mine?'Tap to make your call':'Tap to view or change';
+    const hasMyPicks=pick1&&pick2;
+    const more=myCode&&!hasMyPicks?'Tap to complete picks':'Tap to view or change';
     mm.innerHTML='<div class="mer-mini kassei" role="button" aria-label="Open Kasseistampers">'
       +'<div class="mm-t"><span class="mm-ico">'+shieldMini+'</span>Kasseistampers - Stage '+esc(String(STAGE))+'</div>'
       +'<span class="mm-picks">'+entries+'</span>'
@@ -2412,33 +2433,70 @@ function renderKassei(){
     mm.querySelector('.mer-mini').addEventListener('click',()=>{ window.__kasExpand=true; renderKassei(); });
     return;
   }
+  // Bio preview top card
   let topCard='';
   const fu=featured?BELGIAN_RIDERS.find(x=>x.r===featured):null;
   if(fu){
     const bio=esc(fu.bio)+(fu.site?' <a class="mer-site" href="'+esc(fu.site)+'" target="_blank" rel="noopener">'+esc(fu.siteLabel||'website')+'</a>':'');
-    const tag=fu.out?'<span class="mer-tag obs">Abandoned - not selectable</span>':((myCode&&featured===mine)?'<span class="mer-tag">Your pick</span>':'<span class="mer-tag obs">Rider bio</span>');
+    const tag=fu.out?'<span class="mer-tag obs">Abandoned - not selectable</span>':'<span class="mer-tag obs">Rider bio</span>';
     topCard='<div class="mer-top">'+avOf(fu)
       +'<div class="mer-open-body"><div class="mer-line1"><span class="mer-name">'+esc(fu.r)+'</span><span class="mer-team">'+esc(fu.t)+'</span>'+callersOf(fu)+tag+'</div>'
       +'<div class="mer-bio">'+bio+'</div></div></div>';
   }
-  const chips=BELGIAN_RIDERS.filter(u=>u.r!==featured).map(u=>{
-    return '<div class="mer-chip'+(u.out?' mer-out':'')+'" data-r="'+esc(u.r)+'"'+(u.out?' data-out="1"':'')+'>'+avOf(u)
-      +'<span class="mer-name">'+esc(u.r)+'</span><span class="mer-team">'+esc(u.t)+'</span>'+(u.out?'<span class="mer-outtag">Abandoned</span>':'')+callersOf(u)+'</div>';
+  // Two ordered pick slots
+  const pickSlots=myCode?('<div class="kas-picks">'
+    +'<div class="kas-pick'+(pick1?' filled':'')+'"><div class="kp-lab">First Choice</div>'+(pick1?'<span class="kp-nm">'+esc(pick1)+'<span class="kp-x" data-slot="1" title="Release this pick">&times;</span></span>':'<span class="kp-empty">Tap a Belgian below</span>')+'</div>'
+    +'<div class="kas-pick'+(pick2?' filled':'')+'"><div class="kp-lab">Tiebreaker</div>'+(pick2?'<span class="kp-nm">'+esc(pick2)+'<span class="kp-x" data-slot="2" title="Release this pick">&times;</span></span>':'<span class="kp-empty">'+(pick1?'Tap a second Belgian':'Pick first choice first')+'</span>')+'</div>'
+    +'</div>'):'';
+  // Chips show selection state
+  const chips=BELGIAN_RIDERS.map(u=>{
+    const isPick1=u.r===pick1, isPick2=u.r===pick2;
+    const slotClass=isPick1?' pick1':(isPick2?' pick2':'');
+    const slotTag=isPick1?'<span class="kas-slot">1</span>':(isPick2?'<span class="kas-slot">2</span>':'');
+    return '<div class="mer-chip'+(u.out?' mer-out':'')+slotClass+'" data-r="'+esc(u.r)+'"'+(u.out?' data-out="1"':'')+' style="position:relative">'+avOf(u)
+      +'<span class="mer-name">'+esc(u.r)+'</span><span class="mer-team">'+esc(u.t)+'</span>'+(u.out?'<span class="mer-outtag">Abandoned</span>':'')+callersOf(u)+slotTag+'</div>';
   }).join('');
-  const foot=myCode?(mine?('Your call: '+esc(mine)+'. Tap another rider below to switch any time before the stage is scored.'):'Tap a rider to make your call for this stage. Your pick moves up top with their story.'):'Watching only - pool seats make the calls. Tap a rider to read their bio.';
+  // Footer status - no "you" or "your"
+  let foot;
+  if(!myCode){ foot='Watching only - pool seats make the calls. Tap a rider to read the bio.'; }
+  else if(pick1&&pick2){ foot='Both picks locked in. Tap a rider to release and replace, or tap the X above.'; }
+  else if(pick1){ foot='First choice set. Tap a second Belgian to set the tiebreaker.'; }
+  else{ foot='Tap a Belgian to set the first choice. Two picks are required.'; }
   const minBtn=stageOn?'<button type="button" class="mer-minbtn">Minimize</button>':'';
-  mm.innerHTML='<div class="mer-card kassei"><div class="mer-h">'+shield+'<div><div class="mer-t">KASSEISTAMPERS - STAGE '+esc(String(STAGE))+'</div><div class="mer-s">Pick the top-finishing Belgian of the day. Right call earns a cobble on your card; most cobbles at season\'s end takes the Koning der Kasseistampers jersey. No draft order, no exclusivity - everybody just picks.</div></div>'+minBtn+'</div>'+topCard+'<div class="mer-chips">'+chips+'</div><div class="mer-foot">'+foot+'</div>'+kasAnthemHTML()+'</div>';
+  const desc='Two picks per stage, ordered. The first choice decides the cobble; the second breaks ties only. A rider who does not finish scores nothing and is out of contention. Most cobbles at season end takes the Koning der Kasseistampers jersey.';
+  mm.innerHTML='<div class="mer-card kassei"><div class="mer-h">'+shield+'<div><div class="mer-t">KASSEISTAMPERS - STAGE '+esc(String(STAGE))+'</div><div class="mer-s">'+desc+'</div></div>'+minBtn+'</div>'+topCard+pickSlots+'<div class="mer-chips">'+chips+'</div><div class="mer-foot">'+foot+'</div>'+kasAnthemHTML()+'</div>';
   const mb=mm.querySelector('.mer-minbtn');
   if(mb) mb.addEventListener('click',()=>{ window.__kasExpand=false; renderKassei(); });
+  // Release pick via X button
+  mm.querySelectorAll('.kp-x').forEach(x=>{
+    x.addEventListener('click', async e=>{
+      e.stopPropagation();
+      if(!myCode||!draft) return;
+      const slot=parseInt(x.getAttribute('data-slot'),10);
+      const newPicks=slot===1?[null,pick2]:[pick1,null];
+      try{ await draftRef().update(new firebase.firestore.FieldPath('kassei', myCode), newPicks); }
+      catch(err){ console.error('kassei release',err); }
+    });
+  });
+  // Chip clicks: select, deselect, or bio preview
   mm.querySelectorAll('.mer-chip').forEach(ch=>{
     ch.addEventListener('click', async ()=>{
       const r=ch.getAttribute('data-r');
       const isOut=ch.getAttribute('data-out')==='1';
-      // abandoned riders: open the bio for reading, never selectable (Allen, 2026-07-23)
-      if(!myCode || isOut){ window.__kasOpen=r; renderKassei(); return; }
+      // Abandoned riders: bio preview only, never selectable
+      if(isOut){ window.__kasOpen=r; renderKassei(); return; }
+      // Observer: bio preview
+      if(!myCode){ window.__kasOpen=r; renderKassei(); return; }
       if(!draft) return;
-      window.__kasOpen=null; // a real pick clears any bio-preview so the top card shows your call
-      try{ await draftRef().update(new firebase.firestore.FieldPath('kassei', myCode), r); }
+      // Already selected? Release it
+      if(r===pick1){ try{ await draftRef().update(new firebase.firestore.FieldPath('kassei', myCode), [null,pick2]); }catch(e){} return; }
+      if(r===pick2){ try{ await draftRef().update(new firebase.firestore.FieldPath('kassei', myCode), [pick1,null]); }catch(e){} return; }
+      // Both slots full? Prompt to release one first
+      if(pick1&&pick2){ const f=mm.querySelector('.mer-foot'); if(f) f.textContent='Both picks are set. Tap the X on a pick above to release it, then select a replacement.'; return; }
+      // Fill the first empty slot (pick1 first, then pick2)
+      const newPicks=pick1?[pick1,r]:[r,pick2];
+      window.__kasOpen=null;
+      try{ await draftRef().update(new firebase.firestore.FieldPath('kassei', myCode), newPicks); }
       catch(e){ const f=mm.querySelector('.mer-foot'); if(f) f.textContent='Could not save the call: '+(e&&e.message||e); }
     });
   });
@@ -3058,6 +3116,16 @@ const ART = {
   </svg>`
 };
 
+/* Kasseistampers season tally: hoisted so palmares cards and the tracker share one
+   computation and cannot disagree. Counts s.kassei.correct for every scored stage. */
+const KASSEI_TALLY = (function(){
+  const T = {}; PL4.forEach(p => T[p] = 0);
+  (typeof STAGES !== 'undefined' ? STAGES : []).forEach(s => {
+    ((s.kassei && s.kassei.correct) || []).forEach(c => { if (T[c] != null) T[c]++; });
+  });
+  return T;
+})();
+
 /* ---- Dynamic persona engine ----
    Each player is scored against every persona from their current pool profile, then
    matched greedily (highest fit first, one persona each). Every persona is a positive
@@ -3496,8 +3564,8 @@ const PERSONA_BY = (function(){
 (function(){
   const el=document.getElementById('palmares'); if(!el) return;
   const merIC='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#B31942" stroke-width="1.7"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="#3C3B6E" stroke-width="1.7"/><path fill="#3C3B6E" d="M12 8.2l1.15 2.33 2.57.37-1.86 1.81.44 2.56L12 14.06l-2.3 1.21.44-2.56-1.86-1.81 2.57-.37z"/></svg>';
-  const MER={}; PL4.forEach(function(p){MER[p]=0;});
-  STAGES.forEach(function(s){ ((s.kassei&&s.kassei.correct)||[]).forEach(function(c){ if(MER[c]!=null) MER[c]++; }); });
+  // Use hoisted KASSEI_TALLY instead of computing here
+  const MER = KASSEI_TALLY;
   const jerseySVG='<svg viewBox="0 0 48 48" class="pc-jersey" aria-hidden="true"><path d="M17 8l-8 4-4 9 5 3 2-3v16h24V21l2 3 5-3-4-9-8-4-4 4-4 0z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M20 8a4 4 0 008 0" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
   const selIC='<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18L18 6"/><path d="M18 18L6 6"/><path d="M4.5 15.5L8 19"/><path d="M19.5 15.5L16 19"/></g><g fill="currentColor"><circle cx="5" cy="20" r="1.4"/><circle cx="19" cy="20" r="1.4"/></g></svg>';
   const prixIC='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 5.4l1.5 3 3.3.5-2.4 2.3.6 3.3-3-1.6-3 1.6.6-3.3-2.4-2.3 3.3-.5z"/><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9 19q-4.2-3.8-3.2-9.6"/><path d="M15 19q4.2-3.8 3.2-9.6"/><path d="M6.2 11.4q-2-1-3.3.7M6.7 14.4q-2-.9-3.3.9M8 17.4q-2 .1-3.1 2"/><path d="M17.8 11.4q2-1 3.3.7M17.3 14.4q2-.9 3.3.9M16 17.4q2 .1 3.1 2"/></g></svg>';
@@ -4072,8 +4140,9 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   const nameOf=c=>(CDF.names&&CDF.names[c])||c;
   function ord(n){ const s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
   const SH='<img class="mt-shico" src="/emblem-belgium.png" alt="" style="width:16px;height:16px;object-fit:contain">';
-  const MER={}; PL.forEach(p=>MER[p]=0); const watch=[];
-  S.forEach(s=>{ if(s.kassei&&s.kassei.top){ watch.push(s); (s.kassei.correct||[]).forEach(c=>{ if(MER[c]!=null) MER[c]++; }); } });
+  // Use hoisted KASSEI_TALLY instead of computing here; still build watch for display
+  const MER = KASSEI_TALLY;
+  const watch = S.filter(s => s.kassei && s.kassei.top);
   watch.sort((a,b)=>b.n-a.n);
   const max=Math.max(0,...PL.map(p=>MER[p]));
   const holders=PL.filter(p=>MER[p]===max&&max>0);
@@ -4821,4 +4890,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </body>
 </html>
 
-<!-- redeploy 20260822-183740Z -->
+<!-- redeploy 20260822-220526Z -->

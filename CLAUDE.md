@@ -133,7 +133,10 @@ data at runtime.
 
 - `pools/{poolId}` - name, members map (email to seat code), order, names, judge,
   startStage, boardConfig (race calendar, weather), carriedJerseys
-- `pools/{poolId}/drafts/{stage}` - picks, queue, status, lockAt timestamps
+- `pools/{poolId}/drafts/{stage}` - picks, queue, status, lockAt timestamps, kassei
+  - `kassei` per-seat field is an ordered array of two: `[firstChoice, tiebreaker]`
+  - Old single-string values (pre-2026-08-22) are migrated on read to `[string, null]`
+  - Scored stage kassei shape is unchanged: `{top, f, correct[]}`
 - `userPools/{email}` - the list of pool ids that email belongs to
 - `users/{email}` - global profile
 
