@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260822-010424Z -->
+<head><!-- build:20260822-152311Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -103,20 +103,6 @@
     nav.tabs{width:100%;margin-left:0;border-top:1px solid var(--line)}
     nav.tabs button{padding:14px 14px;flex:none}
   }
-
-  /* ---- Hero countdown to Stage 1 ---- */
-  .hero-count{display:flex;align-items:stretch;gap:0;margin-top:22px;background:rgba(0,0,0,.30);border:1px solid rgba(255,255,255,.20);border-radius:14px;overflow:hidden;max-width:520px;backdrop-filter:blur(3px)}
-  .hero-count .hc-lab{display:flex;flex-direction:column;justify-content:center;gap:3px;padding:12px 18px;flex:1;min-width:0}
-  .hero-count .hc-k{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:#f4c9cf}
-  .hero-count .hc-t{font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:#fff;line-height:1.1}
-  .hero-count .hc-t small{display:block;font-weight:600;font-size:11px;color:#e7b9bf;margin-top:2px;letter-spacing:.3px}
-  .hero-count .hc-clock{display:flex;gap:2px;align-items:center;padding:10px 16px;background:rgba(0,0,0,.22);flex:none}
-  .hero-count .hc-u{display:flex;flex-direction:column;align-items:center;min-width:40px}
-  .hero-count .hc-u em{font-family:'Montserrat',sans-serif;font-style:normal;font-weight:900;font-size:26px;color:#fff;line-height:1;font-variant-numeric:tabular-nums}
-  .hero-count .hc-u span{font-family:'Montserrat',sans-serif;font-size:8.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#e7b9bf;margin-top:4px}
-  .hero-count .hc-sep{font-family:'Montserrat',sans-serif;font-weight:900;font-size:20px;color:rgba(255,255,255,.35);padding-bottom:12px}
-  .hero-count.live .hc-clock{background:rgba(0,0,0,.30)}
-  @media(max-width:520px){ .hero-count{flex-direction:column;max-width:none} .hero-count .hc-clock{justify-content:center} }
 
   nav.tabs{border-bottom:none}
   section.tab{display:none}
@@ -729,7 +715,6 @@
       </div>
     </div>
    </div>
-   <div class="hero-count" id="heroCount" hidden></div>
    <div class="hero-lead" id="heroLead"></div>
   </div>
 </header>
@@ -4819,36 +4804,8 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </style>
 <div id="cdfBuild" title="Build version - if this differs from the newest, the page is cached">pool v2026.07.23-breakfix</div>
 <script>
-/* Hero countdown to Stage 1 (Monaco ITT) + sticky top-bar shadow. Presentational,
-   isolated, writes only to its own nodes, never touches the board data or tabs. */
+/* Sticky top-bar shadow. Presentational, isolated, writes only to its own nodes. */
 (function(){
-  try{
-    var el=document.getElementById('heroCount'); if(!el) return;
-    var START=new Date('2026-08-22T12:00:00Z'); // Stage 1, Monaco ITT
-    var END=new Date('2026-09-13T18:00:00Z');   // after the final stage, retire the widget
-    function pad(n){return n<10?'0'+n:''+n;}
-    function tick(){
-      var now=new Date(), diff=START-now;
-      if(now>END){ el.setAttribute('hidden',''); return; }
-      if(diff<=0){
-        el.className='hero-count live';
-        el.innerHTML='<div class="hc-lab"><span class="hc-k">La Vuelta 2026</span>'
-          +'<span class="hc-t">The race is on<small>Picks lock before each stage start</small></span></div>';
-        el.removeAttribute('hidden'); return;
-      }
-      var d=Math.floor(diff/864e5), h=Math.floor(diff%864e5/36e5), m=Math.floor(diff%36e5/6e4);
-      el.innerHTML='<div class="hc-lab"><span class="hc-k">Stage 1 &middot; Monaco ITT</span>'
-        +'<span class="hc-t">Grand Depart<small>Saturday, August 22 &middot; Monaco</small></span></div>'
-        +'<div class="hc-clock">'
-        +'<div class="hc-u"><em>'+d+'</em><span>days</span></div>'
-        +'<div class="hc-sep">:</div>'
-        +'<div class="hc-u"><em>'+pad(h)+'</em><span>hrs</span></div>'
-        +'<div class="hc-sep">:</div>'
-        +'<div class="hc-u"><em>'+pad(m)+'</em><span>min</span></div></div>';
-      el.removeAttribute('hidden');
-    }
-    tick(); setInterval(tick,30000);
-  }catch(e){}
   try{
     var tb=document.getElementById('topbar'); if(!tb) return;
     var onScroll=function(){ if(window.scrollY>140) tb.classList.add('stuck'); else tb.classList.remove('stuck'); };
@@ -4858,4 +4815,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy: fix predictions CDF scope, 2026-08-22T01:04Z -->
+<!-- redeploy 20260822-152500Z -->
