@@ -4502,7 +4502,18 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   // Match a feed rider to a pool pick by surname, but when BOTH names carry a leading
   // initial and the initials differ, reject - otherwise same-surname siblings collide
   // (e.g. T. Johannessen in the break vs his brother A. Johannessen in the peloton).
-  function matches(feedName,pick){var s=surname(pick); if(s.length<3) return false; if(norm(feedName).indexOf(s)<0) return false; var pi=initialOf(pick), fi=initialOf(feedName); if(pi&&fi&&pi!==fi) return false; return true;}
+  // Feed name to startlist name, applied to the FEED side before matching. A few riders
+  // are registered with the official race under a first name they do not race under, so
+  // the feed emits an initial our startlist does not carry and matches() rightly refuses
+  // the pair: James Matthew Brennan rides as Matthew, so the feed calls him J. Brennan.
+  // The startlist is deliberately NOT corrected instead. Picks are stored as the plain
+  // name string and reach matches() straight from the draft, so renaming the startlist
+  // entry would leave an already-drafted "M. Brennan" unmatched anyway, while orphaning
+  // it for team and color lookups. Confining the translation to the display path here
+  // means no pick data is touched. Keys are normalized, so case and spacing are free.
+  var FEED_ALIAS=(function(){var raw={'J. Brennan':'M. Brennan'},o={};for(var k in raw){o[norm(k)]=raw[k];}return o;})();
+  function aliasFeed(nm){var a=FEED_ALIAS[norm(nm)];return a||nm;}
+  function matches(feedName,pick){feedName=aliasFeed(feedName); var s=surname(pick); if(s.length<3) return false; if(norm(feedName).indexOf(s)<0) return false; var pi=initialOf(pick), fi=initialOf(feedName); if(pi&&fi&&pi!==fi) return false; return true;}
   function gapStr(sec){sec=Math.round(sec||0); if(sec<=0)return 'front'; var m=Math.floor(sec/60),s=sec%60; return m+"'"+(s<10?'0':'')+s+'"';}
   function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
 
