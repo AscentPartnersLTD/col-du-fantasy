@@ -117,14 +117,33 @@ integration on it, so pushing `worker4.js` changes the repo and nothing else. It
 has to be deployed by hand, from the repo root:
 
 ```
-CLOUDFLARE_API_TOKEN=<token> npx wrangler deploy
+npx wrangler deploy
 ```
 
-The token is Allen's, passed in the environment, never committed. Assume nothing
-here is automatic: `wrangler.toml` claimed for months that a push deployed the
-Worker, and it never did, which is how the live Worker sat on July 18 Tour data
-while the repo looked correct. Any `worker4.js` change needs that command run
-before it is live, and the repo cannot tell you whether it was.
+That is the whole command. `CLOUDFLARE_API_TOKEN` is stored permanently as a USER
+environment variable on Gerald and wrangler reads it automatically, so there is no
+login step and nothing to click.
+
+If a shell does not see it, a fresh process does not always inherit a `setx`
+variable, so read it back explicitly. PowerShell is the shell on both of Allen's
+machines, and a leading `VAR=value` prefix is bash syntax that does NOT work
+there:
+
+```
+$env:CLOUDFLARE_API_TOKEN=[System.Environment]::GetEnvironmentVariable("CLOUDFLARE_API_TOKEN","User"); npx wrangler deploy
+```
+
+Do NOT try `wrangler login` on Gerald. Its OAuth flow crashes the local callback
+server with a libuv assertion, `Assertion failed: !(handle->flags &
+UV_HANDLE_CLOSING), file src\win\async.c, line 76`. The server dies before it can
+accept the code, so approving the browser prompt faster does not help and never
+will. The API token is the only path that works on this machine. This cost three
+attempts and twenty minutes once already.
+
+Assume nothing here is automatic: `wrangler.toml` claimed for months that a push
+deployed the Worker, and it never did, which is how the live Worker ran the July
+18 build while the repo looked correct. Any `worker4.js` change needs the command
+run before it is live, and the repo cannot tell you whether it was.
 
 ## Verify live
 
@@ -382,18 +401,21 @@ leader chips, trend-line captions) has to follow that race's profile.
   GUESS and has never been checked. Verify it, and verify that the bind names
   match the ASO shape, before writing it into a profile. A wrong host is exactly
   the failure this whole refactor was about.
-- `col-break` still needs a manual deploy. The worker SOURCE here is correct and
-  race-aware; the DEPLOYED copy is not, and still answers with the frozen July
-  Tour stage. Run `CLOUDFLARE_API_TOKEN=<token> npx wrangler deploy` from the repo
-  root. Until then the fallback is wrong, but the boards' reply audit refuses it
-  rather than rendering it, so nothing wrong reaches the card.
-  Worth recording how this was misdiagnosed: on 2026-08-23 this was written up as
-  "Workers Builds has not rebuilt yet", and the earlier session sat waiting for a
-  rebuild that was never going to come, because `wrangler.toml` said a push
-  deployed the Worker. Allen checked the Cloudflare deployments API and found
-  every deployment before that day carried source=quick_editor, hand-pasted into
-  the dashboard. There is no git integration and never was. A comment in the repo
-  is not evidence that a pipeline exists.
+- `col-break` deploy: CLOSED 2026-08-23, deployed by Allen, source=wrangler, the
+  first deployment of this Worker not hand-pasted through the dashboard. Verified
+  live on the deployed copy: the default answers race=vuelta with one group,
+  Peloton 183, on a current timestamp, and `?race=tour` answers race=tour with
+  five groups on the stale Tour snapshot. The fallback now agrees with the primary
+  about which race it is describing.
+  Two things worth keeping from how this went. It was first misdiagnosed here as
+  "Workers Builds has not rebuilt yet", and a session sat waiting for a rebuild
+  that was never coming, because `wrangler.toml` said a push deployed the Worker.
+  The Cloudflare deployments API showed every earlier deployment as
+  source=quick_editor. A comment in the repo is not evidence that a pipeline
+  exists; check the provider.
+  And `wrangler login` cannot work on Gerald at all, see Deploy above for the
+  libuv assertion. The API token path is the only one, and the token is now a
+  permanent user environment variable, so a deploy is one command with no login.
 - Machine Gerald (bogie): the Claude Code Grep tool returns false negatives on this
   machine. In the 2026-08-22 session it returned "No matches found" for POOL_PAGE,
   mfb, header, mast, hero, body, and other strings that bash grep found in the same

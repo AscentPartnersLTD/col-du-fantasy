@@ -4,9 +4,23 @@
 # on col-break. Pushing worker4.js to main changes the repo and nothing else, so a
 # worker change needs an explicit deploy step, by hand, from the repo root:
 #
-#   CLOUDFLARE_API_TOKEN=<token> npx wrangler deploy
+#   npx wrangler deploy
 #
-# The token is Allen's and is passed in the environment; it is never committed here.
+# That is the whole command. CLOUDFLARE_API_TOKEN is stored permanently as a USER
+# environment variable on Gerald and wrangler picks it up on its own, so there is
+# no login and nothing to click. The token is never committed here.
+#
+# If a shell does not see it, a fresh process does not always inherit a setx
+# variable, so read it back explicitly. PowerShell is the shell on both of Allen's
+# machines, and a leading VAR=value prefix is bash syntax that does NOT work there:
+#
+#   $env:CLOUDFLARE_API_TOKEN=[System.Environment]::GetEnvironmentVariable("CLOUDFLARE_API_TOKEN","User"); npx wrangler deploy
+#
+# Do NOT try `wrangler login` on Gerald. Its OAuth flow crashes the local callback
+# server with a libuv assertion, "Assertion failed: !(handle->flags &
+# UV_HANDLE_CLOSING), file src\win\async.c, line 76", so the server dies before it
+# can accept the code and no amount of approving the browser prompt fast enough
+# helps. The API token is the only path that works on this machine.
 #
 # An earlier version of this comment claimed a push to main ran the deploy. It was
 # wrong and had always been wrong: the Cloudflare deployments API shows every
