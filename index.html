@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260823-163829Z -->
+<head><!-- build:20260823-164308Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -3668,16 +3668,58 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
      endpoint, falls back to the secondary only if the primary errors or times
      out, and if BOTH fail it shows the last good snapshot for THIS stage with a
      "briefly unreachable" stamp instead of a dead card. No polling, no caching. */
+  /* Which race this board is. Sent on every feed request and checked on every
+     reply. The break endpoint serves both boards, so without this the SERVER's
+     default decides which race a board gets: that is exactly how the Vuelta board
+     spent a race day rendering Tour groups, telling three players that the rider
+     who won the stage was off the back. A wrong-race answer is still a valid 200
+     with valid JSON, so nothing errors and nothing looks broken. */
+  var RACE_ID='tour';
+
+  /* Startlist bib to our name, used only to audit a feed reply. */
+  var BIB_NAME=(function(){var o={};(typeof RIDERS!=='undefined'?RIDERS:[]).forEach(function(r){ if(r&&r.b!=null&&r.r){ o[r.b]=r.r; } });return o;})();
+
+  /* Does this payload actually describe the race this board asked for?
+     Two independent checks, because either alone can be defeated:
+     1. the endpoint labels its answer, so a label that disagrees is fatal;
+     2. bib numbers collide across races (bib 11 is a real rider in both), so the
+        names behind the bibs are compared too. On the right race almost every
+        returned rider agrees with the startlist; on the wrong race almost none do.
+     A payload with nothing on the road and nothing over the line carries no riders
+     to audit, so it passes on the label alone. */
+  function bwRaceOk(d){
+    if(!d) return false;
+    if(d.race && String(d.race)!==RACE_ID) return false;
+    var ents=[];
+    (d.groups||[]).forEach(function(g){ (g.riders||[]).forEach(function(rn,i){ ents.push({name:rn,bib:g.bibs&&g.bibs[i]}); }); });
+    (d.finished||[]).forEach(function(f){ if(f) ents.push({name:f.name,bib:f.bib}); });
+    var checked=0, agreed=0;
+    ents.forEach(function(e){
+      if(e.bib==null) return;
+      var mine=BIB_NAME[e.bib]; if(!mine) return;
+      var sn=surname(mine); if(sn.length<3) return;
+      checked++;
+      if(norm(e.name).indexOf(sn)>=0) agreed++;
+    });
+    if(checked<5) return true;              // too little to judge, do not block on it
+    return (agreed/checked)>=0.5;
+  }
   function bwUrl(base, stage){
     base=base.replace(/\/$/,'');
     var sep=/\/api\/break$/.test(base) ? '?stage=' : '/?stage=';
-    return base+sep+encodeURIComponent(stage);
+    return base+sep+encodeURIComponent(stage)+'&race='+encodeURIComponent(RACE_ID);
   }
   function bwFetchOne(base, stage){
     var ctrl=('AbortController' in window)?new AbortController():null;
     var opt=ctrl?{cache:'no-store',signal:ctrl.signal}:{cache:'no-store'};
     var timeout=new Promise(function(_,rej){ setTimeout(function(){ if(ctrl){ try{ctrl.abort();}catch(e){} } rej(new Error('timeout')); },6000); });
-    var req=fetch(bwUrl(base,stage),opt).then(function(r){ if(!r.ok) throw new Error('http '+r.status); return r.json(); });
+    var req=fetch(bwUrl(base,stage),opt).then(function(r){ if(!r.ok) throw new Error('http '+r.status); return r.json(); })
+      .then(function(d){
+        // Thrown, not rendered. A wrong-race payload must never reach the card, and
+        // must never be cached by bwSaveGood as a good snapshot either.
+        if(!bwRaceOk(d)) throw new Error('wrong race: asked for '+RACE_ID+', feed answered '+(d&&d.race?d.race:'an unlabelled race'));
+        return d;
+      });
     return Promise.race([req, timeout]);   // settles even if AbortController is unavailable
   }
   function bwSaveGood(d){
@@ -3705,12 +3747,20 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
     var stage=(typeof UPCOMING!=='undefined'&&UPCOMING.n)?UPCOMING.n:'';
     try{ var ov=new URLSearchParams(location.search).get('bwstage'); if(ov) stage=ov; }catch(e){}
     var eps=(typeof BREAK_ENDPOINTS!=='undefined'&&BREAK_ENDPOINTS.length)?BREAK_ENDPOINTS.slice():[BREAK_WORKER];
+    var bwRaceFail=false;   // set when a reply was readable but described the wrong race
     function bwErrorCard(){
       try{ render({error:true}); }
       catch(e){ try{ BODY.className='bw-body has'; BODY.innerHTML=controlsRow('')+'<div class="bw-muted">Could not reach the live feed right now. Hit Refresh in a moment.</div>'; wireRefresh(); }catch(_){} }
     }
     (function tryNext(i){
       if(i>=eps.length){   // both endpoints failed
+        if(bwRaceFail){
+          // Never fall back to a cached snapshot here. The feed answered, it simply
+          // answered about another race, and showing an older card would hide that.
+          BODY.className='bw-body has';
+          BODY.innerHTML=controlsRow('')+'<div class="bw-muted">The live feed answered with data for a different race, so nothing is shown. This is deliberate: the wrong race reads as real. Hit Refresh to try again.</div>';
+          wireRefresh(); return;
+        }
         var lg=bwLastGood(), shown=false;
         if(lg && String(lg.stage)===String(stage)){ try{ render(lg.data); bwStaleNote(lg.at); shown=true; }catch(e){ shown=false; } }
         if(!shown) bwErrorCard();
@@ -3719,7 +3769,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
       bwFetchOne(eps[i], stage).then(function(d){
         bwSaveGood(d);                               // no-ops unless it is a renderable live race
         try{ render(d); }catch(e){ tryNext(i+1); }   // reachable but unrenderable -> try the next endpoint
-      }).catch(function(){ tryNext(i+1); });
+      }).catch(function(err){ if(err&&/wrong race/.test(err.message||'')) bwRaceFail=true; tryNext(i+1); });
     })(0);
   }
 
@@ -3877,4 +3927,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </body>
 </html>
 
-<!-- redeploy 20260823-163830Z -->
+<!-- redeploy 20260823-164310Z -->
