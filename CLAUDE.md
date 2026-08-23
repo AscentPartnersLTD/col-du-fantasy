@@ -181,6 +181,94 @@ half-wired in a way that is not obvious until someone hits it:
    `og:image:width`, `og:image:height`, `og:image:alt`, `og:site_name`, and
    `twitter:image`. A relative og:image does not resolve for scrapers.
 6. Scoring profile decided and written into the table above before launch.
+7. `RACE_PROFILE` in the new board's first script block, every field filled from
+   that race, including `teamResultStages` set from its actual route.
+8. The race added to the `RACES` registry in all three feed layers: `api/break.js`
+   in the coldufantasy-login repo, and `worker3.js` and `worker4.js` here.
+
+## Adding the Giro, end to end
+
+As of 2026-08-23 this is the whole list. If it grows, something got hardcoded
+again and that is the bug, not the checklist.
+
+1. `giro.src.html`, copied from the closest board, then decoupled per "Copying a
+   board to start a new race" below.
+2. Its `RACE_PROFILE`: id `giro`, host `racecenter.giroditalia.it` (VERIFY, it has
+   never been checked), the maglia rosa, ciclamino, azzurra and bianca as the four
+   jersey slots, the scoring profile, and `teamResultStages` from the real route.
+3. `giro` in the `RACES` registry in `api/break.js`, `worker3.js`, `worker4.js`.
+4. `POOL_PAGE` entry, `<poolId>.webmanifest`, icon set.
+5. `giro-og.png` via `make_vuelta_og.py`, which takes the source card, recolors it
+   and repaints the eyebrow. Recoloring ALONE is not enough: the card carries its
+   race in text, so a recolored Vuelta card still reads VUELTA A ESPANA.
+6. Stage profile art, and the scoring row in the table above.
+
+Nothing else. No host, jersey color, or scale is written anywhere but the profile.
+
+## The race profile, and what must never be hardcoded again
+
+Added 2026-08-23, after a race day was lost to a feed still pointed at the Tour
+while the Vuelta was on the road. It answered with the Tour's stage 2, which is
+valid JSON for a real race, so nothing errored and the board told three players
+that the rider who WON the stage was off the back.
+
+Each board declares one `RACE_PROFILE` in its FIRST script block, which makes it a
+global lexical binding every later block closes over. It carries: `id`, `name`,
+`shortName`, `year`, `host` and `apiBase`, `site`, `routeUrl`, `stageUrl(n)`,
+`stageCount`, `startCity`, `finishCity`, `poolId`, `boardPath`, `jerseys`,
+`scoring`, `sideGames`, `combativityAward`, `teamResultStages`, and `startlist`
+provenance.
+
+Reading from it, and nowhere else: `FP_SCALE`, the break widget's `RACE_ID` and
+jersey chip labels, the prediction widget's `JP_JERSEYS`, the jersey colors in CSS
+(as `--jsy-1` to `--jsy-4`, each rule keeping its literal as the var fallback), the
+stage-count prose, the route and per-stage official links, and the stage-exclusion
+rule.
+
+Two things stay OUT of the profile on purpose:
+
+- The calendar. Firestore `boardConfig.race` is the source of truth for stages,
+  routes and results. `stageCount` is carried for copy only, so prose has a number
+  to read without a second list that can drift.
+- `RIDERS`. It stays inline. The profile records only where it came from and when,
+  so its age is visible. Moving 184 rows is its own job.
+
+Three rules that came out of the incident:
+
+1. ONE Fantasy Points scale constant per board, `FP_SCALE`, at the top level of
+   `__runBoard`. Do not re-declare the table. It used to be written out five times
+   on the Vuelta and four on the Tour, and when the Vuelta moved from top-15 to
+   top-30 two copies were missed, so Hits and Misses and the What-if panel scored
+   the primary metric on the wrong curve for days.
+2. The board NAMES its race on every feed request and AUDITS the reply. Never let
+   the server's default decide which race a board gets. The audit is two checks,
+   because either alone can be defeated: the endpoint labels its answer, and the
+   names behind the returned bibs are compared with the startlist, since bib
+   numbers collide across races. Measured on live stage 2: 97.3 percent rider
+   agreement for the right race, 0.0 percent for the wrong one, threshold 50.
+   A failed audit throws rather than renders, is never cached as a good snapshot,
+   and deliberately does NOT fall back to the last good card, because a stale card
+   hides the fault.
+3. Remote data fails LOUDLY. A 204 No Content or an empty body is raised as a
+   bind-name error, never parsed into an empty result. "No riders" and "wrong URL"
+   must not look the same.
+
+## Stage exclusions
+
+`RACE_PROFILE.teamResultStages` lists stages whose finishes are TEAM results, so a
+rider's placing is his team's and says nothing about him. Per-rider aggregation
+skips them; the stage still counts and still scores. Tour is `[1]`, its 2026 stage
+1 being the Barcelona team time trial. Vuelta is `[]`, its stage 1 being an
+individual time trial in Monaco with real finishes.
+
+This is NOT `voidStage`, which cancels a stage outright and remains the separate
+guard. Both are applied.
+
+It was written as a bare `n===1` in three widgets, and the Vuelta inherited it when
+the board was copied, silently deleting a whole scored stage from Hall of Shame,
+Stage Winners Drafted, the Rider Value Leaderboard and the persona engine. One
+`isTeamResultStage()` helper now answers the question so widgets cannot diverge.
+When adding a race, set this from its actual route, not by copying.
 
 ## ASO rider images
 
@@ -218,7 +306,13 @@ arrays must be decoupled in the SAME commit or they stay shared by accident.
 `vuelta.src.html` was copied from `board.src.html` on 2026-08-08 and its `RIDERS`
 array stayed byte-identical to the Tour's until 2026-08-09, so the Vuelta board
 was serving the Tour startlist. Decouple at minimum: `RIDERS`, the team list, team
-colors and art maps, the race calendar, and any baked fallback arrays.
+colors and art maps, the race calendar, and `RACE_PROFILE`.
+
+Do NOT carry a baked fallback calendar across at all. `SHARED_UPCOMING` and
+`RACE_BAKED` were exactly that and were deleted on 2026-08-23; the reasoning is in
+Open items. A fallback holding another race is worse than no fallback, because it
+renders as real. Firestore `boardConfig.race` is the calendar, and an empty
+calendar renders as nothing, which is the correct failure.
 
 ## Per-race scoring profiles
 
@@ -247,7 +341,9 @@ leader chips, trend-line captions) has to follow that race's profile.
   sum of their two picks' ranks; exactly 36 per stage.
 - Fantasy Points: Vuelta uses top-30 scale, 50 for a win down to 1 for 30th;
   Tour uses top-15 scale, 25 for a win down to 1 for 15th. Nothing past the
-  cutoff, higher is better.
+  cutoff, higher is better. The table lives in `RACE_PROFILE.scoring.fantasyScale`
+  and is read through `FP_SCALE`. There is exactly ONE copy per board; never write
+  the numbers a second time.
 - Missed pick: scores one slot behind the worst actual pick anyone made that
   stage.
 - Standings are computed from the stage data array. A player's hand tally is not
@@ -267,6 +363,15 @@ leader chips, trend-line captions) has to follow that race's profile.
 
 ## Open items
 
+- The Giro host `racecenter.giroditalia.it` in the Adding the Giro checklist is a
+  GUESS and has never been checked. Verify it, and verify that the bind names
+  match the ASO shape, before writing it into a profile. A wrong host is exactly
+  the failure this whole refactor was about.
+- Cloudflare Workers Builds has not rebuilt `col-break` since 2026-08-23 despite
+  pushes to main. The worker SOURCE here is correct and race-aware; the DEPLOYED
+  copy is not, and still answers with the frozen July Tour stage. Run
+  `npx wrangler deploy` from the repo root. Until then the fallback is wrong, but
+  the boards' reply audit refuses it rather than rendering it.
 - Machine Gerald (bogie): the Claude Code Grep tool returns false negatives on this
   machine. In the 2026-08-22 session it returned "No matches found" for POOL_PAGE,
   mfb, header, mast, hero, body, and other strings that bash grep found in the same
@@ -302,21 +407,25 @@ leader chips, trend-line captions) has to follow that race's profile.
 - Optional follow-on, still open: set `boardPath: '/vuelta.html'` on
   `pools/vuelta-2026` so routing is data-driven and the next race needs no code
   edit. The code already prefers `boardPath` over the `POOL_PAGE` map.
-- `og:image` on the Vuelta board is still `tour-og.png`, so link shares preview a
-  Tour graphic. BLOCKED, asked for twice, 2026-08-10. The swap needs `vuelta-og.png`
-  and `make_vuelta_og.py`. Both have been reported as "in the chat" and then as
-  "saved to Downloads"; neither has actually appeared in either place. Nothing is
-  wrong with the plan, the two files just have not landed. `board.src.html` already
-  has the full absolute-URL og set pointing at `tour-og.png`, which is correct for
-  the Tour; mirror that block into `vuelta.src.html` the moment the asset exists.
-  Gate before flipping og:image: `https://coldufantasy.com/vuelta-og.png` must
-  return 200 with content-type image/png, and the PNG must be 1200x630.
+- og:image on the Vuelta: CLOSED 2026-08-23. `vuelta-og.png` and
+  `make_vuelta_og.py` are both in the repo. The script builds the card from the
+  repo's own `tour-og.png`, so nothing has to be produced outside the repo, which
+  is why this sat blocked from 2026-08-10: the two files were reported as saved
+  twice and never landed. Recoloring alone is NOT enough, because the card carries
+  its race in text and a recolored Tour card still reads TOUR DE FRANCE 2026, so
+  the script also repaints the eyebrow. Verified live: 200, image/png, 1200x630,
+  byte-identical to the committed file.
 - Rename `gcPlace` and `barsPlace`, which now render Fantasy Points on the Vuelta
   board and so are misleadingly named. Approved 2026-08-10 as its OWN commit, not
   bundled with feature work.
-- `SHARED_UPCOMING` and `RACE_BAKED` in `vuelta.src.html` still hold Tour data.
-  They sit below the Vuelta calendar in the fallback chain and are only reachable
-  as a last resort. Could be emptied.
+- `SHARED_UPCOMING` and `RACE_BAKED`: CLOSED 2026-08-23, both DELETED rather than
+  translated. They were not the harmless last resort they were assumed to be.
+  `boardConfig.sharedUpcoming` was empty in Firestore, so the baked Tour course
+  intel WAS the live fallback for `intel`, and `reads` and `flag` had no
+  `boardConfig.race` guard at all. Vuelta stage 15 would have printed the Tour's
+  "Champagnole > Plateau de Solaison". Each array had exactly one reader and both
+  now degrade to empty: an empty line is honest, another race's stage reads as
+  real.
 - Stage ledger lacks deeper climb and gradient detail.
 - Allegiances has no per-team official links; lavuelta has no per-team pages.
 - The Vuelta reskin change list lives in Allen's Claude project knowledge rather
