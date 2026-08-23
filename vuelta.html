@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260822-220526Z -->
+<head><!-- build:20260823-135750Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -946,10 +946,11 @@
         .break-card .bw-gcount{font-size:11px;color:var(--mute);white-space:nowrap}
         .break-card .bw-jers{display:inline-flex;gap:4px;align-items:center}
         .break-card .bw-j{width:13px;height:15px;border-radius:3px 3px 4px 4px;display:inline-block;position:relative}
-        .break-card .bw-j.yellow{background:#f7d222}
-        .break-card .bw-j.green{background:#2fa64e}
-        .break-card .bw-j.white{background:#fff;box-shadow:inset 0 0 0 1px var(--line2)}
-        .break-card .bw-j.polka{background:#fff;box-shadow:inset 0 0 0 1px var(--line2);background-image:radial-gradient(circle at 3px 4px,#d3232e 1.6px,transparent 1.8px),radial-gradient(circle at 9px 8px,#d3232e 1.6px,transparent 1.8px),radial-gradient(circle at 4px 11px,#d3232e 1.6px,transparent 1.8px)}
+        /* Class names (yellow/green/polka/white) match the feed keys; colors are Vuelta jerseys */
+        .break-card .bw-j.yellow{background:#d81830}
+        .break-card .bw-j.green{background:#003018}
+        .break-card .bw-j.white{background:#c0c0c0}
+        .break-card .bw-j.polka{background:#fff;box-shadow:inset 0 0 0 1px var(--line2);background-image:radial-gradient(circle at 3px 4px,#0060a8 1.6px,transparent 1.8px),radial-gradient(circle at 9px 8px,#0060a8 1.6px,transparent 1.8px),radial-gradient(circle at 4px 11px,#0060a8 1.6px,transparent 1.8px)}
         .break-card .bw-gours{display:flex;flex-wrap:wrap;gap:5px 7px;margin:2px 0 4px}
         .break-card .bw-gbtn{font-family:'Montserrat',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--gold-d);background:none;border:none;cursor:pointer;padding:0;white-space:nowrap}
         .break-card .bw-glist{display:flex;flex-wrap:wrap;gap:5px 7px;margin:6px 0 2px}
@@ -4527,7 +4528,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   function jerseyChips(g, jerseys){
     if(!jerseys || !g.bibs || !g.bibs.length) return '';
     var chips='';
-    [['yellow','Yellow jersey'],['green','Green jersey'],['polka','Polka dot jersey'],['white','White jersey']].forEach(function(j){
+    [['yellow','General (La Roja)'],['green','Puntos'],['polka','Montaña'],['white','Joven']].forEach(function(j){
       var w=jerseys[j[0]];
       if(w && w.bib!=null && g.bibs.indexOf(w.bib)>=0){
         chips+='<span class="bw-j '+j[0]+'" title="'+j[1]+' &middot; '+esc(w.name||'')+'"></span>';
@@ -4890,4 +4891,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </body>
 </html>
 
-<!-- redeploy 20260822-220526Z -->
+<!-- redeploy 20260823-135750Z -->
