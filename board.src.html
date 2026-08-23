@@ -84,6 +84,19 @@ const RACE_PROFILE = {
     {key:'white',  slot:'young',     chip:'White jersey',     name:'Young',     sub:'Maillot Blanc', color:'#ffffff'}
   ],
 
+
+  /* Stages whose finishes are TEAM results, so a rider's placing is his team's and
+     means nothing about him individually. Per-rider aggregation skips these; the
+     stage still counts for the pool and still scores.
+     This is NOT voidStage. voidStage cancels a stage outright and stays the guard
+     for that, and both are applied.
+     It was written as `n===1` in three widgets, which is true of the 2026 Tour,
+     whose stage 1 was the Barcelona team time trial. The Vuelta opened with an
+     INDIVIDUAL time trial in Monaco with real finishes, and inherited the rule when
+     this board was copied, silently deleting a whole scored stage from Hall of
+     Shame, Stage Winners Drafted, the Rider Value Leaderboard and the persona
+     engine. A race with a team time trial anywhere in it lists that stage here. */
+  teamResultStages:[1],
   /* Scoring. direction is what sorts: 'high' means a bigger number leads, which is
      true of Fantasy Points and false of Placement and Rank. Getting this wrong is
      silent, so it is stated rather than inferred. */
@@ -108,6 +121,8 @@ const RACE_PROFILE = {
   var r=document.documentElement;
   RACE_PROFILE.jerseys.forEach(function(j,i){ r.style.setProperty('--jsy-'+(i+1), j.color); });
 }catch(e){} })();
+/* One place asks the question, so a widget cannot answer it differently. */
+function isTeamResultStage(n){ return (RACE_PROFILE.teamResultStages||[]).indexOf(Number(n))>=0; }
 </script>
 <meta name="theme-color" content="#1b1a17">
 <meta name="apple-mobile-web-app-title" content="Col du Fantasy">
@@ -2568,7 +2583,7 @@ const PSTATS = (function(){
   const S={}, maxWins=Math.max(...PL4.map(p=>WINS_BY[p]));
   PL4.forEach(p=>{
     let sum=0,cnt=0,burial=0; const freq={};
-    COMPLETED.forEach(n=>{ if(n===1) return; const st=STAGES.find(s=>s.n===n);
+    COMPLETED.forEach(n=>{ if(isTeamResultStage(n)) return; const st=STAGES.find(s=>s.n===n);
       (st.picks[p]||[]).forEach(([r,f])=>{ if(typeof f==='number'){ sum+=f; cnt++; if(f>burial)burial=f; }
         const key=r.toUpperCase().replace(/[^A-Z]/g,''); freq[key]=(freq[key]||0)+1; }); });
     let loyC=0; for(const key in freq){ if(freq[key]>loyC) loyC=freq[key]; }
@@ -2963,7 +2978,7 @@ document.getElementById('stages').addEventListener('click',e=>{
   STAGES.forEach(st=>{
     if(!st.picks) return;
     players.forEach(p=>{ (st.picks[p]||[]).forEach(([rider,fin])=>{
-      picks[p].push({stage:st.n, rider, fin, team: st.n===1});
+      picks[p].push({stage:st.n, rider, fin, team: isTeamResultStage(st.n)});
     });});
   });
   const barRow=(code,frac,val)=>`<div class="mrow"><span class="mcode" style="color:${colors[code]}">${code}</span><span class="mtrack"><span class="mfill" style="width:${Math.max(4,frac*100).toFixed(1)}%;background:${colors[code]}"></span></span><span class="mval">${val}</span></div>`;
@@ -3239,7 +3254,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   function ord(n){ const s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
   const S=(typeof STAGES!=='undefined')?STAGES:[];
   const picks=[];
-  S.forEach(st=>{ if(!st.picks || st.voidStage || st.n===1) return;
+  S.forEach(st=>{ if(!st.picks || st.voidStage || isTeamResultStage(st.n)) return;
     PL.forEach(p=>{ (st.picks[p]||[]).forEach(pk=>{ const rider=pk[0], fin=pk[1];
       if(typeof fin!=='number' || /missed/i.test(rider)) return;
       picks.push({player:p,rider,finish:fin,stage:st.n}); }); }); });
