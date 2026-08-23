@@ -1892,68 +1892,13 @@ const BELGIAN_RIDERS=[
  /* src: https://www.procyclingstats.com/rider/luca-van-boven */
  {r:"L. van Boven",t:"Lotto-Intermarché",photo:"belgian-vanboven.jpg",bio:"From Zottegem, second on a stage of the 2025 Itzulia Basque Country and fourth overall at the 2024 Four Days of Dunkirk."}
 ];
-const SHARED_UPCOMING = {
-  21: { route:"Thoiry > Paris (Champs-Elysees)", type:"Hilly finale / Montmartre", km:133,
-    intel:{
-      summary:"The final stage into Paris, and no longer a procession: 133 km from Thoiry with three cobbled ascents of the Cote de la Butte Montmartre before the run to the Champs-Elysees, where a late attacker can still deny the sprinters.",
-      facts:[
-        "133 km from Thoiry into Paris, the closing stage of the Tour",
-        "Three ascents of the Cote de la Butte Montmartre (1.1 km at 5.9%) on a 16.7 km finishing circuit",
-        "The final Montmartre crest comes 10.3 km from the line",
-        "Sprinters' teams against the attackers on the Champs-Elysees finish"
-      ]
-    } },
-  20: { route:"Bourg d'Oisans > Alpe d'Huez", type:"Queen stage summit finish", km:170.9,
-    intel:{
-      summary:"The queen stage and the last day in the mountains: 170.9 km and about 5,450 m of climbing from Bourg d'Oisans over the Croix de Fer, the Telegraphe and the Galibier (2,642 m, the roof of this Tour), then the Col de Sarenne straight into a second Alpe d'Huez finish. Whatever the overall still holds is decided here.",
-      facts:[
-        "170.9 km with about 5,450 m of climbing, the hardest day of the race",
-        "Croix de Fer (24 km at 5.2%), Telegraphe (11.9 km at 7.1%) and Galibier (17.7 km at 6.9%, 2,642 m) stack up the damage",
-        "The Col de Sarenne (12.8 km at 7.3%) crests late before the drop to the foot of the Alpe",
-        "Finishes up Alpe d'Huez (final 3.7 km at 6.2%) for the second day running"
-      ]
-    } },
-  17: { route:"Chambery > Voiron", type:"Sprint or breakaway", km:174.7,
-    intel:{
-      summary:"A deceptive transition day from Chambery to Voiron: 174.7 km that reads flat but hides about 2,400 m of climbing, with a late rise inside the closing kilometres before a downhill-and-flat run to the line. A bunch sprint if the fast men's teams keep it together, a breakaway win if they let it slip.",
-      facts:[
-        "174.7 km with about 2,400 m of climbing on a lumpier profile than the sprinters would like",
-        "The Col des Pres (3.5 km at 6.6 percent) and the Col de Couz break up the middle third",
-        "A final short rise crests about 6 km out, then mostly downhill and flat into Voiron",
-        "Sprinters' teams against the break, with a reduced bunch sprint the likely outcome"
-      ]
-    } },
-  14: { route:"Mulhouse > Le Markstein", type:"Mountains / Vosges", km:155.3,
-    intel:{
-      summary:"A short, savage Vosges mountain day, seven climbs and 3,800 m of climbing that ends on the Col du Haag before a 6 km run-in to Le Markstein; the first real GC summit test since the Pyrenees.",
-      facts:[
-        "155.3 km with 3,800 m of climbing packed into seven categorized ascents",
-        "Over the Grand Ballon and Ballon d'Alsace early, then a relentless lumpy finale",
-        "Final climb is the Col du Haag, 11.2 km at 7.3 percent, cresting 5.9 km from the line",
-        "Suits the climbers and GC contenders, though a strong break could also survive on this terrain"
-      ]
-    } },
-  16: { route:"Evian-les-Bains > Thonon-les-Bains", type:"Individual time trial", km:26,
-    intel:{
-      summary:"After Monday's rest day, the Tour's only individual time trial: 26 km along Lake Geneva from Evian to Thonon, with a 9.6 km climb at 4.2 percent in the middle before a descent and a flat 9 km run to the line.",
-      facts:[
-        "26 km solo against the clock on Tuesday, first rider off at 13:00 local",
-        "Mid-course climb of 9.6 km at 4.2 percent up to about 800 m, then a 7 km descent",
-        "Final 9 km are flat along the lakeshore into Thonon-les-Bains",
-        "A power-rider and GC test: with Vingegaard out, it is Evenepoel's terrain against Pogacar's yellow"
-      ]
-    } },
-  15: { route:"Champagnole > Plateau de Solaison", type:"Summit finish", km:184,
-    intel:{
-      summary:"A big Jura-into-Alps GC day: 184 km and about 4,700 m of climbing across six categorized ascents, capped by the brutal Plateau de Solaison summit finish, 11.3 km at 9.1 percent.",
-      facts:[
-        "184 km with about 4,700 m of climbing across six categorized ascents",
-        "The Col de la Croisette midway is 7.6 km at 8.8 percent, its final 4.7 km at a savage 11.2",
-        "Finish climb is the Plateau de Solaison, 11.3 km at 9.1 percent with four of them in double digits, and the line sits at the summit",
-        "A pure climbers' and GC test, the last summit showdown before the Evian time trial"
-      ]
-    } }
-};
+/* The baked per-stage course intel that used to live here held TOUR stages, carried
+   over when this board was copied from the Tour board. It was not inert: intel, reads
+   and flag all fell through to it, and Vuelta stage 15 would have printed the Tour's
+   "Champagnole > Plateau de Solaison". Course intel now comes only from Firestore,
+   from the stage draft doc or boardConfig.race. If neither carries it the card shows
+   nothing for that field, which is the correct failure: an empty line is honest, and
+   another race's stage reads as real. Do not re-bake a calendar into this file. */
 
 /* Draft clock award (Stats tab) - parity with the primary board. Reads this pool's
    draft docs, computes average time on the clock per pick. Rule: count a pick only
@@ -2009,10 +1954,11 @@ async function buildCDF(){
   let draftDoc={};
   try{ const dsnap=await db.doc('pools/'+poolId+'/drafts/'+STAGE).get();
     if(dsnap.exists){ draftDoc=dsnap.data()||{}; (draftDoc.picks||[]).forEach(p=>{ if(p&&p.player&&p.rider&&upPicks[p.player]) upPicks[p.player].push(p.rider); }); } }catch(e){}
-  const su=((pool.boardConfig&&pool.boardConfig.sharedUpcoming&&pool.boardConfig.sharedUpcoming[Number(STAGE)])||(SHARED_UPCOMING&&SHARED_UPCOMING[Number(STAGE)]))||{};
+  const su=((pool.boardConfig&&pool.boardConfig.sharedUpcoming&&pool.boardConfig.sharedUpcoming[Number(STAGE)]))||{};
   // Course intel and pre-race reads are data-driven (2026-07-23): the draft doc in
-  // Firestore wins, the baked SHARED_UPCOMING is the fallback. This is what lets the
-  // draft-done endpoint post reads with no board redeploy.
+  // Firestore wins, then boardConfig.sharedUpcoming, then boardConfig.race. This is
+  // what lets the draft-done endpoint post reads with no board redeploy. There is no
+  // baked fallback any more, on purpose.
   const dIntel=(draftDoc.intel&&draftDoc.intel.summary)?draftDoc.intel:null;
   // Pre-race fallback (2026-08-08): before a stage's draft doc carries course intel,
   // the live card fills route/type/km/profile/intel from the seeded calendar row
@@ -2601,31 +2547,13 @@ const OFFICIAL = CDF.official;
 /* Full 21-stage calendar. win:"" + upcoming:true for stages not yet raced.
    BAKED FALLBACK: the live value is CDF.boardConfig.race (Firestore) when present;
    this array is the last-good fallback used only if that read is empty/absent. */
-const RACE_BAKED = [
-  { n:1,  date:"Jul 4",  route:"Barcelona TTT",            type:"Team time trial",   win:"Team Visma-Lease a Bike", extra:"Vingegaard in yellow" },
-  { n:2,  date:"Jul 5",  route:"Tarragona > Barcelona",    type:"Hilly / Montjuic",  win:"Isaac del Toro",          extra:"UAE 1-2, Pogacar led him out" },
-  { n:3,  date:"Jul 6",  route:"Granollers > Les Angles",  type:"Mountain",          win:"Tadej Pogacar",           extra:"Takes yellow, 2s on Vingegaard" },
-  { n:4,  date:"Jul 7",  route:"Carcassonne > Foix",       type:"Hilly / breakaway", win:"Mads Pedersen",           extra:"Simmons 2nd, Lidl-Trek 1-2" },
-  { n:5,  date:"Jul 8",  route:"Lannemezan > Pau",         type:"Flat sprint",       win:"Olav Kooij",              extra:"Tour debut win" },
-  { n:6,  date:"Jul 9",  route:"Pau > Gavarnie-Gedre",     type:"Summit / Tourmalet",win:"Tadej Pogacar",           extra:"Long-range attack" },
-  { n:7,  date:"Jul 10", route:"Hagetmau > Bordeaux",      type:"Flat sprint",       win:"Tim Merlier",             extra:"Girmay 2nd, Kooij 3rd" },
-  { n:8,  date:"Jul 11", route:"Bergerac",                 type:"Flat sprint",       win:"Tim Merlier",             extra:"Back-to-back" },
-  { n:9,  date:"Jul 12", route:"Malemort > Ussel",         type:"Hilly / shortened", win:"Mathieu van der Poel",    extra:"Voided for the pool", voidPool:true },
-  { n:10, date:"Jul 14", route:"Aurillac > Le Lioran",     type:"Mountain / Bastille",win:"Tadej Pogacar",          extra:"Third stage win, extends lead" },
-  { n:11, date:"Jul 15", route:"Vichy > Nevers",           type:"Flat sprint",       win:"S. Waerenskjold", extra:"Uno-X sprint win" },
-  { n:12, date:"Jul 16", route:"Magny-Cours > Chalon-sur-Saone", type:"Flat sprint", win:"Tim Merlier", extra:"Merlier doubles up" },
-  { n:13, date:"Jul 17", route:"Dole > Belfort",           type:"Hilly / Ballon d'Alsace", win:"Mauro Schmid",  extra:"Longest stage, break stays away" },
-  { n:14, date:"Jul 18", route:"Mulhouse > Le Markstein",  type:"Mountain / Vosges", win:"T. Pogacar", extra:"Seven climbs, 155.3 km" },
-  { n:15, date:"Jul 19", route:"Champagnole > Plateau de Solaison", type:"Summit finish", win:"Remco Evenepoel", extra:"New summit finish; Evenepoel over Pogacar" },
-  { n:16, date:"Jul 21", route:"Evian-les-Bains > Thonon-les-Bains", type:"Individual TT", win:"Remco Evenepoel", extra:"Back-to-back; beat Pogacar against the clock" },
-  { n:17, date:"Jul 22", route:"Chambery > Voiron",        type:"Hilly sprint",      win:"Jasper Philipsen",  extra:"Third stage win of his Tour" },
-  { n:18, date:"Jul 23", route:"Voiron > Orcieres-Merlette", type:"Summit finish",   win:"Richard Carapaz",   extra:"Soloed from the break in the Alps" },
-  { n:19, date:"Jul 24", route:"Gap > Alpe d'Huez",        type:"Summit finish",     win:"Tadej Pogacar",           extra:"Soloed clear for the Alpe d'Huez win" },
-  { n:20, date:"Jul 25", route:"Bourg d'Oisans > Alpe d'Huez", type:"Queen stage",    win:"R. Carapaz", extra:"Won the second Alpe d'Huez stage ahead of Evenepoel and Kuss" },
-  { n:21, date:"Jul 26", route:"Thoiry > Paris (Champs-Elysees)", type:"Finale / Montmartre",win:"", upcoming:true, extra:"Three Montmartre climbs" }
-];
+/* The baked results calendar that used to live here held the 2026 TOUR, from Barcelona
+   to Paris, and was the fallback behind boardConfig.race. It is gone for the same
+   reason as the course intel above: a wrong-race calendar renders as a real one. */
 /* Firestore wins, baked is fallback. Updating Full Results is now a boardConfig write, no rebuild. */
-const RACE = (CDF.boardConfig&&Array.isArray(CDF.boardConfig.race)&&CDF.boardConfig.race.length) ? CDF.boardConfig.race : RACE_BAKED;
+/* No baked fallback. Every consumer below already guards on an empty RACE and simply
+   renders nothing, which is what should happen if the calendar is ever missing. */
+const RACE = (CDF.boardConfig&&Array.isArray(CDF.boardConfig.race)&&CDF.boardConfig.race.length) ? CDF.boardConfig.race : [];
 
 /* Official top 5 finishers per scored stage (shared race fact, same for every pool).
    Stage 1 is the team time trial, so those are teams. Sources: cyclingstage.com,
