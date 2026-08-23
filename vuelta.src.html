@@ -2713,11 +2713,17 @@ const orderBy = obj => Object.keys(obj).sort((a,b)=>obj[a]-obj[b]); // ascending
 /* Our cumulative, computed from the stage data across every completed stage (void stage skipped, today held off). */
 const PL4 = (CDF.seats||CDF.order);
 const COMPLETED = STAGES.filter(s=>!s.voidStage && s.days).map(s=>s.n).sort((a,b)=>a-b);
-/* Top-30 fantasy scale. The Vuelta scores on Fantasy Points, so the total has to be
-   available this early, before the hero strip and the standings tables render. */
+/* Top-30 fantasy scale, and the ONLY copy of it on this board. The Vuelta scores on
+   Fantasy Points, so the total has to be available this early, before the hero strip
+   and the standings tables render. It sits at the top level of __runBoard, so every
+   widget IIFE below closes over it.
+   Do not re-declare this table. It used to be written out five times, and when the
+   scale moved from top-15 to top-30 two of those copies were missed, so Hits and
+   Misses and the What-if panel scored a top-30 race on the Tour's curve. */
 const FP_SCALE={1:50,2:44,3:40,4:36,5:33,6:30,7:28,8:26,9:24,10:22,
                 11:20,12:19,13:18,14:17,15:16,16:15,17:14,18:13,19:12,20:11,
                 21:10,22:9,23:8,24:7,25:6,26:5,27:4,28:3,29:2,30:1};
+
 const OURS = { through: COMPLETED.length?Math.max(...COMPLETED):0, placement:{}, rank:{}, fantasy:{} };
 PL4.forEach(p=>{OURS.placement[p]=0;OURS.rank[p]=0;OURS.fantasy[p]=0;});
 COMPLETED.forEach(n=>{
@@ -3673,9 +3679,6 @@ function profileSVG(type){
 function placeSum(picks){ if(!picks||!picks.length) return null; const v=picks.map(p=>p[1]).filter(x=>typeof x==="number"); return v.length===picks.length?v.reduce((a,b)=>a+b,0):null; }
 /* Per-stage-card scale, the same top-30 scale as the summary cards and the what-if.
    Fantasy Points is the Vuelta's system of record; Placement is the explore view. */
-const SC_PT={1:50,2:44,3:40,4:36,5:33,6:30,7:28,8:26,9:24,10:22,
-             11:20,12:19,13:18,14:17,15:16,16:15,17:14,18:13,19:12,20:11,
-             21:10,22:9,23:8,24:7,25:6,26:5,27:4,28:3,29:2,30:1};
 
 function ordinal(n){ const s=["th","st","nd","rd"], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
 function awardsRow(st){
@@ -3712,14 +3715,14 @@ function stageCard(st){
         const picks = st.picks[k];
         let total;
         if(mode==='points'){
-          total = picks && picks.length ? picks.reduce((a,pk)=>a+(typeof pk[1]==='number'?(SC_PT[pk[1]]||0):0),0) : null;
+          total = picks && picks.length ? picks.reduce((a,pk)=>a+(typeof pk[1]==='number'?(FP_SCALE[pk[1]]||0):0),0) : null;
         } else {
           const conf = st.days && typeof st.days[k]==='number' ? st.days[k] : null;
           total = conf!==null ? conf : placeSum(picks);
         }
         const detail = picks ? picks.map(pk=>{
           if(typeof pk[1]==="number"){
-            const shown = mode==='points' ? (SC_PT[pk[1]]||0) : pk[1];
+            const shown = mode==='points' ? (FP_SCALE[pk[1]]||0) : pk[1];
             return `<span class="rid">${pk[0]}</span> <span class="pl">(<b>${shown}</b>)</span>`;
           }
           return `<span class="rid">${pk[0]}</span>`;
@@ -4161,10 +4164,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 (function(){
   const PL=(CDF.seats||CDF.order).slice();
   const COL=(function(){var _p=['#c9971a','#26347e','#2f8f52','#cf2530'],_s=CDF.order.slice().sort(),o={};_s.forEach(function(c,i){o[c]=_p[i%_p.length];});return o;})();
-  const TABLE={1:50,2:44,3:40,4:36,5:33,6:30,7:28,8:26,9:24,10:22,
-               11:20,12:19,13:18,14:17,15:16,16:15,17:14,18:13,19:12,20:11,
-               21:10,22:9,23:8,24:7,25:6,26:5,27:4,28:3,29:2,30:1};
-  const val=f=>TABLE[f]||0;
+  const val=f=>FP_SCALE[f]||0;
   function ord(n){ const s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
   const S=(typeof STAGES!=='undefined')?STAGES:[];
   const picks=[];
@@ -4213,10 +4213,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   if(!todayEl||!ptsEl) return;
   const PL=(CDF.seats||CDF.order).slice();
   const COL=(function(){var _p=['#c9971a','#26347e','#2f8f52','#cf2530'],_s=CDF.order.slice().sort(),o={};_s.forEach(function(c,i){o[c]=_p[i%_p.length];});return o;})();
-  const TABLE={1:50,2:44,3:40,4:36,5:33,6:30,7:28,8:26,9:24,10:22,
-               11:20,12:19,13:18,14:17,15:16,16:15,17:14,18:13,19:12,20:11,
-               21:10,22:9,23:8,24:7,25:6,26:5,27:4,28:3,29:2,30:1};
-  const val=f=>(typeof f==='number'?(TABLE[f]||0):0);
+  const val=f=>(typeof f==='number'?(FP_SCALE[f]||0):0);
   const S=(typeof STAGES!=='undefined')?STAGES:[];
   const cur={}, pts={}; PL.forEach(p=>{cur[p]=0;pts[p]=0;});
   S.forEach(st=>{ if(st.voidStage) return;
@@ -4330,10 +4327,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 
 /* ===== SEE POINTS / SEE PLACE: per-card toggle to a top-30 fantasy-points scale ===== */
 (function(){
-  const PTABLE={1:50,2:44,3:40,4:36,5:33,6:30,7:28,8:26,9:24,10:22,
-                11:20,12:19,13:18,14:17,15:16,16:15,17:14,18:13,19:12,20:11,
-                21:10,22:9,23:8,24:7,25:6,26:5,27:4,28:3,29:2,30:1};
-  const P=f=>(typeof f==='number'?(PTABLE[f]||0):0);
+  const P=f=>(typeof f==='number'?(FP_SCALE[f]||0):0);
   const PL=(CDF.seats||CDF.order).slice();
   const COL=(function(){var _p=['#c9971a','#26347e','#2f8f52','#cf2530'],_s=CDF.order.slice().sort(),o={};_s.forEach(function(c,i){o[c]=_p[i%_p.length];});return o;})();
 
