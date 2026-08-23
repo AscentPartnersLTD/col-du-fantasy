@@ -111,6 +111,21 @@ To clear a stop-hook complaint about unpushed commits in the sandbox:
 `git fetch origin main` then `git reset --hard origin/main`. The built files live
 in the outputs directory, so resetting the clone is safe.
 
+The board and the Worker do NOT deploy the same way. The board goes out on push,
+via GitHub Pages. The `col-break` Worker does not: there is no Workers Builds git
+integration on it, so pushing `worker4.js` changes the repo and nothing else. It
+has to be deployed by hand, from the repo root:
+
+```
+CLOUDFLARE_API_TOKEN=<token> npx wrangler deploy
+```
+
+The token is Allen's, passed in the environment, never committed. Assume nothing
+here is automatic: `wrangler.toml` claimed for months that a push deployed the
+Worker, and it never did, which is how the live Worker sat on July 18 Tour data
+while the repo looked correct. Any `worker4.js` change needs that command run
+before it is live, and the repo cannot tell you whether it was.
+
 ## Verify live
 
 GitHub Pages takes one to two minutes to rebuild, and the CDN then serves the old
@@ -367,11 +382,18 @@ leader chips, trend-line captions) has to follow that race's profile.
   GUESS and has never been checked. Verify it, and verify that the bind names
   match the ASO shape, before writing it into a profile. A wrong host is exactly
   the failure this whole refactor was about.
-- Cloudflare Workers Builds has not rebuilt `col-break` since 2026-08-23 despite
-  pushes to main. The worker SOURCE here is correct and race-aware; the DEPLOYED
-  copy is not, and still answers with the frozen July Tour stage. Run
-  `npx wrangler deploy` from the repo root. Until then the fallback is wrong, but
-  the boards' reply audit refuses it rather than rendering it.
+- `col-break` still needs a manual deploy. The worker SOURCE here is correct and
+  race-aware; the DEPLOYED copy is not, and still answers with the frozen July
+  Tour stage. Run `CLOUDFLARE_API_TOKEN=<token> npx wrangler deploy` from the repo
+  root. Until then the fallback is wrong, but the boards' reply audit refuses it
+  rather than rendering it, so nothing wrong reaches the card.
+  Worth recording how this was misdiagnosed: on 2026-08-23 this was written up as
+  "Workers Builds has not rebuilt yet", and the earlier session sat waiting for a
+  rebuild that was never going to come, because `wrangler.toml` said a push
+  deployed the Worker. Allen checked the Cloudflare deployments API and found
+  every deployment before that day carried source=quick_editor, hand-pasted into
+  the dashboard. There is no git integration and never was. A comment in the repo
+  is not evidence that a pipeline exists.
 - Machine Gerald (bogie): the Claude Code Grep tool returns false negatives on this
   machine. In the 2026-08-22 session it returned "No matches found" for POOL_PAGE,
   mfb, header, mast, hero, body, and other strings that bash grep found in the same

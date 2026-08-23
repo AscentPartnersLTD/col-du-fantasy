@@ -1,7 +1,22 @@
-# Col du Fantasy - col-break Worker deploy config (Workers Builds).
-# A push to main runs `npx wrangler deploy`, which deploys worker4.js to the
-# col-break Worker. Values pinned to the live worker so nothing changes but code:
-#   compat date 2026-07-17, no flags, STATE KV binding, observability on.
+# Col du Fantasy - col-break Worker deploy config.
+#
+# THIS WORKER DOES NOT DEPLOY ON PUSH. There is no Workers Builds git integration
+# on col-break. Pushing worker4.js to main changes the repo and nothing else, so a
+# worker change needs an explicit deploy step, by hand, from the repo root:
+#
+#   CLOUDFLARE_API_TOKEN=<token> npx wrangler deploy
+#
+# The token is Allen's and is passed in the environment; it is never committed here.
+#
+# An earlier version of this comment claimed a push to main ran the deploy. It was
+# wrong and had always been wrong: the Cloudflare deployments API shows every
+# deployment before 2026-08-23 with source=quick_editor, meaning hand-pasted into
+# the dashboard. That false claim is why the live worker sat on July 18 Tour data
+# for a month while the repo moved on, and why the repo looked correct the whole
+# time. If the deployed worker disagrees with worker4.js, this is the reason.
+#
+# Values below are pinned to the live worker so a deploy changes code and nothing
+# else: compat date 2026-07-17, no flags, STATE KV binding, observability on.
 name = "col-break"
 main = "worker4.js"
 compatibility_date = "2026-07-17"
