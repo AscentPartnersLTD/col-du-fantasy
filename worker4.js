@@ -321,7 +321,9 @@ export default {
         const ite = Array.isArray(rankRaw) ? rankRaw.find((d) => d && d.type === "ite") : null;
         if (ite && Array.isArray(ite.rankings)) {
           finished = ite.rankings
-            .filter((r) => r && r.bib != null && r.position != null)
+            // position > 0: the feed writes -1 for a rider who did not finish, and
+            // an unfiltered -1 sorts ahead of the winner and renders as the placing.
+            .filter((r) => r && r.bib != null && r.position != null && r.position > 0)
             .map((r) => ({ bib: r.bib, pos: r.position, name: byBib[r.bib] || "#" + r.bib }))
             .sort((a, b) => a.pos - b.pos);
         }

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260823-154356Z -->
+<head><!-- build:20260823-160205Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -4496,24 +4496,45 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   var COL=(function(){var _p=['#c9971a','#26347e','#2f8f52','#cf2530'],_s=CDF.order.slice().sort(),o={};_s.forEach(function(c,i){o[c]=_p[i%_p.length];});return o;})();
   var PL=(CDF.seats||CDF.order).slice();
 
-  function norm(s){return (s||'').toUpperCase().replace(/[^A-Z]/g,'');}
+  // Accents are FOLDED, not deleted. Deleting them turned Pogacar into POGAAR, which
+  // is not a substring of the feed's TPOGACAR, so the name path could never place him;
+  // eleven of the fifteen riders it could not place failed for that reason. NFD splits
+  // an accented letter into a base letter plus a combining mark, so dropping the marks
+  // leaves the base letter behind. NFD does not decompose stroked or ligature letters,
+  // so those are mapped explicitly first.
+  var FOLD={'æ':'AE','Æ':'AE','œ':'OE','Œ':'OE','ø':'O','Ø':'O','ł':'L','Ł':'L','đ':'D','Đ':'D','ð':'D','Ð':'D','þ':'TH','Þ':'TH','ß':'SS'};
+  function norm(s){
+    s=String(s||'').replace(/[æÆœŒøØłŁđĐðÐþÞß]/g,function(c){return FOLD[c];});
+    try{ s=s.normalize('NFD').replace(/[̀-ͯ]/g,''); }catch(e){}
+    return s.toUpperCase().replace(/[^A-Z]/g,'');
+  }
   function surname(pick){return norm(String(pick).replace(/^[A-Za-z]\.\s*/,''));}
   function initialOf(nm){var m=String(nm).trim().match(/^([A-Za-z])\.?(?:\s|$)/);return m?m[1].toUpperCase():'';}
   // Match a feed rider to a pool pick by surname, but when BOTH names carry a leading
   // initial and the initials differ, reject - otherwise same-surname siblings collide
   // (e.g. T. Johannessen in the break vs his brother A. Johannessen in the peloton).
-  // Feed name to startlist name, applied to the FEED side before matching. A few riders
-  // are registered with the official race under a first name they do not race under, so
-  // the feed emits an initial our startlist does not carry and matches() rightly refuses
-  // the pair: James Matthew Brennan rides as Matthew, so the feed calls him J. Brennan.
-  // The startlist is deliberately NOT corrected instead. Picks are stored as the plain
-  // name string and reach matches() straight from the draft, so renaming the startlist
-  // entry would leave an already-drafted "M. Brennan" unmatched anyway, while orphaning
-  // it for team and color lookups. Confining the translation to the display path here
-  // means no pick data is touched. Keys are normalized, so case and spacing are free.
-  var FEED_ALIAS=(function(){var raw={'J. Brennan':'M. Brennan'},o={};for(var k in raw){o[norm(k)]=raw[k];}return o;})();
-  function aliasFeed(nm){var a=FEED_ALIAS[norm(nm)];return a||nm;}
-  function matches(feedName,pick){feedName=aliasFeed(feedName); var s=surname(pick); if(s.length<3) return false; if(norm(feedName).indexOf(s)<0) return false; var pi=initialOf(pick), fi=initialOf(feedName); if(pi&&fi&&pi!==fi) return false; return true;}
+  // Match a feed rider to a pool pick by surname, but when BOTH names carry a leading
+  // initial and the initials differ, reject - otherwise same-surname siblings collide
+  // (e.g. T. Johannessen in the break vs his brother A. Johannessen in the peloton).
+  // This is the FALLBACK path now, used only for a pick with no startlist entry.
+  function matches(feedName,pick){var s=surname(pick); if(s.length<3) return false; if(norm(feedName).indexOf(s)<0) return false; var pi=initialOf(pick), fi=initialOf(feedName); if(pi&&fi&&pi!==fi) return false; return true;}
+
+  // Pick string to startlist bib. RIDERS is the list the draft picks from, so a pick
+  // made on the board always resolves. Keyed on the normalized name, so a stored pick
+  // still resolves if its spelling drifts from the RIDERS entry.
+  var PICK_BIB=(function(){var o={};(typeof RIDERS!=='undefined'?RIDERS:[]).forEach(function(r){ if(r&&r.b!=null&&r.r){ o[norm(r.r)]=r.b; } });return o;})();
+  function pickBib(pick){ var b=PICK_BIB[norm(pick)]; return b==null?null:b; }
+
+  // Bib first. The feed and the startlist number riders identically, so whenever both
+  // sides resolve to a bib the pairing is decided there and no name is read at all.
+  // That is exact: it places riders the names could never pair, and it cannot put two
+  // brothers or two same-surname riders on each other. Names remain the fallback for a
+  // pick with no startlist entry, and the initial guard still applies on that path.
+  function placesAs(feedName,feedBib,pick){
+    var pb=pickBib(pick);
+    if(pb!=null && feedBib!=null) return Number(pb)===Number(feedBib);
+    return matches(feedName,pick);
+  }
   function gapStr(sec){sec=Math.round(sec||0); if(sec<=0)return 'front'; var m=Math.floor(sec/60),s=sec%60; return m+"'"+(s<10?'0':'')+s+'"';}
   function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
 
@@ -4561,7 +4582,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
     // Split pool picks: finishers (over the line, from the stage classification)
     // versus those still out on the road. A finisher always wins over any on-road
     // group so a rider who has crossed the line never shows as untracked.
-    function finEntry(rider){ for(var k=0;k<finished.length;k++){ if(matches(finished[k].name,rider)) return finished[k]; } return null; }
+    function finEntry(rider){ for(var k=0;k<finished.length;k++){ if(placesAs(finished[k].name,finished[k].bib,rider)) return finished[k]; } return null; }
     var allPicks=poolPicks();
     var finPicks=[], picks=[];
     allPicks.forEach(function(pp){ var fe=finEntry(pp.rider); if(fe){ finPicks.push({pp:pp,pos:fe.pos}); } else { picks.push(pp); } });
@@ -4592,7 +4613,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
       });
       if(!hasBreak) front.label='Peloton';
 
-      var nBreak=picks.filter(function(pp){ return hasBreak && front.riders.some(function(rn){return matches(rn,pp.rider);}); }).length;
+      var nBreak=picks.filter(function(pp){ return hasBreak && front.riders.some(function(rn,i){return placesAs(rn,front.bibs&&front.bibs[i],pp.rider);}); }).length;
       head = hasBreak
         ? 'A break of <b>'+front.count+'</b> is up the road, <b>'+nBreak+'</b> of ours in it.'
         : 'No break has gone yet, the race is all together.';
@@ -4604,12 +4625,12 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
       // count riding the line, our picks as compact cards inside their group,
       // and a roster expander per group. No separate status list.
       ladder = groups.map(function(g,idx){
-        var ours=picks.filter(function(pp){ return g.riders.some(function(rn){return matches(rn,pp.rider);}); });
+        var ours=picks.filter(function(pp){ return g.riders.some(function(rn,i){return placesAs(rn,g.bibs&&g.bibs[i],pp.rider);}); });
         var oursHtml=ours.length?'<div class="bw-gours">'+ours.map(function(pp){
           return '<span class="bw-pick"><b style="color:'+COL[pp.p]+'">'+pp.p+'</b>'+esc(pp.rider)+'</span>';
         }).join('')+'</div>':'';
-        var names=g.riders.map(function(rn){
-          var mine=picks.some(function(pp){return matches(rn,pp.rider);});
+        var names=g.riders.map(function(rn,i){
+          var mine=picks.some(function(pp){return placesAs(rn,g.bibs&&g.bibs[i],pp.rider);});
           return '<span class="bw-name'+(mine?' ours':'')+'">'+esc(rn)+'</span>';
         }).join('');
         var gapTxt = idx===0 ? (g.kmToGo?g.kmToGo+' km to go':'front') : '+'+gapStr(g.gap);
@@ -4631,7 +4652,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
     }
 
     // picks still on the road that the feed cannot place (grupetto, not yet updated, etc.)
-    var missing=picks.filter(function(pp){ return !groups.some(function(g){return g.riders.some(function(rn){return matches(rn,pp.rider);});}); });
+    var missing=picks.filter(function(pp){ return !groups.some(function(g){return g.riders.some(function(rn,i){return placesAs(rn,g.bibs&&g.bibs[i],pp.rider);});}); });
     var missLabel=groups.length?'Not in a tracked group':'Still out there';
     var missingHtml=missing.length
       ? '<div class="bw-grp"><div class="bw-div"><span class="bw-gname">'+missLabel+'</span><span class="bw-rule"></span></div>'
@@ -4911,4 +4932,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </body>
 </html>
 
-<!-- redeploy 20260823-154619Z -->
+<!-- redeploy 20260823-160206Z -->
