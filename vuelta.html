@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260823-160205Z -->
+<head><!-- build:20260823-163046Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -4161,7 +4161,9 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 (function(){
   const PL=(CDF.seats||CDF.order).slice();
   const COL=(function(){var _p=['#c9971a','#26347e','#2f8f52','#cf2530'],_s=CDF.order.slice().sort(),o={};_s.forEach(function(c,i){o[c]=_p[i%_p.length];});return o;})();
-  const TABLE={1:25,2:20,3:16,4:13,5:11,6:10,7:9,8:8,9:7,10:6,11:5,12:4,13:3,14:2,15:1};
+  const TABLE={1:50,2:44,3:40,4:36,5:33,6:30,7:28,8:26,9:24,10:22,
+               11:20,12:19,13:18,14:17,15:16,16:15,17:14,18:13,19:12,20:11,
+               21:10,22:9,23:8,24:7,25:6,26:5,27:4,28:3,29:2,30:1};
   const val=f=>TABLE[f]||0;
   function ord(n){ const s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
   const S=(typeof STAGES!=='undefined')?STAGES:[];
@@ -4211,7 +4213,9 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   if(!todayEl||!ptsEl) return;
   const PL=(CDF.seats||CDF.order).slice();
   const COL=(function(){var _p=['#c9971a','#26347e','#2f8f52','#cf2530'],_s=CDF.order.slice().sort(),o={};_s.forEach(function(c,i){o[c]=_p[i%_p.length];});return o;})();
-  const TABLE={1:25,2:20,3:16,4:13,5:11,6:10,7:9,8:8,9:7,10:6,11:5,12:4,13:3,14:2,15:1};
+  const TABLE={1:50,2:44,3:40,4:36,5:33,6:30,7:28,8:26,9:24,10:22,
+               11:20,12:19,13:18,14:17,15:16,16:15,17:14,18:13,19:12,20:11,
+               21:10,22:9,23:8,24:7,25:6,26:5,27:4,28:3,29:2,30:1};
   const val=f=>(typeof f==='number'?(TABLE[f]||0):0);
   const S=(typeof STAGES!=='undefined')?STAGES:[];
   const cur={}, pts={}; PL.forEach(p=>{cur[p]=0;pts[p]=0;});
@@ -4932,4 +4936,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </body>
 </html>
 
-<!-- redeploy 20260823-160206Z -->
+<!-- redeploy 20260823-163046Z -->
