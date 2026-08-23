@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260823-165107Z -->
+<head><!-- build:20260823-170315Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -26,6 +26,90 @@
     }
   }catch(e){}
 })();
+
+/* =========================================================================
+   RACE PROFILE
+   Everything that differs between one Grand Tour and the next lives here, in
+   one object, and every race-specific site on this board reads it. Adding the
+   Giro should be adding a profile and its assets, and changing nothing else.
+
+   This exists because the race used to be spread across the file as literals:
+   a hardcoded feed host, a scale written out five times, jersey names and
+   colors in three places, a stage count in prose. When the Vuelta ran against
+   a feed still pointed at the Tour, the board reported the wrong race's groups
+   as fact, and there was no single place that said which race this was.
+
+   The calendar is deliberately NOT here. It is Firestore's boardConfig.race,
+   which stays the source of truth for stages, routes and results. stageCount
+   is carried for copy only, so prose has a number to read without a second
+   list to drift from.
+
+   The startlist is deliberately NOT here either. RIDERS stays inline; this
+   only records where it came from and when, so its age is visible.
+   ========================================================================= */
+const RACE_PROFILE = {
+  id:'vuelta',
+  name:'Vuelta a Espana',
+  shortName:'Vuelta',
+  year:2026,
+
+  /* Live feed. The board sends id on every break request and refuses a reply that
+     does not describe this race. host is recorded so the board and the proxy can be
+     read against each other; the proxy resolves its own base from the same id. */
+  host:'racecenter.lavuelta.es',
+  apiBase:'https://racecenter.lavuelta.es/api',
+
+  /* Official site, for the outbound links on the board. */
+  site:'https://www.lavuelta.es/en',
+  routeUrl:'https://www.lavuelta.es/en/overall-route',
+  stageUrl:function(n){ return 'https://www.lavuelta.es/en/stage-'+n; },
+
+  /* Copy only. The calendar itself is Firestore boardConfig.race. */
+  stageCount:21,
+  startCity:'Monaco',
+  finishCity:'Granada',
+
+  poolId:'vuelta-2026',
+  boardPath:'/vuelta.html',
+
+  /* The four ranking jerseys, in feed order. key is the slot the feed and the CSS
+     use, and is race-neutral despite the Tour-flavored spelling: it means jersey 1
+     through 4, not a color. chip is the break widget's hover label, name and sub
+     are the prediction widget's labels, and color is the identifying color, which
+     for a polka jersey is the dot rather than the ground. */
+  jerseys:[
+    {key:'yellow', slot:'gc',        chip:'General (La Roja)', name:'General',      sub:'La Roja',      color:'#d81830'},
+    {key:'green',  slot:'points',    chip:'Puntos',            name:'Puntos',       sub:'Points',       color:'#003018'},
+    {key:'polka',  slot:'mountains', chip:'Monta\u00f1a',       name:'Monta\u00f1a',  sub:'Mountains',    color:'#0060a8'},
+    {key:'white',  slot:'young',     chip:'Joven',             name:'Joven',        sub:'Young rider',  color:'#c0c0c0'}
+  ],
+
+  /* Scoring. direction is what sorts: 'high' means a bigger number leads, which is
+     true of Fantasy Points and false of Placement and Rank. Getting this wrong is
+     silent, so it is stated rather than inferred. */
+  scoring:{
+    systemOfRecord:'Fantasy Points',
+    direction:'high',
+    fantasyScale:{1:50,2:44,3:40,4:36,5:33,6:30,7:28,8:26,9:24,10:22,
+                 11:20,12:19,13:18,14:17,15:16,16:15,17:14,18:13,19:12,20:11,
+                 21:10,22:9,23:8,24:7,25:6,26:5,27:4,28:3,29:2,30:1}
+  },
+
+  /* Which side games this race runs. */
+  sideGames:{ merica:true, kasseistampers:true, arlequin:true, premio:true },
+  combativityAward:'Premio de la Combatividad',
+
+  /* Where RIDERS came from. The array itself stays inline, above. */
+  startlist:{ source:'lavuelta.es official start list, cross-checked against procyclingstats', captured:'2026-08-21', count:184 }
+};
+
+/* Jersey colors reach the stylesheet as custom properties, so the profile stays the
+   one place they are written. Each CSS rule keeps its literal as the var fallback,
+   so the board still renders correctly if this never runs. */
+(function(){ try{
+  var r=document.documentElement;
+  RACE_PROFILE.jerseys.forEach(function(j,i){ r.style.setProperty('--jsy-'+(i+1), j.color); });
+}catch(e){} })();
 </script>
 <meta name="theme-color" content="#c8102e">
 <meta name="apple-mobile-web-app-title" content="Col du Fantasy">
@@ -948,10 +1032,10 @@
         .break-card .bw-jers{display:inline-flex;gap:4px;align-items:center}
         .break-card .bw-j{width:13px;height:15px;border-radius:3px 3px 4px 4px;display:inline-block;position:relative}
         /* Class names (yellow/green/polka/white) match the feed keys; colors are Vuelta jerseys */
-        .break-card .bw-j.yellow{background:#d81830}
-        .break-card .bw-j.green{background:#003018}
-        .break-card .bw-j.white{background:#c0c0c0}
-        .break-card .bw-j.polka{background:#fff;box-shadow:inset 0 0 0 1px var(--line2);background-image:radial-gradient(circle at 3px 4px,#0060a8 1.6px,transparent 1.8px),radial-gradient(circle at 9px 8px,#0060a8 1.6px,transparent 1.8px),radial-gradient(circle at 4px 11px,#0060a8 1.6px,transparent 1.8px)}
+        .break-card .bw-j.yellow{background:var(--jsy-1,#d81830)}
+        .break-card .bw-j.green{background:var(--jsy-2,#003018)}
+        .break-card .bw-j.white{background:var(--jsy-4,#c0c0c0)}
+        .break-card .bw-j.polka{background:#fff;box-shadow:inset 0 0 0 1px var(--line2);background-image:radial-gradient(circle at 3px 4px,var(--jsy-3,#0060a8) 1.6px,transparent 1.8px),radial-gradient(circle at 9px 8px,var(--jsy-3,#0060a8) 1.6px,transparent 1.8px),radial-gradient(circle at 4px 11px,var(--jsy-3,#0060a8) 1.6px,transparent 1.8px)}
         .break-card .bw-gours{display:flex;flex-wrap:wrap;gap:5px 7px;margin:2px 0 4px}
         .break-card .bw-gbtn{font-family:'Montserrat',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--gold-d);background:none;border:none;cursor:pointer;padding:0;white-space:nowrap}
         .break-card .bw-glist{display:flex;flex-wrap:wrap;gap:5px 7px;margin:6px 0 2px}
@@ -1017,7 +1101,7 @@
   <section class="tab" id="tab-results">
     <h2 class="eyebrow">Vuelta a España 2026 &middot; Full calendar and winners</h2>
     <table class="results" id="resultsTable"></table>
-    <p style="font-size:12px;color:var(--mute);margin-top:12px">All 21 stages, Monaco to Granada. Completed stages show the race winner; upcoming stages show the road ahead. Race results are independent of the pool.</p>
+    <p style="font-size:12px;color:var(--mute);margin-top:12px"><span id="raceSpan"></span> Completed stages show the race winner; upcoming stages show the road ahead. Race results are independent of the pool.</p>
   </section>
 
   <section class="tab" id="tab-stats">
@@ -1074,7 +1158,7 @@
           <div class="mh">Next stage weather</div>
           <div class="msub" id="wxSub">The upcoming stage finish</div>
           <div id="wxBody" class="wx-body"><span class="wx-muted">Loading the forecast...</span></div>
-          <a class="wx-link" href="https://www.lavuelta.es/en/overall-route" target="_blank" rel="noopener noreferrer">Full Vuelta a España route</a>
+          <a class="wx-link" href="" id="routeLink" target="_blank" rel="noopener noreferrer">Full Vuelta a España route</a>
         </div>
       </div>
       <div>
@@ -2137,12 +2221,9 @@ function renderMerica(){
    The lock itself is not something a client can force early: the rule only permits
    flipping predictionsLocked to true once all four seat documents exist, so after any
    submit the board simply tries, and a refusal just means the pool is not complete. */
-var JP_JERSEYS=[
-  {k:'gc',        name:'General',  sub:'La Roja',  color:'#d81830'},
-  {k:'points',    name:'Puntos',   sub:'Points',   color:'#003018'},
-  {k:'mountains', name:'Monta\u00f1a', sub:'Mountains', color:'#0060a8'},
-  {k:'young',     name:'Joven',    sub:'Young rider', color:'#c0c0c0'}
-];
+/* The prediction widget's four jerseys, from the race profile. The same four slots
+   the break widget chips use, with the longer labels. */
+var JP_JERSEYS=RACE_PROFILE.jerseys.map(function(j){ return {k:j.slot, name:j.name, sub:j.sub, color:j.color}; });
 function jpRef(seat){ return db.doc('pools/'+poolId+'/predictions/'+seat); }
 function jpSeats(){ var c=JP_CDF||{}; return (c.seats||c.order||[]).slice(); }
 /* CDF is NOT a global: it is local to the board-load function and passed into
@@ -2648,9 +2729,7 @@ const COMPLETED = STAGES.filter(s=>!s.voidStage && s.days).map(s=>s.n).sort((a,b
    Do not re-declare this table. It used to be written out five times, and when the
    scale moved from top-15 to top-30 two of those copies were missed, so Hits and
    Misses and the What-if panel scored a top-30 race on the Tour's curve. */
-const FP_SCALE={1:50,2:44,3:40,4:36,5:33,6:30,7:28,8:26,9:24,10:22,
-                11:20,12:19,13:18,14:17,15:16,16:15,17:14,18:13,19:12,20:11,
-                21:10,22:9,23:8,24:7,25:6,26:5,27:4,28:3,29:2,30:1};
+const FP_SCALE=RACE_PROFILE.scoring.fantasyScale;
 
 const OURS = { through: COMPLETED.length?Math.max(...COMPLETED):0, placement:{}, rank:{}, fantasy:{} };
 PL4.forEach(p=>{OURS.placement[p]=0;OURS.rank[p]=0;OURS.fantasy[p]=0;});
@@ -3843,7 +3922,7 @@ document.getElementById('stages').insertAdjacentHTML('afterbegin',
     <div class="stage-body">
       ${upIntel}
       ${up.profile?`<img class="ahead-profile" src="${up.profile}" alt="Stage ${up.n} elevation profile" loading="lazy">`:''}
-      <div class="stage-links"><a href="https://www.lavuelta.es/en/stage-${up.n}" target="_blank" rel="noopener">Full stage on lavuelta.es &rsaquo;</a></div>
+      <div class="stage-links"><a href="${RACE_PROFILE.stageUrl(up.n)}" target="_blank" rel="noopener">Full stage on lavuelta.es &rsaquo;</a></div>
       <table class="picks"><thead><tr><th>Rider</th><th>Picks</th><th class="r">Placement</th></tr></thead><tbody>${upRows}</tbody></table>
       ${upRead}
     </div></div>`);
@@ -4487,7 +4566,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   function jerseyChips(g, jerseys){
     if(!jerseys || !g.bibs || !g.bibs.length) return '';
     var chips='';
-    [['yellow','General (La Roja)'],['green','Puntos'],['polka','Montaña'],['white','Joven']].forEach(function(j){
+    RACE_PROFILE.jerseys.map(function(j){return [j.key,j.chip];}).forEach(function(j){
       var w=jerseys[j[0]];
       if(w && w.bib!=null && g.bibs.indexOf(w.bib)>=0){
         chips+='<span class="bw-j '+j[0]+'" title="'+j[1]+' &middot; '+esc(w.name||'')+'"></span>';
@@ -4645,7 +4724,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
      spent a race day rendering Tour groups, telling three players that the rider
      who won the stage was off the back. A wrong-race answer is still a valid 200
      with valid JSON, so nothing errors and nothing looks broken. */
-  var RACE_ID='vuelta';
+  var RACE_ID=RACE_PROFILE.id;
 
   /* Startlist bib to our name, used only to audit a feed reply. */
   var BIB_NAME=(function(){var o={};(typeof RIDERS!=='undefined'?RIDERS:[]).forEach(function(r){ if(r&&r.b!=null&&r.r){ o[r.b]=r.r; } });return o;})();
@@ -4905,7 +4984,17 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   }catch(e){}
 })();
 </script>
+<script>
+/* Stage-count prose. The number and the two cities are stated once, in the race
+   profile, so no second list can drift from the calendar. */
+(function(){ try{
+  var e=document.getElementById("raceSpan");
+  if(e) e.textContent="All "+RACE_PROFILE.stageCount+" stages, "+RACE_PROFILE.startCity+" to "+RACE_PROFILE.finishCity+".";
+  var rl=document.getElementById("routeLink");
+  if(rl){ rl.href=RACE_PROFILE.routeUrl; rl.textContent="Full "+RACE_PROFILE.name+" route"; }
+}catch(e){} })();
+</script>
 </body>
 </html>
 
-<!-- redeploy 20260823-165108Z -->
+<!-- redeploy 20260823-170316Z -->

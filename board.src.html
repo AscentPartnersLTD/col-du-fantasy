@@ -26,6 +26,88 @@
     }
   }catch(e){}
 })();
+
+/* =========================================================================
+   RACE PROFILE
+   Everything that differs between one Grand Tour and the next lives here, in
+   one object, and every race-specific site on this board reads it. Adding the
+   Giro should be adding a profile and its assets, and changing nothing else.
+
+   This exists because the race used to be spread across the file as literals:
+   a hardcoded feed host, a scale written out five times, jersey names and
+   colors in three places, a stage count in prose. When the Vuelta ran against
+   a feed still pointed at the Tour, the board reported the wrong race's groups
+   as fact, and there was no single place that said which race this was.
+
+   The calendar is deliberately NOT here. It is Firestore's boardConfig.race,
+   which stays the source of truth for stages, routes and results. stageCount
+   is carried for copy only, so prose has a number to read without a second
+   list to drift from.
+
+   The startlist is deliberately NOT here either. RIDERS stays inline; this
+   only records where it came from and when, so its age is visible.
+   ========================================================================= */
+const RACE_PROFILE = {
+  id:'tour',
+  name:'Tour de France',
+  shortName:'Tour',
+  year:2026,
+
+  /* Live feed. The board sends id on every break request and refuses a reply that
+     does not describe this race. host is recorded so the board and the proxy can be
+     read against each other; the proxy resolves its own base from the same id. */
+  host:'racecenter.letour.fr',
+  apiBase:'https://racecenter.letour.fr/api',
+
+  /* Official site, for the outbound links on the board. */
+  site:'https://www.letour.fr/en',
+  routeUrl:'https://www.letour.fr/en/overall-route',
+  stageUrl:function(n){ return 'https://www.letour.fr/en/stage-'+n; },
+
+  /* Copy only. The calendar itself is Firestore boardConfig.race. */
+  stageCount:21,
+  startCity:'Barcelona',
+  finishCity:'Paris',
+
+  poolId:'col-du-fantasy',
+  boardPath:'/tour.html',
+
+  /* The four ranking jerseys, in feed order. key is the slot the feed and the CSS
+     use, and is race-neutral despite the Tour-flavored spelling: it means jersey 1
+     through 4, not a color. chip is the break widget's hover label, name and sub
+     are the prediction widget's labels, and color is the identifying color, which
+     for a polka jersey is the dot rather than the ground. */
+  jerseys:[
+    {key:'yellow', slot:'gc',        chip:'Yellow jersey',    name:'General',   sub:'Maillot Jaune', color:'#f7d222'},
+    {key:'green',  slot:'points',    chip:'Green jersey',     name:'Points',    sub:'Maillot Vert',  color:'#2fa64e'},
+    {key:'polka',  slot:'mountains', chip:'Polka dot jersey', name:'Mountains', sub:'Maillot a Pois', color:'#d3232e'},
+    {key:'white',  slot:'young',     chip:'White jersey',     name:'Young',     sub:'Maillot Blanc', color:'#ffffff'}
+  ],
+
+  /* Scoring. direction is what sorts: 'high' means a bigger number leads, which is
+     true of Fantasy Points and false of Placement and Rank. Getting this wrong is
+     silent, so it is stated rather than inferred. */
+  scoring:{
+    systemOfRecord:'Placement',
+    direction:'low',
+    fantasyScale:{1:25,2:20,3:16,4:13,5:11,6:10,7:9,8:8,9:7,10:6,11:5,12:4,13:3,14:2,15:1}
+  },
+
+  /* Which side games this race runs. */
+  sideGames:{ merica:true, kasseistampers:false, arlequin:true, premio:false },
+  combativityAward:'Prix de la Combativite',
+
+  /* Where RIDERS came from. The array itself stays inline, above. */
+  startlist:{ source:'procyclingstats.com and en.wikipedia.org/wiki/2026_Tour_de_France, per the sources footer', captured:'not recorded', count:164 }
+};
+
+/* Jersey colors reach the stylesheet as custom properties, so the profile stays the
+   one place they are written. Each CSS rule keeps its literal as the var fallback,
+   so the board still renders correctly if this never runs. */
+(function(){ try{
+  var r=document.documentElement;
+  RACE_PROFILE.jerseys.forEach(function(j,i){ r.style.setProperty('--jsy-'+(i+1), j.color); });
+}catch(e){} })();
 </script>
 <meta name="theme-color" content="#1b1a17">
 <meta name="apple-mobile-web-app-title" content="Col du Fantasy">
@@ -797,10 +879,10 @@
         .break-card .bw-gcount{font-size:11px;color:var(--mute);white-space:nowrap}
         .break-card .bw-jers{display:inline-flex;gap:4px;align-items:center}
         .break-card .bw-j{width:13px;height:15px;border-radius:3px 3px 4px 4px;display:inline-block;position:relative}
-        .break-card .bw-j.yellow{background:#f7d222}
-        .break-card .bw-j.green{background:#2fa64e}
-        .break-card .bw-j.white{background:#fff;box-shadow:inset 0 0 0 1px var(--line2)}
-        .break-card .bw-j.polka{background:#fff;box-shadow:inset 0 0 0 1px var(--line2);background-image:radial-gradient(circle at 3px 4px,#d3232e 1.6px,transparent 1.8px),radial-gradient(circle at 9px 8px,#d3232e 1.6px,transparent 1.8px),radial-gradient(circle at 4px 11px,#d3232e 1.6px,transparent 1.8px)}
+        .break-card .bw-j.yellow{background:var(--jsy-1,#f7d222)}
+        .break-card .bw-j.green{background:var(--jsy-2,#2fa64e)}
+        .break-card .bw-j.white{background:var(--jsy-4,#fff);box-shadow:inset 0 0 0 1px var(--line2)}
+        .break-card .bw-j.polka{background:#fff;box-shadow:inset 0 0 0 1px var(--line2);background-image:radial-gradient(circle at 3px 4px,var(--jsy-3,#d3232e) 1.6px,transparent 1.8px),radial-gradient(circle at 9px 8px,var(--jsy-3,#d3232e) 1.6px,transparent 1.8px),radial-gradient(circle at 4px 11px,var(--jsy-3,#d3232e) 1.6px,transparent 1.8px)}
         .break-card .bw-gours{display:flex;flex-wrap:wrap;gap:5px 7px;margin:2px 0 4px}
         .break-card .bw-gbtn{font-family:'Montserrat',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--gold-d);background:none;border:none;cursor:pointer;padding:0;white-space:nowrap}
         .break-card .bw-glist{display:flex;flex-wrap:wrap;gap:5px 7px;margin:6px 0 2px}
@@ -852,7 +934,7 @@
   <section class="tab" id="tab-results">
     <h2 class="eyebrow">Tour de France 2026 &middot; Full calendar and winners</h2>
     <table class="results" id="resultsTable"></table>
-    <p style="font-size:12px;color:var(--mute);margin-top:12px">All 21 stages, Barcelona to Paris. Completed stages show the race winner; upcoming stages show the road ahead. Race results are independent of the pool. Stage 9 ran and was won by Van der Poel, but the pool neutralized the day.</p>
+    <p style="font-size:12px;color:var(--mute);margin-top:12px"><span id="raceSpan"></span> Completed stages show the race winner; upcoming stages show the road ahead. Race results are independent of the pool. Stage 9 ran and was won by Van der Poel, but the pool neutralized the day.</p>
   </section>
 
   <section class="tab" id="tab-stats">
@@ -2476,7 +2558,7 @@ const ART = {
    Do not re-declare this table. The Vuelta board carried five separate copies of its
    own scale, and when that scale changed two were missed and scored a top-30 race on
    this curve. One table, one place. */
-const FP_SCALE={1:25,2:20,3:16,4:13,5:11,6:10,7:9,8:8,9:7,10:6,11:5,12:4,13:3,14:2,15:1};
+const FP_SCALE=RACE_PROFILE.scoring.fantasyScale;
 
 /* ---- Dynamic persona engine ----
    Each player is scored against every persona from their current pool profile, then
@@ -3524,7 +3606,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   function jerseyChips(g, jerseys){
     if(!jerseys || !g.bibs || !g.bibs.length) return '';
     var chips='';
-    [['yellow','Yellow jersey'],['green','Green jersey'],['polka','Polka dot jersey'],['white','White jersey']].forEach(function(j){
+    RACE_PROFILE.jerseys.map(function(j){return [j.key,j.chip];}).forEach(function(j){
       var w=jerseys[j[0]];
       if(w && w.bib!=null && g.bibs.indexOf(w.bib)>=0){
         chips+='<span class="bw-j '+j[0]+'" title="'+j[1]+' &middot; '+esc(w.name||'')+'"></span>';
@@ -3674,7 +3756,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
      spent a race day rendering Tour groups, telling three players that the rider
      who won the stage was off the back. A wrong-race answer is still a valid 200
      with valid JSON, so nothing errors and nothing looks broken. */
-  var RACE_ID='tour';
+  var RACE_ID=RACE_PROFILE.id;
 
   /* Startlist bib to our name, used only to audit a feed reply. */
   var BIB_NAME=(function(){var o={};(typeof RIDERS!=='undefined'?RIDERS:[]).forEach(function(r){ if(r&&r.b!=null&&r.r){ o[r.b]=r.r; } });return o;})();
@@ -3924,5 +4006,13 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   body.gated #cdfBuild{display:none}
 </style>
 <div id="cdfBuild" title="Build version - if this differs from the newest, the page is cached">pool v2026.07.23-breakfix</div>
+<script>
+/* Stage-count prose. The number and the two cities are stated once, in the race
+   profile, so no second list can drift from the calendar. */
+(function(){ try{
+  var e=document.getElementById("raceSpan");
+  if(e) e.textContent="All "+RACE_PROFILE.stageCount+" stages, "+RACE_PROFILE.startCity+" to "+RACE_PROFILE.finishCity+".";
+}catch(e){} })();
+</script>
 </body>
 </html>
