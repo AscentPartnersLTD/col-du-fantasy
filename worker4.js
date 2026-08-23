@@ -152,12 +152,34 @@ async function handlePush(request, url, env) {
   return null;
 }
 
-const YEAR = 2026;
-// Race center host. Must track the race that is actually running, and must agree with
-// the primary proxy (api.coldufantasy.com/api/break), which resolves this per request
-// from RACE / RACE_HOST. A stale value here does not fail: the wrong race center
-// answers with valid JSON for its own frozen stage, which reads as live data.
-const BASE = "https://racecenter.lavuelta.es/api";
+/* Race registry, the same shape the primary proxy uses (api/break.js in the
+   coldufantasy-login repo). A hardcoded host is what pointed the Vuelta board at the
+   Tour and rendered another race's groups as fact, so the race is resolved per
+   request and never baked in.
+
+   Resolution order: an explicit ?race= from the caller wins, because the boards now
+   name their race on every request and a board must never depend on how this worker
+   is configured. Otherwise the RACE var from wrangler, otherwise vuelta.
+   RACE_HOST and RACE_YEAR override the default race's host and edition, so a moved
+   race center or a new year needs no code change.
+
+   Workers only expose env inside the fetch handler, so this resolves per request and
+   the resolved object is threaded through rather than held in a module global, which
+   two concurrent requests for different races would corrupt. */
+const RACES = {
+  tour:   { host: "racecenter.letour.fr",   year: 2026 },
+  vuelta: { host: "racecenter.lavuelta.es", year: 2026 },
+};
+
+function resolveRace(url, env) {
+  const asked = String(url.searchParams.get("race") || "").toLowerCase();
+  if (RACES[asked]) return { id: asked, base: `https://${RACES[asked].host}/api`, year: RACES[asked].year };
+  const e = env || {};
+  const dk = RACES[String(e.RACE || "").toLowerCase()] ? String(e.RACE).toLowerCase() : "vuelta";
+  const host = String(e.RACE_HOST || "").trim() || RACES[dk].host;
+  const year = parseInt(e.RACE_YEAR || "", 10);
+  return { id: dk, base: `https://${host}/api`, year: Number.isInteger(year) && year > 2000 ? year : RACES[dk].year };
+}
 const ALLOW_ORIGIN = "*"; // public race data; set to "https://coldufantasy.com" to lock it
 const TTL = 60 * 60 * 24 * 30; // 30 days
 
@@ -175,8 +197,8 @@ function json(obj, status = 200) {
   });
 }
 
-async function getJSON(path) {
-  const r = await fetch(`${BASE}/${path}`, { cf: { cacheTtl: 15, cacheEverything: true } });
+async function getJSON(path, race) {
+  const r = await fetch(`${race.base}/${path}`, { cf: { cacheTtl: 15, cacheEverything: true } });
   if (!r.ok) throw new Error(`${path} -> HTTP ${r.status}`);
   return r.json();
 }
@@ -197,13 +219,14 @@ function poolStage(url) {
 async function handleRoster(request, url, env) {
   if (url.pathname !== "/roster") return null;
   if (!env.STATE) return json({ error: "KV binding STATE missing" }, 500);
+  const race = resolveRace(url, env);
   const hint = (url.searchParams.get("stage") || "").replace(/[^0-9]/g, "").slice(0, 2);
   if (!hint) return json({ error: "need ?stage=N (the upcoming or current stage)" }, 400);
 
   // latest raced stage <= hint with a general classification
   let useStage = null, gc = null;
   for (let s = Number(hint); s >= Number(hint) - 3 && s > 0; s--) {
-    const rt = await getJSON(`rankingType-${YEAR}-${s}`).catch(() => null);
+    const rt = await getJSON(`rankingType-${race.year}-${s}`, race).catch(() => null);
     const g = Array.isArray(rt)
       ? rt.filter((d) => d && d.type === "itg").sort((a, b) => (b.rankings || []).length - (a.rankings || []).length)[0]
       : null;
@@ -215,7 +238,7 @@ async function handleRoster(request, url, env) {
   const activeSet = new Set(activeBibs);
 
   // names by bib for the drop list
-  const comp = await getJSON(`allCompetitors-${YEAR}`).catch(() => null);
+  const comp = await getJSON(`allCompetitors-${race.year}`, race).catch(() => null);
   const byBib = {};
   (Array.isArray(comp) ? comp : []).forEach((c) => {
     if (c.bib != null) byBib[c.bib] = (c.firstname ? c.firstname[0] + ". " : "") + (c.lastname || "");
@@ -295,14 +318,15 @@ export default {
       const roster = await handleRoster(request, url, env);
       if (roster) return roster;
 
+      const race = resolveRace(url, env);
       const stage = (url.searchParams.get("stage") || "").replace(/[^0-9]/g, "");
       if (!stage) return json({ error: "missing ?stage=N" }, 400);
 
       const [pack, comp, jerseysRaw, rankRaw] = await Promise.all([
-        getJSON(`pack-${YEAR}-${stage}`),
-        getJSON(`allCompetitors-${YEAR}`),
-        getJSON(`rankingTypeJerseys-${YEAR}-${stage}`).catch(() => null),
-        getJSON(`rankingType-${YEAR}-${stage}`).catch(() => null),
+        getJSON(`pack-${race.year}-${stage}`, race),
+        getJSON(`allCompetitors-${race.year}`, race),
+        getJSON(`rankingTypeJerseys-${race.year}-${stage}`, race).catch(() => null),
+        getJSON(`rankingType-${race.year}-${stage}`, race).catch(() => null),
       ]);
 
       const byBib = {};
@@ -330,7 +354,7 @@ export default {
       } catch (e) { finished = []; }
 
       const snaps = (Array.isArray(pack) ? pack : []).filter((x) => x.groups && x.groups.length);
-      if (!snaps.length) return json({ live: false, stage, groups: [], finished });
+      if (!snaps.length) return json({ live: false, race: race.id, stage, groups: [], finished });
       const cur = snaps.sort((a, b) => (b._updatedAt || 0) - (a._updatedAt || 0))[0];
 
       const groups = cur.groups
@@ -363,7 +387,7 @@ export default {
         });
       }
 
-      return json({ live: true, stage, updatedAt: cur._updatedAt || null, groups, jerseys, finished });
+      return json({ live: true, race: race.id, stage, updatedAt: cur._updatedAt || null, groups, jerseys, finished });
     } catch (e) {
       return json({ error: String((e && e.message) || e) }, 502);
     }
