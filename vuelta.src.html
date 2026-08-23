@@ -928,6 +928,7 @@
         .break-card .bw-name{font-size:12px;color:var(--ink2);background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:3px 8px}
         .break-card .bw-name.ours{font-weight:800;color:var(--ink);border-color:var(--gold-d);background:#fffaf0}
         .break-card .bw-foot{font-size:11px;color:var(--mute);margin-top:12px}
+        .break-card .bw-coverage{font-size:10px;color:var(--mute);margin-top:8px;font-style:italic}
         .break-card .bw-muted{color:var(--mute);font-size:13px}
         .break-card .bw-controls{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:11px;padding-bottom:10px;border-bottom:1px solid var(--line)}
         .break-card .bw-stamp{font-family:'Montserrat',sans-serif;font-weight:700;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute)}
@@ -4548,7 +4549,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 
     // Split pool picks: finishers (over the line, from the stage classification)
     // versus those still out on the road. A finisher always wins over any on-road
-    // group so a rider who has crossed the line never shows as "Off the back".
+    // group so a rider who has crossed the line never shows as untracked.
     function finEntry(rider){ for(var k=0;k<finished.length;k++){ if(matches(finished[k].name,rider)) return finished[k]; } return null; }
     var allPicks=poolPicks();
     var finPicks=[], picks=[];
@@ -4618,9 +4619,9 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
       head = finPicks.length ? 'Riders are crossing the line.' : 'The stage is wrapping up.';
     }
 
-    // picks still on the road that the feed cannot place (grupetto, or all done)
+    // picks still on the road that the feed cannot place (grupetto, not yet updated, etc.)
     var missing=picks.filter(function(pp){ return !groups.some(function(g){return g.riders.some(function(rn){return matches(rn,pp.rider);});}); });
-    var missLabel=groups.length?'Off the back':'Still out there';
+    var missLabel=groups.length?'Not in a tracked group':'Still out there';
     var missingHtml=missing.length
       ? '<div class="bw-grp"><div class="bw-div"><span class="bw-gname">'+missLabel+'</span><span class="bw-rule"></span></div>'
         +'<div class="bw-gours">'+missing.map(function(pp){
@@ -4628,10 +4629,17 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
         }).join('')+'</div></div>'
       : '';
 
+    // feed coverage: how many riders the feed accounts for vs the startlist
+    var feedTotal=groups.reduce(function(sum,g){return sum+(g.count||0);},0)+finished.length;
+    var startlistTotal=(typeof RIDERS!=='undefined')?RIDERS.length:0;
+    var coverageLine=(startlistTotal&&feedTotal<startlistTotal)
+      ? '<div class="bw-coverage">Feed accounts for '+feedTotal+' of '+startlistTotal+' riders.</div>'
+      : '';
+
     var allIn = allPicks.length>0 && finPicks.length>=allPicks.length;
     var foot = allIn
       ? 'Every one of our picks is over the line. Placings settle when the stage is made official.'
-      : 'Live from the official race feed. Finishers move to Over the line with their placing as they cross, and the panel keeps refreshing until all of ours are in. The feed only tracks race-relevant groups, so a rider dropped into an untracked grupetto sits under '+missLabel+' until it picks them up.';
+      : 'Live from the official race feed. Finishers move to Over the line with their placing as they cross, and the panel keeps refreshing until all picks are in. The feed reports only race relevant groups; riders it does not place appear under '+missLabel+' without that meaning they have fallen behind.';
 
     BODY.className='bw-body has';
     BODY.innerHTML=controlsRow(stampNow(data))
@@ -4640,6 +4648,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
       +finHtml
       +ladder
       +missingHtml
+      +coverageLine
       +'<div class="bw-foot">'+foot+'</div>';
 
     BODY.querySelectorAll('.bw-gbtn').forEach(function(btn){
