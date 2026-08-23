@@ -2,7 +2,7 @@
  *
  * v3 (2026-07-18). Two jobs:
  * 1. Race feed proxy (original): browsers on coldufantasy.com cannot call the
- *    letour racecenter feed (CORS). ?stage=N fetches it server-side and returns
+ *    race center feed (CORS). ?stage=N fetches it server-side and returns
  *    clean JSON groups + jerseys. On-demand only.
  * 2. Draft-completion watcher (new): the boards' draft engine POSTs /done when
  *    a stage draft fills its final slot; state lands in KV (binding: STATE).
@@ -23,7 +23,11 @@
  */
 
 const YEAR = 2026;
-const BASE = "https://racecenter.letour.fr/api";
+// Race center host. Must track the race that is actually running, and must agree with
+// the primary proxy (api.coldufantasy.com/api/break), which resolves this per request
+// from RACE / RACE_HOST. A stale value here does not fail: the wrong race center
+// answers with valid JSON for its own frozen stage, which reads as live data.
+const BASE = "https://racecenter.lavuelta.es/api";
 const ALLOW_ORIGIN = "*"; // public race data; set to "https://coldufantasy.com" to lock it
 const TTL = 60 * 60 * 24 * 30; // 30 days
 
