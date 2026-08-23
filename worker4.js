@@ -341,7 +341,10 @@ export default {
             name: g.name || "",
             order: g.order || 0,
             gap: g.computedRelative != null ? g.computedRelative : g.relative != null ? g.relative : 0,
-            kmToGo: Math.round((g.computedRemainingDistance != null ? g.computedRemainingDistance : g.remainingDistance || 0) / 100) / 10,
+            // remainingDistance is the field the official race center displays and the
+            // one that reconciles with the published stage length. See the note in the
+            // primary proxy (api/break.js in coldufantasy-login) for the measurements.
+            kmToGo: Math.round((g.remainingDistance != null ? g.remainingDistance : g.computedRemainingDistance || 0) / 100) / 10,
             count: riders.length,
             riders,
             bibs,
