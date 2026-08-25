@@ -304,6 +304,66 @@ Stage Winners Drafted, the Rider Value Leaderboard and the persona engine. One
 `isTeamResultStage()` helper now answers the question so widgets cannot diverge.
 When adding a race, set this from its actual route, not by copying.
 
+## Void stages, and whether the baton passes
+
+A void stage scores nothing. Whether it ADVANCES the pick order depends on one question
+only: did a draft happen?
+
+- A draft happened and the race was lost to something else: the baton PASSES. The stage
+  counts as having happened, it scores nothing, nobody is penalized, and the next stage
+  leads off one seat forward. Vuelta 2026 stage 3, Gruissan-Aude to Font Romeu, is the
+  case. It was neutralized and then cancelled on 24 Aug after a hailstorm on the Col de
+  Mont-Louis, with no result recorded, but all four seats had drafted and the race had
+  covered 160 km. Ruling from Allen: play it the way the race did.
+- No draft happened: the baton does NOT pass. Tour 2026 stage 9 is that case, a DNS for
+  the whole pool with `picks: {}`, so the rotation stays in phase across it.
+
+The flag that encodes this is `voidPool` on the `boardConfig.race` row, NOT `voidStage`
+on the stage doc. `seasonOrder()` skips every `voidPool` row when it counts the rotation,
+so `voidPool` means exactly "no draft was taken here". Setting it on a stage that WAS
+drafted silently rewrites the leadoff for every earlier stage in the Draft Tilt strip and
+labels the drafted stage "no draft". On stage 3 that would have moved stages 1 and 2 to
+the wrong seats and denied that JB led off at all.
+
+So, for a void stage that WAS drafted, write the race row as `upcoming:false`, `win:""`,
+and an `extra` saying what happened, and leave `voidPool` OFF. The blank Winner cell plus
+the note is what keeps the row from reading as unraced-but-upcoming. The greyed `.void`
+row styling is the only thing given up, and it is not worth falsifying the draft order.
+
+On the stage doc, `voidStage:true` with `picks` present and `days` OMITTED is what makes
+the stage score nothing. `COMPLETED` filters on `!s.voidStage && s.days`, so either half
+alone excludes it, and every scoring widget reads COMPLETED. Verified on stage 3: totals
+held at AA 126, JB 98, JP 56, JJ 47, and Winners picked stayed 2/2 scored days. Picks
+carry `f: null`; every unguarded consumer already tests `fin != null` or `f === 1`, so
+they drop out cleanly, while Allegiances still counts the riders, which is correct
+because the picks stand. Give the doc a `win` string, because the card head prints
+`Winner: ${st.win}` and an absent field prints "undefined". Tour stage 9 used
+"Neutralized"; Vuelta stage 3 uses "Cancelled".
+
+## Writing boardConfig, two traps
+
+`POST /api/board-config` writes to EVERY pool doc when `pools` is omitted. That default
+was written when there was one race. There are two now, with different calendars, so
+omitting `pools` overwrites the Tour's calendar with the Vuelta's. ALWAYS send
+`pools:["vuelta-2026"]`, or whichever single pool is being changed. Confirmed
+2026-08-25: the two pools hold genuinely different `boardConfig.race` arrays.
+
+`config.race` is an ARRAY, so it REPLACES wholesale. Read the current 21 rows, edit the
+one, send them all back. `sharedUpcoming`, `weather` and `next2` are maps and deep-merge,
+which cuts both ways: a key not resent SURVIVES. Rolling `next2` from stage 4 to stage 5
+left the old `extra`, "Short, savage Andorran day", attached to Falset > Roquetes. Send
+every field the map should end up with, including the empty ones.
+
+Upcoming-card intel has a precedence order, and the race row SHADOWS sharedUpcoming:
+
+    drafts/{n}.intel  >  race row .intel  >  race row .extra  >  sharedUpcoming[n].intel
+
+`extra` is promoted to `{summary: extra, facts: []}`, so a one-line `extra` on the race
+row silently suppresses a whole `sharedUpcoming` intel block, facts and all. This is what
+first swallowed the stage 4 Andorra intel: seven facts written, zero rendered, and the
+card showed only "Short, savage Andorran day". Clear the race row's `extra` when the
+intel lives in `sharedUpcoming`.
+
 ## ASO rider images
 
 The photo URLs are signed over the whole transform path. The trailing hex is a
@@ -497,3 +557,16 @@ leader chips, trend-line captions) has to follow that race's profile.
   avatar. The fallback is safe, `ART[unknownId]` is undefined and the renderer
   branches on falsy at :2986, so it degrades rather than errors. Ship art with
   rows, or accept the mixed look deliberately.
+- The void stage card stamps a hardcoded `DNS` (vuelta.src.html:3784, board.src.html
+  twin). On Vuelta stage 3 that is false: all four seats drafted and the race covered
+  160 km before the hail. The stamp is right for Tour stage 9, which really was a DNS
+  for the whole pool. Make it read the same signal the baton rule uses, `DNS` when no
+  draft was taken and something like `VOID` when the stage was drafted and cancelled.
+  Source change plus rebuild plus push, deliberately NOT bundled into the stage 3 data
+  write on 2026-08-25.
+- `RACE_TOP5` at vuelta.src.html:2662 holds the 2026 TOUR top fives, carried over when
+  the board was copied, with the team time trial as stage 1 and July sources in the
+  comment. It is currently DEAD, declared and never read, which is the only reason it
+  has not shown wrong-race results on the Vuelta board. Delete it or repopulate it from
+  the Vuelta before anything starts reading it. Same class of fault as the deleted
+  `RACE_BAKED`, see Copying a board to start a new race.
