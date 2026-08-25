@@ -629,6 +629,36 @@ that only the caller's own key changed.
 Until this is published, every rotation stays a hand edit in the console and drifts the
 moment nobody does it. That is the actual problem the persistence solves.
 
+## Void stages COUNT for Allegiances and the Arlequin
+
+Added 2026-08-25, after the mistake was made by hand.
+
+Two tallies read the same stage array and must never be made consistent with each
+other, because they are counting different things:
+
+- Allegiances and Le Maillot Arlequin count PICKS. `STAGES` is iterated whole, with
+  no `COMPLETED` filter and no `voidStage` check. A cancelled stage wipes the result,
+  not the drafting: the riders were really chosen, so the teams were really collected.
+- Scoring counts RESULTS. `COMPLETED` filters on `!voidStage && s.days`, so a void
+  stage scores nothing.
+
+Both are correct. They are not in conflict.
+
+This is load-bearing right now. Stage 3 was cancelled for hail after all four seats
+had drafted. JJ took Skjelmose (Lidl-Trek) and Johannessen (Uno-X Mobility) that day,
+and those are the only two teams he holds from it. Verified live 2026-08-25:
+
+    seat   including void   excluding void
+    JJ            8                6
+    JP            6                6
+    AA            5                4
+    JB            5                5
+
+Filtering the void stage drops JJ from 8 to 6 and erases his entire Arlequin lead,
+tying him with JP. That is exactly the wrong answer that was reached once by hand.
+
+The tally site carries the same warning in a comment. Do not "fix" it.
+
 ## Per-race scoring profiles
 
 The two races do NOT score the same way. Never apply one race's rule to the other.

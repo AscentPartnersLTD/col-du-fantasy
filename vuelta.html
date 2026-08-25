@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260825-192342Z -->
+<head><!-- build:20260825-213453Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -4675,6 +4675,20 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
       else if(raw && !/missed/i.test(raw)){ unmapped[raw]=(unmapped[raw]||0)+1; }
     }); });
   }
+  /* VOID STAGES COUNT HERE, DELIBERATELY. Do not "fix" this by filtering them out.
+     Allegiances and Le Maillot Arlequin count PICKS, not results. A cancelled stage
+     wipes the result, not the drafting: the riders were really chosen, so the teams
+     were really collected. STAGES is iterated whole, with no COMPLETED filter and no
+     voidStage check, and that is the correct behavior rather than an oversight.
+     It is load-bearing right now. Vuelta 2026 stage 3 was cancelled for hail after
+     all four seats had drafted. JJ took Skjelmose (Lidl-Trek) and Johannessen (Uno-X
+     Mobility) that day, and those are the only two teams he holds from it. Filtering
+     void stages drops him from 8 teams to 6, which erases his entire Arlequin lead
+     and ties him with JP. That exact mistake was made once already, by hand, on
+     2026-08-25.
+     Scoring is the opposite and stays the opposite: COMPLETED filters on
+     !voidStage && days, so a void stage scores nothing. Both rules are correct and
+     they are not in conflict, because one counts picks and the other counts results. */
   const _stages=(typeof STAGES!=='undefined'?STAGES:[]);
   _stages.forEach(st=>tally(st.picks));
   if(typeof UPCOMING!=='undefined' && UPCOMING && UPCOMING.picks && !_stages.some(s=>s.n===UPCOMING.n)){
@@ -5634,4 +5648,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy 20260825-192510Z -->
+<!-- redeploy 20260825-213511Z -->
