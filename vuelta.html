@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260825-181310Z -->
+<head><!-- build:20260825-182534Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -2388,7 +2388,16 @@ function jpDeadlineStage(){
    Reads the already-loaded stages first, then falls back to a direct read so a stage
    scored after this board loaded still opens the reveal without a refresh. */
 async function jpDeadlineMet(){
-  var n=jpDeadlineStage(); if(!n) return true;
+  /* FAIL CLOSED, changed 2026-08-25. A missing deadline used to return true, and true
+     ALLOWS the lock, so an unset config silently closed the picks the moment the fourth
+     seat submitted. That is exactly how this locked before the config value had ever
+     been written. With no deadline configured the gate now stays SHUT and the picks
+     stay open, which is the recoverable direction: a board that has not revealed can
+     still reveal, a board that revealed early cannot be un-revealed.
+     CONSEQUENCE, stated rather than discovered later: a pool with no
+     boardConfig.predictionsThroughStage never auto-reveals. The Tour pool has none, so
+     it needs one set before its jersey predictions can open. */
+  var n=jpDeadlineStage(); if(!n) return false;
   var s=((JP_CDF&&JP_CDF.stages)||[]).filter(function(x){return Number(x.n)===n;})[0];
   if(s) return !s.voidStage && !!s.days;
   try{
@@ -3725,6 +3734,21 @@ const PERSONA_BY = (function(){
   PL4.forEach(p=>{ if(assigned[p]) return; const tier=(p===leader)?'winner':'style';
     const pool=PERSONA_BANK.filter(c=>c.tier===tier && !used[c.id]).sort((a,b)=>b.fit(PSTATS[p])-a.fit(PSTATS[p]));
     const pick=pool[0]||PERSONA_BANK.find(x=>!used[x.id]); if(pick){ assigned[p]=pick; used[pick.id]=1; } });
+  /* TEMPORARY DIAGNOSTIC, 2026-08-25. `by` reverts on page load and the cause is not
+     established, so the decision inputs are EXPOSED rather than reasoned about. This
+     changes no assignment logic. Remove once the cause is found. */
+  try{ window.__personaDiag={
+    ledgerOrder:((L&&L.order)||[]).slice(),
+    ledgerBy:JSON.parse(JSON.stringify((L&&L.by)||{})),
+    ledgerSeenCounts:PL4.reduce((o,p)=>(o[p]=(((L&&L.seen)||{})[p]||[]).length,o),{}),
+    fanOrder:fanOrder.slice(),
+    orderChanged:orderChanged,
+    leader:leader,
+    movers:movers.slice(),
+    pinned:PL4.filter(p=>((rp[p]||{}).pin)),
+    prevIdFound:PL4.reduce((o,p)=>(o[p]=!!(((L&&L.by)||{})[p] && byId(((L&&L.by)||{})[p])),o),{}),
+    assigned:PL4.reduce((o,p)=>(o[p]=assigned[p]?assigned[p].id:null,o),{})
+  }; }catch(e){}
   return assigned;
 })();
 
@@ -3763,6 +3787,23 @@ const PERSONA_BY = (function(){
     var haveOrder=(typeof PERSONA_LEDGER!=='undefined' && PERSONA_LEDGER && PERSONA_LEDGER.order)||[];
     var sameOrder = haveOrder.length===fanOrder.length
                     && fanOrder.every(function(p,i){ return haveOrder[i]===p; });
+    /* TEMPORARY DIAGNOSTIC, 2026-08-25. Compares what the board is HOLDING against what
+       the server has RIGHT NOW, which is the one comparison that separates a stale-CDF
+       cause from an engine cause. Logged before the early return so a no-write load is
+       just as visible as a write. */
+    try{
+      var freshDoc=(await db.doc('pools/'+poolId).get()).data()||{};
+      window.__ledgerDiag={
+        at:new Date().toISOString(),
+        cdfLedger:JSON.parse(JSON.stringify(PERSONA_LEDGER||null)),
+        serverLedger:JSON.parse(JSON.stringify(freshDoc.personaLedger||null)),
+        computedBy:want, storedBy:have, storedOrder:haveOrder,
+        fanOrder:fanOrder.slice(), sameBy:sameBy, sameOrder:sameOrder,
+        willWrite:!(sameBy&&sameOrder),
+        engine:(typeof window!=='undefined'&&window.__personaDiag)||null
+      };
+      console.log('[ledger diag] '+JSON.stringify(window.__ledgerDiag,null,1));
+    }catch(e){ console.log('[ledger diag] failed: '+(e&&e.message)); }
     if(sameBy && sameOrder) return;                 // nothing moved, leave the snapshot alone
     var ref=db.doc('pools/'+poolId);
     await db.runTransaction(async function(tx){
@@ -3781,6 +3822,8 @@ const PERSONA_BY = (function(){
         if(arr.indexOf(id)<0) arr.push(id);
         seen[p]=arr;
       });
+      /* TEMPORARY DIAGNOSTIC: a stack here names whatever invoked the write. */
+      try{ console.log('[ledger diag] WRITING by='+JSON.stringify(cur)+' order='+JSON.stringify(fanOrder)+'\n'+(new Error('write site').stack||'')); }catch(e){}
       tx.update(ref, {personaLedger:{order:fanOrder.slice(), by:cur, seen:seen}});
     });
   }catch(e){ /* denied until the rule ships, or a concurrent write won; either is fine */ }
@@ -5217,4 +5260,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy 20260825-181311Z -->
+<!-- redeploy 20260825-182606Z -->
