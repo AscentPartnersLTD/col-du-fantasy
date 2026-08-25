@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260825-182534Z -->
+<head><!-- build:20260825-185803Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -410,6 +410,13 @@ function isTeamResultStage(n){ return (RACE_PROFILE.teamResultStages||[]).indexO
   .pc-top{display:flex;align-items:center;gap:13px;min-height:104px}
   .pc-av{width:66px;height:66px;border-radius:50%;flex:0 0 auto;background-size:cover;background-position:center;border:2px solid var(--line2)}
   .pcard.lead .pc-av{border-color:#e0b83c}
+  /* A pin bypasses the rotation engine entirely. It must SAY SO: a silent pin is
+     indistinguishable from a broken engine, which is exactly what cost a day on
+     2026-08-25 when four riderProfile pins were quietly overriding every hand edit
+     to the ledger. Two states, because a pin that resolves to nothing is its own
+     silent failure. */
+  .pc-pinned{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--vred2);background:rgba(216,24,48,.09);border:1px solid rgba(216,24,48,.28);border-radius:999px;padding:3px 8px;display:inline-block;margin-top:6px}
+  .pc-pinned.dead{color:var(--mute);background:var(--paper2);border-color:var(--line2)}
   .pc-av.empty{display:flex;align-items:center;justify-content:center;background:#f3f1ea;color:#b9b3a4}
   .pc-av.art{overflow:hidden}
   .pc-av.art svg{width:100%;height:100%;display:block}
@@ -3861,9 +3868,20 @@ const PERSONA_BY = (function(){
       : (art
           ? `<div class="pc-av art">${art}</div>`
           : `<div class="pc-av empty" title="cartoon portrait goes here">${jerseySVG}</div>`);
+    /* Announce a pin. prof.pin bypasses the whole rotation engine in step 1 of
+       PERSONA_BY and returns before the ledger is ever read, so a pin that nobody
+       remembers setting looks exactly like an engine that will not rotate. Two
+       states are reported: a pin that took effect, and a pin whose id is not in the
+       bank, which silently does nothing at all. */
+    const pinId=prof.pin||'';
+    const pinLive=!!(pinId && persona && persona.id===pinId);
+    const pinHtml = !pinId ? ''
+      : pinLive
+        ? `<div class="pc-pinned" title="riderProfile.pin is set for this seat, so the rotation engine is bypassed">Persona pinned, rotation bypassed</div>`
+        : `<div class="pc-pinned dead" title="riderProfile.pin is set but no persona in the bank carries this id, so the pin does nothing">Pin &ldquo;${esc(pinId)}&rdquo; not in the bank, ignored</div>`;
     const personaHtml = persona
-      ? `<div class="pc-persona">&ldquo;${persona.epithet}&rdquo;<span class="pc-rider">${persona.rider}</span></div>`
-      : `<div class="pc-persona ph">persona to come</div>`;
+      ? `<div class="pc-persona">&ldquo;${persona.epithet}&rdquo;<span class="pc-rider">${persona.rider}</span></div>${pinHtml}`
+      : `<div class="pc-persona ph">persona to come</div>${pinHtml}`;
     const story = persona ? `${persona.blurb} ${persona.why(PSTATS[k])}` : '';
     /* Two tiles by design, Fantasy Points then Rank. Placement is deliberately NOT on
        the card: it is the third view on this race and stays one scroll away behind the
@@ -5260,4 +5278,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy 20260825-182606Z -->
+<!-- redeploy 20260825-185905Z -->

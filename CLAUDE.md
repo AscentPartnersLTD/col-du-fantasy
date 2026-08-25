@@ -502,6 +502,67 @@ no rule change either. If the deadline should be enforced rather than merely obs
 the rule needs the stage read added; the exact text is in the 2026-08-25 session notes
 and was handed to Allen rather than published.
 
+## NEVER write boardConfig.next2
+
+Added 2026-08-25 after writing it broke the Stats card in production.
+
+The board reads `next2` as a FLAT object: `{n, route, type, km, profile, line}`. A
+keyed map like `{"6":{...}}` leaves `N2.n` and `N2.route` undefined and the "Next two
+stages" card renders `STAGE UNDEFINED / undefined`.
+
+The second half is worse and is what makes this a rule rather than a typo. `NEXT2` is
+read as:
+
+    const NEXT2 = (CDF.boardConfig && CDF.boardConfig.next2 !== undefined)
+      ? CDF.boardConfig.next2 : NEXT2_BAKED;
+
+so the field merely EXISTING is enough. Any written value is truthy, the card's
+`if(!N2)` fallback never runs, and the derivation is dead. Deleting the field is what
+restores it, not correcting its shape.
+
+So: do not write `next2` at all. Left unset, the card derives the next stage from
+`boardConfig.race`, including the profile image and the rotated pick order via
+`orderFor()`, and it self-maintains as `upcoming` advances. Writing it is strictly
+worse than leaving it empty, in every case, with no exception worth carving out.
+
+Verified live with the field deleted: "Stage 6 Alcossebre > Castello, 177.4 km,
+Pick JP > JB > AA > JJ".
+
+Any close script that writes `next2` carries this bug, and anything copied from that
+script inherits it. The reference close script had exactly this pattern and it has
+been removed.
+
+## riderProfile pins bypass the persona engine, and must SAY SO
+
+Added 2026-08-25, after four pins cost most of a day.
+
+`riderProfile.{seat}.pin` is honored in step 1 of `PERSONA_BY`:
+
+    /* 1) explicit pin in RIDER_PROFILE always wins */
+
+Step 2 opens with `if(assigned[p]) return;`, so a pinned seat never reaches the hold
+check and the ledger is never read for it. Every hand edit to `personaLedger.by` was
+silently discarded, four times across two builds, while the ledger itself looked
+correct on read-back. `order` appeared to survive only because the engine rewrites it
+with `fanOrder`, which already matched.
+
+The pins held `contador / valverde / cancellara / pirate`. Feeding those pins plus a
+correct ledger to the real engine reproduces the reverted set exactly, all four names.
+They have been cleared, and the ledger now controls assignment.
+
+Two rules out of it:
+
+1. Do NOT reintroduce pins as a rotation mechanism. Rotation is the ledger's job.
+   A pin is an operator override and nothing else.
+2. A pin must be VISIBLE on the card. The board now prints "Persona pinned, rotation
+   bypassed" on any seat whose assignment came from a pin, and "Pin not in the bank,
+   ignored" when a pin is set but its id matches no persona, which is its own silent
+   failure. A silent pin is indistinguishable from a broken engine, and that is the
+   whole reason this took hours instead of minutes.
+
+When personas will not rotate, check `riderProfile` BEFORE the ledger. The card now
+answers the question without a console read.
+
 ## Persona rotation, and the ledger
 
 Rule from Allen, 2026-08-25: when ANY player changes position in the standings, ALL
