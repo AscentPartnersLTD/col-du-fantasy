@@ -431,6 +431,77 @@ Open items. A fallback holding another race is worse than no fallback, because i
 renders as real. Firestore `boardConfig.race` is the calendar, and an empty
 calendar renders as nothing, which is the correct failure.
 
+## The rider search, and the one place it lives
+
+Added 2026-08-25. The stage draft and the jersey predictions widget both search the
+same 184-rider startlist, so they call ONE matcher, `riderMatches()`, and ONE row
+renderer, `riderRows()`, wired by `wireRiderSearch()`. All three sit at the top level
+of the FIRST board script block, just after `esc`, which is above both consumers.
+
+Do not write a second search. That is the duplication bug the Fantasy Points scale had
+when it was written out five times, and it fails the same silent way: one surface gains
+accent folding or team disambiguation, the other does not, and nothing errors.
+
+Normalization is `_nrm()`, which FOLDS accents rather than deleting them, so "Pogacar"
+finds "T. Pogacar". There is a SECOND normalizer on the board, `norm()` in the break
+widget, and it is NOT the one to reuse: it is declared inside that widget's IIFE in a
+later script block, so referencing it from the predictions widget throws a
+ReferenceError at load and blanks the board. Same trap as the `MER` note in Open items.
+
+The callers differ only in what they exclude:
+
+- draft: riders already taken this stage, plus riders out of the race (`activeOnly`).
+- predictions: nothing. Any of the 184 is legal for any jersey, and two seats may name
+  the same rider. Passing a `taken` set or `activeOnly` here would silently change the
+  rules of the side game.
+
+Results show the rider's TEAM alongside the name, and that is load-bearing rather than
+decorative: this startlist carries THREE riders surnamed Rodriguez, bibs 65 (Carlos
+Rodriguez, Netcompany INEOS), 166 (J. Rodriguez, EF Education-EasyPost) and 186
+(Cristian Rodriguez, XDS Astana Team). A surname alone cannot tell them apart.
+
+The search CSS is written once against both mounts, `#draftMount` and `#jerseyPreds`,
+rather than copied. Only two things differ and both are overridden explicitly: the
+predictions panel runs full width because there is no Lock button beside the field, and
+its input is 16px because anything smaller makes iOS Safari zoom the page on focus,
+which is the opposite of the point on a phone.
+
+## Jersey predictions: the deadline stage
+
+Added 2026-08-25. The widget used to flip `predictionsLocked` the instant the fourth
+seat submitted, with no deadline, so an early pool could close the picks before anyone
+had stages to judge from. After Stage 3 was cancelled the group asked for more stages.
+
+The reveal now waits on TWO conditions:
+
+1. All four seat docs exist. This half is SERVER-enforced and unchanged: the security
+   rule permits the flip only once all four `predictions/{seat}` docs exist, so a
+   refusal is the normal "not everyone is in yet" and stays swallowed.
+2. The deadline stage is scored. This half is CLIENT-enforced, checked in
+   `jpDeadlineMet()` before `jpTryLock()` attempts anything.
+
+The deadline is `boardConfig.predictionsThroughStage` on the pool doc, a stage number.
+It is data, not code, so it moves without a rebuild. Absent or zero means the old
+behavior, lock as soon as all four are in, which is what the Tour board still does.
+
+"Scored" is the same test the rest of the board uses: not `voidStage`, and carrying
+`days`. `jpDeadlineMet()` reads the already-loaded stages first, then falls back to a
+direct read of `pools/{poolId}/stages/{n}`, so a stage scored after the board loaded
+still opens the reveal without a refresh.
+
+The lock is retried in two places, because the deadline stage is typically scored long
+after the last seat submitted and nothing submits again to trigger the flip: once on
+boot, and again on every pool-doc snapshot, which is what a stage close writes.
+
+WORTH KNOWING, and not currently a defect: the deadline is NOT enforced by the
+database. Every seat runs the same code so the behavior is correct, but the rule would
+still permit a seat with devtools to flip `predictionsLocked` early once all four docs
+exist. Writes to a seat's own prediction stay allowed while `predictionsLocked` is
+false, which is what keeps the picks editable through the deadline, so that half needed
+no rule change either. If the deadline should be enforced rather than merely observed,
+the rule needs the stage read added; the exact text is in the 2026-08-25 session notes
+and was handed to Allen rather than published.
+
 ## Per-race scoring profiles
 
 The two races do NOT score the same way. Never apply one race's rule to the other.

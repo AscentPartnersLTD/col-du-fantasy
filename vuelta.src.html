@@ -483,8 +483,15 @@ function isTeamResultStage(n){ return (RACE_PROFILE.teamResultStages||[]).indexO
   .jp-jk{display:flex;align-items:center;gap:8px;font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;color:var(--ink)}
   .jp-sw{width:13px;height:13px;border-radius:3px;flex:none;border:1px solid rgba(0,0,0,.18)}
   .jp-sub{font-size:10.5px;color:var(--mute);margin:3px 0 8px}
-  .jp-sel{width:100%;font-family:inherit;font-size:12.5px;padding:7px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--paper);color:var(--ink)}
-  .jp-sel:focus{outline:2px solid var(--vred);outline-offset:1px}
+  /* The chosen rider, in the draft's own visual language: name, team beneath it, and
+     a Clear that puts the field back. Replaces the four 184-row select menus. */
+  .jp-pick{display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:#fff;border:1px solid var(--vred);border-radius:10px;padding:9px 10px}
+  .jp-pn{font-weight:700;font-size:14px;color:var(--ink);line-height:1.25;flex:1 1 auto;min-width:0;word-break:break-word}
+  .jp-pt{font-size:11.5px;color:var(--mute);flex:1 1 100%;order:3;line-height:1.3}
+  .jp-clear{font-family:'Montserrat',sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--vred);background:transparent;border:1px solid var(--line2);border-radius:999px;padding:5px 10px;cursor:pointer;flex:none;min-height:30px}
+  .jp-clear:hover{border-color:var(--vred);background:rgba(216,24,48,.07)}
+  .jp-cell.picked{border-color:var(--vred)}
+  .jp-deadline{font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:.05em;font-size:10.5px;color:var(--vred2);margin-top:10px}
   .jp-act{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:15px}
   .jp-btn{font-family:'Montserrat',sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--paper);background:var(--vred);border:0;border-radius:999px;padding:9px 16px;cursor:pointer}
   .jp-btn:hover{background:var(--vred2)}
@@ -931,17 +938,27 @@ function isTeamResultStage(n){ return (RACE_PROFILE.teamResultStages||[]).indexO
       #draftMount .action{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
       #draftMount .a-h{font-family:'Montserrat',sans-serif;font-weight:800;font-size:14px;margin-bottom:9px}
       #draftMount .a-h small{display:block;font-weight:600;font-size:11.5px;color:var(--mute);margin-top:2px;letter-spacing:0;text-transform:none}
-      #draftMount .searchrow{display:flex;gap:9px;position:relative}
-      #draftMount .searchrow input{flex:1;font-size:15px;padding:12px 13px;border:1px solid var(--line2);border-radius:11px;background:var(--paper);color:var(--ink)}
-      #draftMount .searchrow input:focus{outline:none;border-color:var(--gold-d);background:#fff}
+      /* The rider search is ONE component. The stage draft and the jersey predictions
+         widget both render it, so it is styled once against both mounts rather than
+         copied. Only the differences are overridden below. */
+      #draftMount .searchrow,#jerseyPreds .searchrow{display:flex;gap:9px;position:relative}
+      #draftMount .searchrow input,#jerseyPreds .searchrow input{flex:1;font-size:15px;padding:12px 13px;border:1px solid var(--line2);border-radius:11px;background:var(--paper);color:var(--ink)}
+      #draftMount .searchrow input:focus,#jerseyPreds .searchrow input:focus{outline:none;border-color:var(--gold-d);background:#fff}
       #draftMount .lockbtn{font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#fff;background:var(--gold-d);border:none;border-radius:11px;padding:0 20px;cursor:pointer;white-space:nowrap}
       #draftMount .lockbtn:disabled{background:var(--line2);cursor:not-allowed}
-      #draftMount .ac{position:absolute;left:0;right:96px;top:100%;background:#fff;border:1px solid var(--line2);border-radius:11px;box-shadow:0 10px 28px rgba(40,34,20,.15);z-index:20;margin-top:5px;max-height:230px;overflow:auto;display:none}
-      #draftMount .ac.open{display:block}
-      #draftMount .ac-item{padding:8px 11px;display:flex;align-items:center;gap:10px;cursor:pointer;border-top:1px solid var(--line)}
-      #draftMount .ac-item:first-child{border-top:none}#draftMount .ac-item:hover{background:var(--paper)}
-      #draftMount .ac-av{width:30px;height:30px;border-radius:50%;object-fit:cover;flex:none;background:var(--line2)}
-      #draftMount .ac-rn{font-weight:600;font-size:14px}#draftMount .ac-rt{color:var(--mute);font-size:12px;margin-left:auto}
+      #draftMount .ac,#jerseyPreds .ac{position:absolute;left:0;right:96px;top:100%;background:#fff;border:1px solid var(--line2);border-radius:11px;box-shadow:0 10px 28px rgba(40,34,20,.15);z-index:20;margin-top:5px;max-height:230px;overflow:auto;display:none}
+      #draftMount .ac.open,#jerseyPreds .ac.open{display:block}
+      #draftMount .ac-item,#jerseyPreds .ac-item{padding:8px 11px;display:flex;align-items:center;gap:10px;cursor:pointer;border-top:1px solid var(--line)}
+      #draftMount .ac-item:first-child,#jerseyPreds .ac-item:first-child{border-top:none}#draftMount .ac-item:hover,#jerseyPreds .ac-item:hover{background:var(--paper)}
+      #draftMount .ac-av,#jerseyPreds .ac-av{width:30px;height:30px;border-radius:50%;object-fit:cover;flex:none;background:var(--line2)}
+      #draftMount .ac-rn,#jerseyPreds .ac-rn{font-weight:600;font-size:14px}#draftMount .ac-rt,#jerseyPreds .ac-rt{color:var(--mute);font-size:12px;margin-left:auto}
+      #draftMount .ac-none,#jerseyPreds .ac-none{color:var(--mute);cursor:default}
+      #draftMount .ac-none:hover,#jerseyPreds .ac-none:hover{background:#fff}
+      /* Predictions differences: no Lock button beside the field, so the panel runs the
+         full width, and 16px on the input because anything smaller makes iOS Safari
+         zoom the page on focus, which is the opposite of the point at 375px. */
+      #jerseyPreds .ac{right:0}
+      #jerseyPreds .searchrow input{font-size:16px;padding:10px 11px;border-radius:10px;min-width:0}
       #draftMount .waitline{font-size:13.5px;color:var(--ink2)}#draftMount .waitline b{color:var(--ink)}
       #draftMount .pendline{font-size:13.5px;color:var(--ink2)}#draftMount .pendline b{color:var(--ink)}
       #draftMount .admin{background:#f4f6fb;border:1px solid #d6ddec;border-radius:12px;padding:13px 15px;margin-top:13px}
@@ -966,10 +983,10 @@ function isTeamResultStage(n){ return (RACE_PROFILE.teamResultStages||[]).indexO
       /* Mobile: stack the search field and its button so a long label never overruns the card,
          and tighten the 8-node ticker so the avatars do not crowd on a phone. */
       @media (max-width:560px){
-        #draftMount .searchrow{flex-wrap:wrap}
-        #draftMount .searchrow input{flex:1 1 100%}
+        #draftMount .searchrow,#jerseyPreds .searchrow{flex-wrap:wrap}
+        #draftMount .searchrow input,#jerseyPreds .searchrow input{flex:1 1 100%}
         #draftMount .lockbtn{flex:1 1 100%;padding:12px 20px;margin-top:8px}
-        #draftMount .ac{left:0;right:0}
+        #draftMount .ac,#jerseyPreds .ac{left:0;right:0}
         #draftMount .ticker{gap:3px}
         #draftMount .tav{width:36px;height:36px}
         #draftMount .tgap{margin:6px 3px 16px}
@@ -1584,6 +1601,76 @@ const PALETTE=["#c9971a","#2f8f52","#26347e","#cf2530","#7d3ac1","#e07b00","#0f9
 const init=r=>r.replace(/[^A-Za-z. ]/g,'').split(/[.\s]+/).filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase();
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const $=id=>document.getElementById(id);
+
+/* ---------------- ONE rider search, shared by the draft and the jersey predictions ----
+   Both surfaces search the same 184-rider startlist, so they call ONE matcher and ONE
+   row renderer. A second copy is the duplication bug the Fantasy Points scale had when
+   it was written out five times: the moment one surface gains accent folding or team
+   disambiguation and the other does not, the two disagree and nothing errors.
+
+   Normalization is _nrm above, which FOLDS accents rather than deleting them, so typing
+   "Pogacar" finds "T. Pogacar". Do NOT reach for the break widget's norm(): that one is
+   declared inside its IIFE in a later script block, so referencing it from here throws a
+   ReferenceError at load and blanks the whole board. Same trap as the MER note.
+
+   The callers differ only in what they exclude:
+     draft       - riders already taken this stage, and riders out of the race
+     predictions - nothing. Any of the 184 is legal for any jersey, and two seats may
+                   name the same rider. */
+function riderMatches(q,opts){
+  opts=opts||{};
+  var n=_nrm(String(q==null?'':q).trim());
+  if(!n) return [];
+  var taken=opts.taken||null, activeOnly=!!opts.activeOnly, limit=opts.limit||8;
+  return (typeof RIDERS!=='undefined'?RIDERS:[]).filter(function(r){
+    if(r.x) return false;
+    if(taken&&taken.has(r.r)) return false;
+    if(activeOnly&&window.__ACTIVE&&!window.__ACTIVE.has(r.b)) return false;
+    /* Display name, given name and team all match, so "Pogacar", "Tadej" and "UAE"
+       each find him. r.r carries the surname, r.n the given name. */
+    return _nrm(r.r).indexOf(n)>=0||_nrm(r.n||'').indexOf(n)>=0||_nrm(r.t).indexOf(n)>=0;
+  }).slice(0,limit);
+}
+/* Result rows. The team rides alongside every name because this startlist carries THREE
+   riders surnamed Rodriguez, bibs 65, 166 and 186, and a surname alone cannot tell them
+   apart. */
+function riderRows(ms,emptyNote){
+  if(!ms.length) return '<div class="ac-item ac-none">'+esc(emptyNote||'No match')+'</div>';
+  return ms.map(function(r,i){
+    return '<div class="ac-item" data-i="'+i+'">'
+      +`<img class="ac-av" src="${esc(r.p||'')}" alt="" onerror="this.style.visibility='hidden'">`
+      +'<span class="ac-rn">'+esc(r.r)+'</span>'
+      +'<span class="ac-rt">'+esc(r.t)+'</span></div>';
+  }).join('');
+}
+/* Wire an input and its results panel. onPick(rider) fires when one is chosen; the
+   caller owns whatever it does next, which is the draft's Lock button on one surface
+   and the jersey chip on the other. opts.onInput runs on every keystroke, which is how
+   the draft resets its pending pick. */
+function wireRiderSearch(input,ac,onPick,opts){
+  opts=opts||{};
+  if(!input||!ac) return;
+  var cur=[];
+  function close(){ ac.classList.remove('open'); }
+  input.addEventListener('input',function(){
+    if(opts.onInput) opts.onInput();
+    var q=input.value.trim();
+    if(!q){ close(); return; }
+    cur=riderMatches(q,opts);
+    ac.innerHTML=riderRows(cur,opts.emptyNote);
+    ac.classList.add('open');
+    ac.querySelectorAll('.ac-item[data-i]').forEach(function(it){
+      /* mousedown, not click: blur fires first on a click and would close the panel
+         before the selection landed. */
+      it.addEventListener('mousedown',function(e){
+        e.preventDefault();
+        var r=cur[+it.dataset.i]; if(!r) return;
+        close(); onPick(r);
+      });
+    });
+  });
+  input.addEventListener('blur',function(){ setTimeout(close,150); });
+}
 let myEmail=null,isOwner=false,poolId=null,pool=null,STAGE=null,ORDER=[],SNAKE=[],PMETA={},JUDGE=null,myCode=null,isJudge=false,draft=null,unsub=null,chosen=null;
 const DEFAULT_POOL='{{DEFAULT_POOL}}';
 // Pool routing. A pool with its own skinned board file must open THAT file: the
@@ -2251,17 +2338,65 @@ function jpSeats(){ var c=JP_CDF||{}; return (c.seats||c.order||[]).slice(); }
    pool has loaded, which is also the first moment poolId and myCode are populated. */
 var JP_CDF=null, JP_MINE=null, JP_LOCKED=false, JP_ALL=null, JP_BUSY=false;
 
-function jpRiderOptions(sel){
-  var by={};
-  (typeof RIDERS!=='undefined'?RIDERS:[]).forEach(function(r){ (by[r.t]=by[r.t]||[]).push(r); });
-  var out='<option value="">Pick a rider</option>';
-  Object.keys(by).sort().forEach(function(t){
-    out+='<option disabled>- '+esc(t)+'</option>';
-    by[t].sort(function(a,b){return a.b-b.b;}).forEach(function(r){
-      out+='<option value="'+esc(r.r)+'"'+(sel===r.r?' selected':'')+'>'+esc(r.r)+'</option>';
-    });
-  });
-  return out;
+/* The four jerseys used to be four select menus holding all 184 riders grouped by team,
+   which on a phone is a 184-row scroll done four times. They are now the draft's own
+   search: type, filter, choose, clear. The rider list itself is unchanged, and so are
+   the rules - any of the 184 for any jersey, and two seats may name the same rider.
+
+   JP_PICKS is the in-progress selection for this seat, seeded from what was saved and
+   edited as jerseys are chosen or cleared. jpSave reads THIS rather than the DOM,
+   because there are no form controls left to read. Reset to null whenever JP_MINE is
+   reassigned, which reseeds it on the next read. */
+var JP_PICKS=null;
+function jpCur(){
+  if(!JP_PICKS){
+    JP_PICKS={};
+    var m=JP_MINE||{};
+    JP_JERSEYS.forEach(function(j){ if(m[j.k]) JP_PICKS[j.k]=m[j.k]; });
+  }
+  return JP_PICKS;
+}
+/* One jersey cell: the chosen rider with a Clear, or the search field. */
+function jpCell(j,picked){
+  var head='<div class="jp-jk"><span class="jp-sw" style="background:'+j.color+'"></span>'+esc(j.name)+'</div>'
+          +'<div class="jp-sub">'+esc(j.sub)+'</div>';
+  if(picked){
+    var R=(typeof RIDERS!=='undefined'?RIDERS:[]).filter(function(r){return r.r===picked;})[0];
+    return '<div class="jp-cell picked">'+head
+      +'<div class="jp-pick"><span class="jp-pn">'+esc(picked)+'</span>'
+      +'<button type="button" class="jp-clear" data-clear="'+esc(j.k)+'" aria-label="Clear the '+esc(j.name)+' pick">Clear</button>'
+      +'<span class="jp-pt">'+esc(R?R.t:'')+'</span></div></div>';
+  }
+  return '<div class="jp-cell">'+head
+    +'<div class="searchrow"><input type="text" class="jp-in" data-j="'+esc(j.k)+'" autocomplete="off" '
+    +'placeholder="Search the start list..." aria-label="Search a rider for '+esc(j.name)+'">'
+    +'<div class="ac" data-ac="'+esc(j.k)+'"></div></div></div>';
+}
+
+/* ---- Predictions deadline ----
+   The widget used to lock the instant the fourth seat submitted. With Stage 3 cancelled
+   the pool asked for more stages to judge from, so the reveal now waits on TWO things:
+   all four seats in, and the deadline stage scored. The deadline lives in pool config,
+   boardConfig.predictionsThroughStage, so it moves without a rebuild. Absent means the
+   old behavior, lock as soon as all four are in. */
+function jpDeadlineStage(){
+  var bc=(JP_CDF&&JP_CDF.boardConfig)||{};
+  var n=Number(bc.predictionsThroughStage);
+  return (isFinite(n)&&n>0)?Math.floor(n):null;
+}
+/* Scored is the same test the rest of the board uses: not void, and carrying days.
+   Reads the already-loaded stages first, then falls back to a direct read so a stage
+   scored after this board loaded still opens the reveal without a refresh. */
+async function jpDeadlineMet(){
+  var n=jpDeadlineStage(); if(!n) return true;
+  var s=((JP_CDF&&JP_CDF.stages)||[]).filter(function(x){return Number(x.n)===n;})[0];
+  if(s) return !s.voidStage && !!s.days;
+  try{
+    var d=await db.doc('pools/'+poolId+'/stages/'+n).get();
+    if(!d.exists) return false;
+    var v=d.data()||{};
+    return !v.voidStage && !!v.days;
+  }catch(e){ return false; }
 }
 
 function jpRender(){
@@ -2275,7 +2410,7 @@ function jpRender(){
       return '<tr><th>'+esc(c)+'</th>'+JP_JERSEYS.map(function(j){
         return '<td>'+esc(d[j.k]||'no pick')+'</td>'; }).join('')+'</tr>';
     }).join('');
-    el.innerHTML='<div class="jp-wrap"><div class="jp-lede">Locked. Every seat is in, so the picks are open. '
+    el.innerHTML='<div class="jp-wrap"><div class="jp-lede">Locked. Every seat is in and the deadline has passed, so the picks are open. '
       +'Each one names the rider expected to stand on the podium in that jersey when the race ends, not whoever leads it on a given day.</div>'
       +'<div class="jp-mwrap"><table class="jp-matrix"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>';
     return;
@@ -2285,32 +2420,52 @@ function jpRender(){
       +'Everything opens once all four seats are in.</div></div>';
     return;
   }
-  var mine=JP_MINE||{}, hasAll=JP_JERSEYS.every(function(j){ return mine[j.k]; });
-  var cells=JP_JERSEYS.map(function(j){
-    return '<div class="jp-cell"><div class="jp-jk"><span class="jp-sw" style="background:'+j.color+'"></span>'+esc(j.name)+'</div>'
-      +'<div class="jp-sub">'+esc(j.sub)+'</div>'
-      +'<select class="jp-sel" data-j="'+j.k+'" aria-label="'+esc(j.name)+'">'+jpRiderOptions(mine[j.k]||'')+'</select></div>';
-  }).join('');
-  var mineBlock = hasAll ? '<div class="jp-mine">'+JP_JERSEYS.map(function(j){
+  var mine=JP_MINE||{}, cur=jpCur();
+  var chosenAll=JP_JERSEYS.every(function(j){ return cur[j.k]; });
+  var savedAll=JP_JERSEYS.every(function(j){ return mine[j.k]; });
+  var dl=jpDeadlineStage();
+  var cells=JP_JERSEYS.map(function(j){ return jpCell(j,cur[j.k]||''); }).join('');
+  var editNote = dl ? 'Picks are in for '+esc(myCode)+'. They can be changed until Stage '+dl+' is scored.'
+                    : 'Picks are in for '+esc(myCode)+'. They can be changed until the last seat submits.';
+  var mineBlock = savedAll ? '<div class="jp-mine">'+JP_JERSEYS.map(function(j){
       return '<div class="jp-mrow"><span class="jp-mj">'+esc(j.name)+'</span><span>'+esc(mine[j.k])+'</span></div>'; }).join('')
-      +'<div class="jp-note" style="margin-top:8px">Picks are in for '+esc(myCode)+'. They can be changed until the last seat submits.</div></div>' : '';
+      +'<div class="jp-note" style="margin-top:8px">'+editNote+'</div></div>' : '';
   el.innerHTML='<div class="jp-wrap">'
     +'<div class="jp-lede">Four jerseys, one rider each, from anywhere in the 184-rider start list. '
     +'A pick names the rider expected to stand on the podium in that jersey when the race ends, not whoever leads it on a given day. '
-    +'Two seats may name the same rider. Picks stay private until all four seats are in, then everything opens at once and nothing can be changed.</div>'
+    +'Two seats may name the same rider. '
+    +(dl?'Picks stay private until every seat is in and Stage '+dl+' is scored, then everything opens at once and nothing can be changed.'
+        :'Picks stay private until all four seats are in, then everything opens at once and nothing can be changed.')+'</div>'
+    +(dl?'<div class="jp-deadline">Picks are open through Stage '+dl+'.</div>':'')
     +'<div class="jp-grid">'+cells+'</div>'
-    +'<div class="jp-act"><button type="button" class="jp-btn" id="jpSave"'+(JP_BUSY?' disabled':'')+'>'+(hasAll?'Update picks':'Submit picks')+'</button>'
-    +'<span class="jp-note" id="jpMsg">'+(hasAll?'Waiting on the rest of the pool.':'All four jerseys need a rider before this can be submitted.')+'</span></div>'
+    +'<div class="jp-act"><button type="button" class="jp-btn" id="jpSave"'+(JP_BUSY?' disabled':'')+'>'+(savedAll?'Update picks':'Submit picks')+'</button>'
+    +'<span class="jp-note" id="jpMsg">'+(chosenAll?(savedAll?(dl?'In and editable until Stage '+dl+' is scored.':'Waiting on the rest of the pool.'):'Ready to submit.'):'All four jerseys need a rider before this can be submitted.')+'</span></div>'
     +mineBlock+'</div>';
   var btn=document.getElementById('jpSave');
   if(btn) btn.addEventListener('click', jpSave);
+  /* Wire one search per empty jersey, and one Clear per filled one. Choosing or
+     clearing re-renders the card, which is a discrete action rather than a keystroke,
+     so no focus is lost mid-typing. */
+  JP_JERSEYS.forEach(function(j){
+    var input=el.querySelector('.jp-in[data-j="'+j.k+'"]');
+    var ac=el.querySelector('.ac[data-ac="'+j.k+'"]');
+    /* No taken set and no activeOnly: every one of the 184 is legal for every jersey,
+       including a rider another seat has already named. */
+    if(input&&ac) wireRiderSearch(input,ac,function(r){ jpCur()[j.k]=r.r; jpRender(); },
+      { limit:8, emptyNote:'No match in the '+RIDERS.length+'-rider start list' });
+  });
+  el.querySelectorAll('.jp-clear').forEach(function(b){
+    b.addEventListener('click',function(){ delete jpCur()[b.getAttribute('data-clear')]; jpRender(); });
+  });
 }
 
 async function jpSave(){
   if(JP_BUSY) return;
-  var el=document.getElementById('jerseyPreds'), msg=document.getElementById('jpMsg');
-  var picks={};
-  el.querySelectorAll('.jp-sel').forEach(function(s){ picks[s.getAttribute('data-j')]=s.value; });
+  var msg=document.getElementById('jpMsg');
+  /* Read the selection state, not the DOM: the select elements this used to read are
+     gone, replaced by the search. All four jerseys are still required. */
+  var picks={}, cur=jpCur();
+  JP_JERSEYS.forEach(function(j){ if(cur[j.k]) picks[j.k]=cur[j.k]; });
   if(!JP_JERSEYS.every(function(j){ return picks[j.k]; })){
     if(msg) msg.textContent='All four jerseys need a rider before this can be submitted.'; return;
   }
@@ -2318,7 +2473,7 @@ async function jpSave(){
   try{
     picks.seat=myCode; picks.at=Date.now();
     await jpRef(myCode).set(picks);
-    JP_MINE=picks;
+    JP_MINE=picks; JP_PICKS=null;
     await jpTryLock();          // succeeds only when all four seats exist
   }catch(e){
     if(msg) msg.textContent='Could not save: '+((e&&e.code)||(e&&e.message)||e);
@@ -2327,9 +2482,18 @@ async function jpSave(){
   jpRender();
 }
 
-/* The rule permits this only once all four seat docs exist, so a refusal is the normal
-   "not everyone is in yet" case and is swallowed rather than shown as an error. */
+/* The reveal now needs BOTH halves.
+
+   All four seats in stays server-enforced exactly as before: the rule permits the flip
+   only once all four seat docs exist, so a refusal here is the normal "not everyone is
+   in yet" and is swallowed rather than shown as an error.
+
+   The deadline is the new half and is checked before the attempt is made, so an early
+   fourth submission no longer closes the picks. This half is enforced by the client,
+   not by the database: every seat runs this same code, so the behavior is correct, but
+   the rule would still permit an early flip. See CLAUDE.md if that needs tightening. */
 async function jpTryLock(){
+  if(!(await jpDeadlineMet())) return;
   try{
     await db.doc('pools/'+poolId).update({predictionsLocked:true});
     JP_LOCKED=true;
@@ -2351,12 +2515,24 @@ async function jpBoot(cdf){
   try{
     JP_LOCKED=!!(JP_CDF && JP_CDF.predictionsLocked);
     if(myCode){ try{ var m=await jpRef(myCode).get(); if(m.exists) JP_MINE=m.data(); }catch(e){} }
+    JP_PICKS=null;
     if(JP_LOCKED) await jpLoadAll();
+    /* The deadline stage can be scored long after the last seat submitted, and nothing
+       submits again to trigger the flip. So the lock is retried on load, and again
+       whenever the pool doc changes, which is what a stage close writes. */
+    if(!JP_LOCKED) await jpTryLock();
     jpRender();
     /* live reveal: when another seat's submit flips the lock, open without a reload */
     db.doc('pools/'+poolId).onSnapshot(async function(snap){
       var lk=!!(snap.exists&&snap.data().predictionsLocked);
-      if(lk&&!JP_LOCKED){ JP_LOCKED=true; await jpLoadAll(); jpRender(); }
+      if(lk&&!JP_LOCKED){ JP_LOCKED=true; await jpLoadAll(); jpRender(); return; }
+      if(!lk&&!JP_LOCKED&&snap.exists){
+        /* Pick up a freshly written deadline or a freshly scored stage, then retry. */
+        var pd=snap.data()||{};
+        if(pd.boardConfig) JP_CDF.boardConfig=pd.boardConfig;
+        await jpTryLock();
+        jpRender();
+      }
     }, function(){});
   }catch(e){ console.error('jersey predictions',e); }
 }
@@ -2602,9 +2778,15 @@ function renderDraft(){
   tickClock();
 }
 function searchRow(label){ return `<div class="searchrow"><input id="s" placeholder="Search a rider still on the board..." autocomplete="off"><button class="lockbtn" id="lock" disabled>${esc(label)}</button><div class="ac" id="ac"></div></div>`; }
+/* The draft's search is now the shared one above. Behavior is unchanged: riders already
+   taken this stage are out, riders out of the race are out, eight results, and the Lock
+   button stays disabled until something is chosen. */
 function wireSearch(forCode){ const input=$('s'),ac=$('ac'),lock=$('lock'); if(!input) return; const taken=new Set((draft.picks||[]).map(p=>p.rider)); chosen=null; const label=lock.textContent;
-  input.addEventListener('input',()=>{ chosen=null; lock.disabled=true; const q=input.value.trim().toLowerCase(); if(!q){ac.classList.remove('open');return;} const ms=RIDERS.filter(r=>!r.x&&!taken.has(r.r)&&(!window.__ACTIVE||window.__ACTIVE.has(r.b))&&(_nrm(r.r).includes(_nrm(q))||_nrm(r.n||'').includes(_nrm(q))||_nrm(r.t).includes(_nrm(q)))).slice(0,8); ac.innerHTML=ms.length?ms.map((r,i)=>`<div class="ac-item" data-i="${i}"><img class="ac-av" src="${esc(r.p||'')}" onerror="this.style.visibility='hidden'"><span class="ac-rn">${esc(r.r)}</span><span class="ac-rt">${esc(r.t)}</span></div>`).join(''):'<div class="ac-item" style="color:var(--mute)">No match ('+RIDERS.length+' riders on the board)</div>'; ac.classList.add('open'); ac.querySelectorAll('.ac-item[data-i]').forEach(it=>it.addEventListener('mousedown',e=>{e.preventDefault();chosen=ms[+it.dataset.i];input.value=chosen.r+'  ('+chosen.t+')';ac.classList.remove('open');lock.disabled=false;})); });
-  input.addEventListener('blur',()=>setTimeout(()=>ac.classList.remove('open'),150)); lock.addEventListener('click',()=>submitPick(forCode,label)); }
+  wireRiderSearch(input,ac,function(r){ chosen=r; input.value=r.r+'  ('+r.t+')'; lock.disabled=false; },
+    { taken:taken, activeOnly:true, limit:8,
+      emptyNote:'No match ('+RIDERS.length+' riders on the board)',
+      onInput:function(){ chosen=null; lock.disabled=true; } });
+  lock.addEventListener('click',()=>submitPick(forCode,label)); }
 async function submitPick(forCode,label){ if(!chosen) return; const code=forCode||myCode; const lock=$('lock'); if(lock){lock.disabled=true;lock.textContent='Saving...';} const ref=draftRef(); const picked=chosen;
   try{ await db.runTransaction(async tx=>{ const d=(await tx.get(ref)).data(); if(d.status==='complete') throw new Error('draft closed'); if(d.queue[0]!==code) throw new Error('not your turn'); if((d.picks||[]).some(p=>p.rider===picked.r)) throw new Error('already taken'); const pnum=(d.picks||[]).length+1; const pick={n:pnum,player:code,rider:picked.r,team:picked.t,photo:picked.p||'',color:picked.c||'',by:myEmail,admin:code!==myCode}; const queue=d.queue.slice(1); const upd={picks:(d.picks||[]).concat([pick]),queue,status:queue.length?'live':'complete'}; upd['lockAt.'+pnum]=FV.serverTimestamp(); tx.update(ref,upd); }); }
   catch(e){ alert('Could not lock pick: '+(e.message||e)); const l=$('lock'); if(l){l.disabled=false;l.textContent=label||'Lock pick';} } }
