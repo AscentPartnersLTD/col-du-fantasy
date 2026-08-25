@@ -2656,26 +2656,14 @@ const OFFICIAL = CDF.official;
    renders nothing, which is what should happen if the calendar is ever missing. */
 const RACE = (CDF.boardConfig&&Array.isArray(CDF.boardConfig.race)&&CDF.boardConfig.race.length) ? CDF.boardConfig.race : [];
 
-/* Official top 5 finishers per scored stage (shared race fact, same for every pool).
-   Stage 1 is the team time trial, so those are teams. Sources: cyclingstage.com,
-   cyclingflash.com, pezcyclingnews.com, cyclinguptodate.com (July 2026). */
-const RACE_TOP5 = {
-  1:["Team Visma-Lease a Bike","Netcompany-INEOS","UAE Team Emirates XRG","Lidl-Trek","Red Bull-BORA-hansgrohe"],
-  2:["I. del Toro","T. Pogacar","R. Evenepoel","J. Vingegaard","M. Skjelmose"],
-  3:["T. Pogacar","J. Vingegaard","R. Carapaz","P. Seixas","T. Johannessen"],
-  4:["M. Pedersen","Q. Simmons","R. Garcia Pierna","M. Frigo","R. Debruyne"],
-  5:["O. Kooij","M. Kanter","T. Merlier","H. Artz","J. Philipsen"],
-  6:["T. Pogacar","J. Vingegaard","I. del Toro","R. Evenepoel","P. Seixas"],
-  7:["T. Merlier","S. Waerenskjold","B. Girmay","M. Kanter","J. Philipsen"],
-  8:["T. Merlier","B. Girmay","O. Kooij","J. Philipsen","P. Bittner"],
-  9:["M. van der Poel","T. Johannessen","T. Pidcock","A. Baudin","F. Ganna"],
-  10:["T. Pogacar","R. Evenepoel","P. Seixas","F. Lipowitz","J. Ayuso"],
-  11:["S. Waerenskjold","O. Kooij","J. Philipsen","M. Fretin","H. Artz"],
-  12:["T. Merlier","O. Kooij","J. Philipsen","B. Girmay","M. Fretin"],
-  13:["M. Schmid","H. Tejada","T. Pidcock","M. Van Gils","B. McNulty"],
-  14:["T. Pogacar","I. del Toro","P. Seixas","J. Vingegaard","R. Evenepoel"],
-  15:["R. Evenepoel","T. Pogacar","I. del Toro","P. Seixas","F. Lipowitz"]
-};
+/* The official top-5-per-stage table that used to live here held the 2026 TOUR: the
+   Barcelona team time trial, then del Toro, Evenepoel, Vingegaard, Seixas, sourced in
+   July 2026. It came across when this board was copied and was never repointed at the
+   Vuelta. Nothing read it, which is the only reason it never rendered a wrong-race
+   result. Deleted 2026-08-25 rather than translated, the same call made on the baked
+   calendar above: wrong-race data that looks right is worse than no data, because the
+   first thing to read it renders it as fact. The Tour board keeps its own copy, which
+   is correct there. */
 
 /* Pool picks + finishes where known. null = not posted. */
 const STAGES = CDF.stages;
@@ -3781,7 +3769,17 @@ function stageCard(st){
        ${st.kassei?`<div class="mer-line"><img src="/emblem-belgium.png" alt="" style="width:22px;height:22px;object-fit:contain;flex:none"><span><b>Kasseistampers:</b> ${st.kassei.top} (${ordinal(st.kassei.f)})${st.kassei.correct&&st.kassei.correct.length?' - called by '+st.kassei.correct.join(', '):' - nobody called it'}</span></div>`:''}
        <div class="note"><span class="lab">The read</span>${st.reads?codes.filter(k=>st.reads[k]).map(k=>`<div class="readrow"><b>${k}</b> ${st.reads[k]}</div>`).join(''):st.note}</div>`;
   }
-  const right = st.voidStage ? `<div class="dns-stamp">DNS</div>`
+  /* The void stamp is DATA, not a constant. `voidLabel` on the stage doc says what KIND
+     of void this was: "DNS" only when no draft was taken (Tour 2026 stage 9), "CANCELLED"
+     when the stage was drafted and then lost on the road (Vuelta 2026 stage 3, hail on
+     the Col de Mont-Louis). Absent it reads VOID, which is neutral and true of every void
+     stage. Never infer one from the other. The board cannot tell them apart, and guessing
+     is how it ends up telling three players that a raced stage was a non-start.
+     The .dns-stamp class is now narrower than what it renders; renaming it is its own
+     commit, see Open items. */
+  const voidLabel = (typeof st.voidLabel === 'string' && st.voidLabel.trim())
+    ? st.voidLabel.trim().toUpperCase().replace(/[<>&]/g,'') : 'VOID';
+  const right = st.voidStage ? `<div class="dns-stamp">${voidLabel}</div>`
     : `<div class="st-right">Status<br><b>${st.pending?'Awaiting tally':'Scored'}</b>${st.critical?'<br><span class="vdot">needs verify</span>':''}</div>`;
   return `<div class="stage ${st.voidStage?'dns':''}">
     <div class="stage-head" onclick="this.parentElement.classList.toggle('open')">

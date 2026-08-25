@@ -162,6 +162,11 @@ Reading committed file content is fine from the container:
 
 ## Data
 
+STOP if you are about to call `/api/board-config`: it writes EVERY pool when `pools` is
+omitted, which overwrites one race's calendar with another's. Always pass `pools`. Full
+detail in Writing boardConfig below. This is the single most destructive default in the
+stack and it gets worse with each race added.
+
 Firestore, compat SDK. Nothing is hardcoded from a template; the board reads pool
 data at runtime.
 
@@ -339,6 +344,24 @@ they drop out cleanly, while Allegiances still counts the riders, which is corre
 because the picks stand. Give the doc a `win` string, because the card head prints
 `Winner: ${st.win}` and an absent field prints "undefined". Tour stage 9 used
 "Neutralized"; Vuelta stage 3 uses "Cancelled".
+
+The stamp on a void card is `voidLabel` on the stage doc, added 2026-08-25. It was a
+hardcoded `DNS`, which was true of Tour stage 9 and a lie about Vuelta stage 3, where
+all four drafted and the race ran 160 km before the hail. It is now DATA:
+
+- `voidLabel: "DNS"` - no draft was taken. Tour 2026 stage 9.
+- `voidLabel: "CANCELLED"` - drafted, then lost on the road. Vuelta 2026 stage 3.
+- absent - the card reads `VOID`, neutral and true of any void stage.
+
+Set it deliberately per stage. NEVER derive one from the other: the board cannot tell a
+non-start from an abandonment, and the whole point of the field is that guessing is what
+told three players a raced stage never started. The renderer upper-cases and strips
+`<>&`, and it is deliberately self-contained rather than calling `esc()`, because `esc`
+lives in an earlier `<script>` block and a ReferenceError inside `stageCard()` blanks the
+whole board. Same trap as the `MER` note in Open items.
+
+The `.dns-stamp` and `.stage.dns` CSS classes now render more than DNS and are misnamed.
+Renaming them is its own commit, like `gcPlace` and `barsPlace`.
 
 ## Writing boardConfig, two traps
 
@@ -557,16 +580,22 @@ leader chips, trend-line captions) has to follow that race's profile.
   avatar. The fallback is safe, `ART[unknownId]` is undefined and the renderer
   branches on falsy at :2986, so it degrades rather than errors. Ship art with
   rows, or accept the mixed look deliberately.
-- The void stage card stamps a hardcoded `DNS` (vuelta.src.html:3784, board.src.html
-  twin). On Vuelta stage 3 that is false: all four seats drafted and the race covered
-  160 km before the hail. The stamp is right for Tour stage 9, which really was a DNS
-  for the whole pool. Make it read the same signal the baton rule uses, `DNS` when no
-  draft was taken and something like `VOID` when the stage was drafted and cancelled.
-  Source change plus rebuild plus push, deliberately NOT bundled into the stage 3 data
-  write on 2026-08-25.
-- `RACE_TOP5` at vuelta.src.html:2662 holds the 2026 TOUR top fives, carried over when
-  the board was copied, with the team time trial as stage 1 and July sources in the
-  comment. It is currently DEAD, declared and never read, which is the only reason it
-  has not shown wrong-race results on the Vuelta board. Delete it or repopulate it from
-  the Vuelta before anything starts reading it. Same class of fault as the deleted
-  `RACE_BAKED`, see Copying a board to start a new race.
+- Void card stamp: CLOSED 2026-08-25. Driven by `voidLabel` on the stage doc in both
+  boards, see Void stages above. Live values set the same day: Vuelta stage 3 CANCELLED,
+  Tour stage 9 DNS. The `.dns-stamp` / `.stage.dns` class names were left misnamed on
+  purpose; renaming is its own commit.
+- `RACE_TOP5` on the Vuelta board: CLOSED 2026-08-25, DELETED rather than translated,
+  the same call made on `SHARED_UPCOMING` and `RACE_BAKED`. It held the 2026 TOUR top
+  fives. Verified before deleting that nothing read it: exactly one occurrence per file
+  across the whole repo, the declaration. The Tour board keeps its own copy, which is
+  correct there and is also currently unread. If a top-5 display is ever built, source
+  it from the race being displayed and give it the same provenance comment the startlist
+  carries, so its age is visible.
+- Rename `.dns-stamp` and `.stage.dns`, which now render and style more than DNS. Same
+  shape as the `gcPlace` / `barsPlace` rename below, and the same rule: its own commit,
+  not bundled with feature work.
+- `/api/board-config` still DEFAULTS to writing every pool when `pools` is omitted. The
+  callers are all correct today and CLAUDE.md warns twice, but the safe fix is to make
+  `pools` required and 400 without it, in the coldufantasy-login repo. Recommended, not
+  done: it is a different repo with its own Vercel deploy, and per the col-break lesson
+  the pipeline should be checked with the provider before assuming a push ships it.

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260823-172411Z -->
+<head><!-- build:20260825-120429Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -2930,7 +2930,17 @@ function stageCard(st){
        ${st.merica?`<div class="mer-line"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#B31942" stroke-width="1.7"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="#3C3B6E" stroke-width="1.7"/><path fill="#3C3B6E" d="M12 8.2l1.15 2.33 2.57.37-1.86 1.81.44 2.56L12 14.06l-2.3 1.21.44-2.56-1.86-1.81 2.57-.37z"/></svg><span><b>Captain 'Merica:</b> ${st.merica.top} (${ordinal(st.merica.f)})${st.merica.correct&&st.merica.correct.length?' - called by '+st.merica.correct.join(', '):' - nobody called it'}</span></div>`:''}
        <div class="note"><span class="lab">The read</span>${st.reads?codes.filter(k=>st.reads[k]).map(k=>`<div class="readrow"><b>${k}</b> ${st.reads[k]}</div>`).join(''):st.note}</div>`;
   }
-  const right = st.voidStage ? `<div class="dns-stamp">DNS</div>`
+  /* The void stamp is DATA, not a constant. `voidLabel` on the stage doc says what KIND
+     of void this was: "DNS" only when no draft was taken (Tour 2026 stage 9), "CANCELLED"
+     when the stage was drafted and then lost on the road (Vuelta 2026 stage 3, hail on
+     the Col de Mont-Louis). Absent it reads VOID, which is neutral and true of every void
+     stage. Never infer one from the other. The board cannot tell them apart, and guessing
+     is how it ends up telling three players that a raced stage was a non-start.
+     The .dns-stamp class is now narrower than what it renders; renaming it is its own
+     commit, see Open items. */
+  const voidLabel = (typeof st.voidLabel === 'string' && st.voidLabel.trim())
+    ? st.voidLabel.trim().toUpperCase().replace(/[<>&]/g,'') : 'VOID';
+  const right = st.voidStage ? `<div class="dns-stamp">${voidLabel}</div>`
     : `<div class="st-right">Status<br><b>${st.pending?'Awaiting tally':'Scored'}</b>${st.critical?'<br><span class="vdot">needs verify</span>':''}</div>`;
   return `<div class="stage ${st.voidStage?'dns':''}">
     <div class="stage-head" onclick="this.parentElement.classList.toggle('open')">
@@ -4031,5 +4041,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-
-<!-- redeploy 20260823-172413Z -->
+<!-- redeploy 20260825-120700Z -->
