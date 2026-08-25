@@ -502,6 +502,72 @@ no rule change either. If the deadline should be enforced rather than merely obs
 the rule needs the stage read added; the exact text is in the 2026-08-25 session notes
 and was handed to Allen rather than published.
 
+## Persona rotation, and the ledger
+
+Rule from Allen, 2026-08-25: when ANY player changes position in the standings, ALL
+FOUR personas re-draw. Not only the seats that moved.
+
+The engine used to compare each seat's own position against the stored one, so seats
+that happened to stay put kept their names. After stage 4 that would have left AA and
+JP wearing the same personas while only JJ and JB rotated. `PERSONA_BY` now computes
+`orderChanged` ONCE, across the whole order, and that single boolean decides the whole
+board. Unchanged order means everyone holds; any change means everyone re-draws.
+
+Two guards survive the change and are deliberately separate from it:
+
+- The winner tier still follows the Fantasy Points leader, since that is the Vuelta's
+  system of record. A seat can move on the tier check alone, with the order unchanged,
+  when it gains or loses the lead: a new leader gives up a style name and a former
+  leader hands the champion name back rather than sitting on it.
+- The seen-history guard still blocks repeats, and movers still exclude every persona
+  on the previous board, so there are no swaps and no hand-me-downs. The bank carries
+  12 winner and 44 style rows, which is ample for a full four-seat re-draw.
+
+`order` in the ledger is the STANDINGS at the moment of the assignment, written from
+`fanOrder`. It used to hold seat order, which is why the held check was comparing a
+standing against a seat list and the same personas kept reappearing. If a stale seat
+order is ever restored there, every load will see a change that never clears.
+
+## The persona ledger is INERT until a rule is published
+
+The persistence has been in the board since commit `9455c5f` (2026-08-21) and was
+never removed. It is not missing code. It is code whose write is DENIED, silently,
+because no Firestore rule permits it, and the failure is swallowed on purpose so the
+board behaves exactly as it does today.
+
+What it does when permitted: writes `order`, `by` and `seen` together in a
+`runTransaction`, and ONLY when the computed assignment or the stored order differs
+from what is stored. Writing on every load would make the next load see
+`order === current`, mark everyone as having held, and freeze the personas forever.
+That failure is silent, which is why the guard is in the code rather than in a note.
+Both halves are compared, not just `by`: if the standings moved but the re-draw landed
+on the same names, snapshotting only `by` would leave the old order in place and every
+later load would re-draw forever.
+
+The rule to publish, in the `pools/{poolId}` match block:
+
+```
+allow update: if request.auth != null
+  && request.auth.token.email in resource.data.members
+  && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personaLedger'])
+  && request.resource.data.personaLedger.keys().hasOnly(['order','by','seen'])
+  && request.resource.data.personaLedger.order is list
+  && request.resource.data.personaLedger.by is map
+  && request.resource.data.personaLedger.seen is map;
+```
+
+KNOWN WEAKNESS, accepted rather than overlooked: `hasOnly(['personaLedger'])` scopes
+the write to that one field but says nothing about WHOSE part of it is being written.
+Any pool member can rewrite the whole ledger, including another seat's `by` and `seen`
+history. Firestore rules cannot cheaply constrain a per-seat sub-map without naming
+every seat, so a member could wipe or forge another seat's persona history. In a
+private four-person pool that is a reasonable trade, but it is a trade, and it should
+be made on purpose. Tightening it means enumerating the seats in the rule and checking
+that only the caller's own key changed.
+
+Until this is published, every rotation stays a hand edit in the console and drifts the
+moment nobody does it. That is the actual problem the persistence solves.
+
 ## Per-race scoring profiles
 
 The two races do NOT score the same way. Never apply one race's rule to the other.

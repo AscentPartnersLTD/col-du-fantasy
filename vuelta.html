@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260825-161917Z -->
+<head><!-- build:20260825-181310Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -3669,7 +3669,6 @@ const PERSONA_BY = (function(){
   const rp=(typeof RIDER_PROFILE!=='undefined')?RIDER_PROFILE:{};
   const L=(typeof PERSONA_LEDGER!=='undefined')?PERSONA_LEDGER:{order:PL4.slice(),by:{},seen:{}};
   const byId=id=>PERSONA_BANK.find(x=>x.id===id)||null;
-  const prevPos={}; (L.order||[]).forEach((p,i)=>prevPos[p]=i);
   /* Standing here means the race's system of record, which on the Vuelta is Fantasy
      Points, not Placement. Both lines have to read the same board: `leader` decides who
      draws from the winner tier, and `curPos` decides who held their spot and therefore
@@ -3681,19 +3680,31 @@ const PERSONA_BY = (function(){
   const assigned={}, used={};
   /* 1) explicit pin in RIDER_PROFILE always wins */
   PL4.forEach(p=>{ const pin=(rp[p]||{}).pin; if(pin){ const c=byId(pin); if(c && !used[pin]){ assigned[p]=c; used[pin]=1; } } });
-  /* 2) a player who held their placement spot keeps the persona they were wearing */
+  /* 2) personas hold ONLY while the standings order is completely unchanged.
+     Rule from Allen, 2026-08-25: when ANY player changes position, ALL FOUR re-draw,
+     not only the seats that moved. This used to compare each seat's own position, so
+     the seats that happened to stay put kept their names while the rest rotated. After
+     stage 4 that would have left AA and JP wearing the same personas while only JJ and
+     JB changed. The comparison is now made ONCE, across the whole order, and it decides
+     for the whole board.
+     L.order is the standings at the moment of the last assignment, written by the
+     persistence block below, so this compares like with like rather than comparing a
+     standing against a seat order. */
+  const prevOrder=(L.order||[]).slice();
+  const orderChanged = prevOrder.length!==fanOrder.length
+    || fanOrder.some((p,i)=>prevOrder[i]!==p);
   const movers=[];
   PL4.forEach(p=>{
     if(assigned[p]) return;
-    const held = (prevPos[p]!==undefined) && (prevPos[p]===curPos[p]);
     const prevId=(L.by||{})[p];
     const prev=prevId?byId(prevId):null;
-    /* Holding a spot only keeps the persona if that persona still matches the tier the
-       player is owed. The leader wears a champion and everyone else wears a style, so a
-       new leader who held their position gives up a style name, and a former leader who
-       slipped gives the champion name back to the pool instead of sitting on it. */
+    /* Holding still requires the persona to match the tier the seat is owed. The leader
+       wears a champion and everyone else wears a style, so a new leader gives up a style
+       name and a former leader hands the champion name back to the pool instead of
+       sitting on it. This is a separate guard from the standings test: it can move one
+       seat on its own when the order did not change at all. */
     const wantTier=(p===leader)?'winner':'style';
-    if(held && prev && prev.tier===wantTier){ assigned[p]=prev; used[prevId]=1; }
+    if(!orderChanged && prev && prev.tier===wantTier){ assigned[p]=prev; used[prevId]=1; }
     else movers.push(p);
   });
   /* everything that was on the previous board is off-limits for a mover (no swaps, no hand-me-downs) */
@@ -3743,15 +3754,25 @@ const PERSONA_BY = (function(){
     if(!myCode && !isOwner) return;                 // watchers never write
     var want={}; PL4.forEach(function(p){ if(PERSONA_BY[p]) want[p]=PERSONA_BY[p].id; });
     var have=(typeof PERSONA_LEDGER!=='undefined' && PERSONA_LEDGER && PERSONA_LEDGER.by)||{};
-    var same = PL4.every(function(p){ return want[p]===have[p]; })
-               && Object.keys(have).length===Object.keys(want).length;
-    if(same) return;                                // nothing moved, leave the snapshot alone
+    var sameBy = PL4.every(function(p){ return want[p]===have[p]; })
+                 && Object.keys(have).length===Object.keys(want).length;
+    /* The stored ORDER has to advance too, not just `by`. If the standings moved but the
+       redraw happened to land on the same names, returning early here would leave the
+       snapshot holding the old order, and every later load would see a change that never
+       clears and re-draw forever. Comparing both is what makes the snapshot settle. */
+    var haveOrder=(typeof PERSONA_LEDGER!=='undefined' && PERSONA_LEDGER && PERSONA_LEDGER.order)||[];
+    var sameOrder = haveOrder.length===fanOrder.length
+                    && fanOrder.every(function(p,i){ return haveOrder[i]===p; });
+    if(sameBy && sameOrder) return;                 // nothing moved, leave the snapshot alone
     var ref=db.doc('pools/'+poolId);
     await db.runTransaction(async function(tx){
       var d=(await tx.get(ref)).data()||{};
       var L=d.personaLedger||{order:[],by:{},seen:{}};
       var cur={}; PL4.forEach(function(p){ if(PERSONA_BY[p]) cur[p]=PERSONA_BY[p].id; });
-      var already = PL4.every(function(p){ return cur[p]===(L.by||{})[p]; });
+      var lo=(L.order||[]);
+      var already = PL4.every(function(p){ return cur[p]===(L.by||{})[p]; })
+                    && lo.length===fanOrder.length
+                    && fanOrder.every(function(p,i){ return lo[i]===p; });
       if(already) return;                           // another tab got there first
       var seen=Object.assign({}, L.seen||{});
       PL4.forEach(function(p){
@@ -5196,4 +5217,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy 20260825-162223Z -->
+<!-- redeploy 20260825-181311Z -->
