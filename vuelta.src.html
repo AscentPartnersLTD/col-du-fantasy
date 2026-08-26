@@ -4615,10 +4615,324 @@ document.getElementById('resultsTable').innerHTML =
       <td class="rt">${r.extra}</td></tr>`;
   }).join('')+`</tbody>`;
 
+/* ===== Computed pool profile: rider archetypes and datapoints =====
+   Everything below is derived from the stage data at render time. Nothing is
+   hardcoded, so it keeps working for the rest of this race and for the Giro without
+   an edit. The editorial override still wins if CDF.editorial supplies one.
+
+   Two different stage sets are used on purpose, and they must not be reconciled:
+     COMPLETED  scored stages only. Anything about points, finishes or standings.
+     STAGES     every stage including void ones. Anything about PICKS, because a
+                cancelled stage wipes the result and not the drafting. */
+const PROF=(function(){
+  const ALL=(typeof STAGES!=='undefined'?STAGES:[]);
+  const SC=ALL.filter(s=>COMPLETED.indexOf(s.n)>=0);
+  const teamMap={}; (typeof RIDERS!=='undefined'?RIDERS:[]).forEach(r=>{ teamMap[_nrm(r.r)]=r.t; });
+  const teamOf=n=>teamMap[_nrm(n)]||null;
+  const finOf=pk=>Array.isArray(pk)?pk[1]:(pk&&pk.f);
+  const ridOf=pk=>Array.isArray(pk)?pk[0]:(pk&&pk.r);
+  const picksOf=(st,c)=>(st.picks&&st.picks[c])||[];
+
+  /* Stage type is free text on the race row, so it is bucketed rather than matched.
+     An unknown type falls into "other" instead of being forced into a bucket. */
+  function bucket(t){
+    const s=String(t||'').toLowerCase();
+    if(/time trial|contrarreloj|itt|crono/.test(s)) return 'time trial';
+    if(/high mountain|mountain|summit|alto/.test(s)) return 'mountain';
+    if(/hilly|medium|undulating|rolling/.test(s)) return 'hilly';
+    if(/flat|sprint|llano/.test(s)) return 'flat';
+    return 'other';
+  }
+
+  const P={};
+  PL4.forEach(c=>{
+    P[c]={ seat:c, scored:0, picks:[], wins:[], podiums:0, top10:0, inScale:0,
+           zeroDays:[], byType:{}, teamsAll:new Set(), teamsScored:new Set(),
+           riderCount:{}, spreads:[], bestPick:null, worstPick:null, cobbles:0 };
+  });
+  /* PICK-based tallies run over every stage, void included. */
+  ALL.forEach(st=>{
+    PL4.forEach(c=>picksOf(st,c).forEach(pk=>{
+      const r=ridOf(pk); if(!r) return;
+      const t=teamOf(r); if(t) P[c].teamsAll.add(t);
+      P[c].riderCount[r]=(P[c].riderCount[r]||0)+1;
+    }));
+  });
+  /* RESULT-based tallies run over scored stages only. */
+  SC.forEach(st=>{
+    const b=bucket(st.type);
+    PL4.forEach(c=>{
+      const pk=picksOf(st,c); if(!pk.length) return;
+      P[c].scored++;
+      let dayFP=0; const fins=[];
+      pk.forEach(x=>{
+        const r=ridOf(x), f=finOf(x);
+        if(f==null) return;
+        fins.push(f);
+        const fp=FP_SCALE[f]||0; dayFP+=fp;
+        P[c].picks.push({n:st.n,r,f,fp,type:b});
+        if(f===1) P[c].wins.push({n:st.n,r});
+        if(f<=3) P[c].podiums++;
+        if(f<=10) P[c].top10++;
+        if(fp>0) P[c].inScale++;
+        (P[c].byType[b]=P[c].byType[b]||[]).push(f);
+        const t=teamOf(r); if(t) P[c].teamsScored.add(t);
+      });
+      if(fins.length===2) P[c].spreads.push(Math.abs(fins[0]-fins[1]));
+      if(dayFP===0&&fins.length) P[c].zeroDays.push({n:st.n,place:(st.days&&st.days[c]),picks:pk.map(x=>({r:ridOf(x),f:finOf(x)}))});
+      if(st.kassei&&(st.kassei.correct||[]).indexOf(c)>=0) P[c].cobbles++;
+    });
+  });
+  PL4.forEach(c=>{
+    const ps=P[c].picks.slice().sort((a,b)=>b.fp-a.fp||a.f-b.f);
+    P[c].bestPick=ps[0]||null;
+    P[c].worstPick=ps.length?ps[ps.length-1]:null;
+    P[c].meanSpread=P[c].spreads.length?Math.round(P[c].spreads.reduce((a,b)=>a+b,0)/P[c].spreads.length):null;
+    P[c].repeats=Object.keys(P[c].riderCount).filter(r=>P[c].riderCount[r]>1)
+      .sort((a,b)=>P[c].riderCount[b]-P[c].riderCount[a]);
+    const t={}; Object.keys(P[c].byType).forEach(k=>{
+      const a=P[c].byType[k]; t[k]=Math.round(a.reduce((x,y)=>x+y,0)/a.length);
+    });
+    P[c].typeMean=t;
+    const ranked=Object.keys(t).sort((a,b)=>t[a]-t[b]);
+    P[c].bestType=ranked[0]||null;
+    P[c].worstType=ranked.length>1?ranked[ranked.length-1]:null;
+  });
+  return {P,ALL,SC,teamOf,finOf,ridOf,picksOf,bucket};
+})();
+
+/* ---- rider archetypes, written from the computed profile ----
+   Each seat gets the highest-scoring label its record supports, then a body that
+   states the pattern AND what it costs. Numbers are read from PROF, never typed. */
+const ARCH_COMPUTED=(function(){
+  const P=PROF.P, n=x=>x===1?'once':x+' times';
+  const ord=x=>{const s=['th','st','nd','rd'],v=x%100;return x+(s[(v-20)%10]||s[v]||s[0]);};
+  const nameOf=c=>(CDF.players&&CDF.players[c]&&CDF.players[c].name)||c;
+  function label(p){
+    const winRate=p.scored?p.wins.length/p.scored:0;
+    const mt=p.typeMean||{};
+    const climbGood=(mt.mountain!=null&&mt.mountain<=20);
+    const climbBad=(mt.mountain!=null&&mt.mountain>=80);
+    const fastGood=((mt.flat!=null&&mt.flat<=20)||(mt.hilly!=null&&mt.hilly<=20));
+    if(winRate>=0.6) return 'Backs the favorites';
+    if(climbBad&&fastGood) return 'Fast men on the wrong roads';
+    if(climbGood&&fastGood) return 'Reads the profile';
+    if(climbGood) return 'Climbers first';
+    if(mt['time trial']!=null&&mt['time trial']<=15) return 'Against the clock';
+    if(p.repeats.length>=2) return 'Loyal to a short list';
+    return 'Still finding a shape';
+  }
+  function body(p){
+    const bits=[];
+    if(p.wins.length) bits.push('Has drafted the stage winner '+n(p.wins.length)
+      +' in '+p.scored+' scored '+(p.scored===1?'stage':'stages')
+      +', '+p.wins.map(w=>w.r+' on Stage '+w.n).join(' and ')+'.');
+    else bits.push('No stage winner drafted yet across '+p.scored+' scored '
+      +(p.scored===1?'stage':'stages')+'.');
+    const mt=p.typeMean||{}, keys=Object.keys(mt);
+    if(p.bestType&&p.worstType&&p.bestType!==p.worstType){
+      bits.push('The picks land on '+p.bestType+' days, average finish '+mt[p.bestType]
+        +', and lose the most on '+p.worstType+' days at '+mt[p.worstType]+'.');
+    } else if(keys.length===1){
+      bits.push('Only '+keys[0]+' days scored so far, average finish '+mt[keys[0]]+'.');
+    }
+    if(p.zeroDays.length){
+      const z=p.zeroDays[0];
+      bits.push('The cost shows on Stage '+z.n+': '+z.picks.map(x=>x.r+' '+ord(x.f)).join(' and ')
+        +', a Placement of '+z.place+' and nothing on the points scale.');
+    } else if(p.inScale===p.picks.length&&p.picks.length){
+      bits.push('Every pick so far has landed inside the scoring scale, which is the floor holding rather than the ceiling.');
+    }
+    if(p.meanSpread!=null){
+      bits.push(p.meanSpread<=15
+        ? 'The two picks tend to finish together, average gap '+p.meanSpread+' places, so a good read pays twice and a bad one costs twice.'
+        : 'The two picks tend to finish far apart, average gap '+p.meanSpread+' places, which caps the best days and softens the worst.');
+    }
+    if(p.repeats.length) bits.push('Returns to the same names, '+p.repeats.slice(0,2).join(' and ')+'.');
+    bits.push('Teams drafted: '+p.teamsAll.size+'.');
+    return bits.join(' ');
+  }
+  return fanOrder.map((c,i)=>({k:c,lead:i===0,t:label(P[c])+', '+nameOf(c),b:body(P[c])}));
+})();
+
+/* ---- computed datapoints ----
+   Each entry is {k, v, d, type}. Types tag the strip: standing, record, history.
+   Every number is read from PROF or the stage array. History items carry a source
+   URL in a comment above them and state only what that source supports. */
+const DP_COMPUTED=(function(){
+  const P=PROF.P, SC=PROF.SC, ALL=PROF.ALL;
+  const out=[];
+  const ord=x=>{const s=['th','st','nd','rd'],v=x%100;return x+(s[(v-20)%10]||s[v]||s[0]);};
+  const nameOf=c=>(CDF.players&&CDF.players[c]&&CDF.players[c].name)||c;
+
+  /* 1. stage winners drafted, and who had each one */
+  const wins=[];
+  SC.forEach(st=>PL4.forEach(c=>PROF.picksOf(st,c).forEach(pk=>{
+    if(PROF.finOf(pk)===1) wins.push({n:st.n,c,r:PROF.ridOf(pk)});
+  })));
+  const winStages=Array.from(new Set(wins.map(w=>w.n)));
+  const bySeat={}; wins.forEach(w=>{bySeat[w.c]=(bySeat[w.c]||0)+1;});
+  out.push({type:'standing',k:'Stage winners drafted',v:winStages.length+'/'+SC.length,
+    d:SC.length? wins.map(w=>w.c+' had '+w.r+' on Stage '+w.n).join('. ')+'. '
+      +Object.keys(bySeat).sort((a,b)=>bySeat[b]-bySeat[a]).map(c=>c+' '+bySeat[c]).join(', ')+'.'
+      : 'No scored stages yet.'});
+
+  /* 2. zero days: both picks outside the points scale, and what Placement charged */
+  const zeros=[];
+  PL4.forEach(c=>P[c].zeroDays.forEach(z=>zeros.push(Object.assign({c},z))));
+  zeros.sort((a,b)=>b.place-a.place);
+  if(zeros.length){
+    const lines=zeros.map(z=>{
+      const st=SC.filter(s=>s.n===z.n)[0]||{};
+      const premio=(st.combatif&&PROF.picksOf(st,z.c).some(pk=>_nrm(PROF.ridOf(pk))===_nrm(st.combatif)))
+        ? ' On the same day '+z.c+' took the Premio with '+st.combatif+'.' : '';
+      return z.c+' on Stage '+z.n+', '+z.picks.map(x=>x.r+' '+ord(x.f)).join(' and ')
+        +', Placement '+z.place+' and zero points.'+premio;
+    });
+    /* The comparison is what makes the point: Placement is unbounded, the points scale
+       is not, so the same day reads as a disaster on one board and a blank on the other. */
+    const worstPlace=zeros[0].place;
+    const others=[];
+    SC.forEach(s=>PL4.forEach(c=>{ if(s.days&&s.days[c]!=null&&!(zeros.some(z=>z.n===s.n&&z.c===c))) others.push(s.days[c]); }));
+    const typical=others.length?Math.round(others.reduce((a,b)=>a+b,0)/others.length):null;
+    out.push({type:'standing',k:'Zero days, and what the floor saved',v:zeros.length,small:true,
+      d:lines.join(' ')+(typical!=null?' A normal day runs about '+typical+' on Placement, so those are the worst days anyone has had by a wide margin. The top-30 scale caps the loss at zero, which is the floor doing its job.':'')});
+  }
+
+  /* 3. Maillot Arlequin. Counts EVERY stage including void ones, because the picks
+        were really made. See the tally comment in the Allegiances block. */
+  const arl=PL4.map(c=>({c,n:P[c].teamsAll.size})).sort((a,b)=>b.n-a.n||a.c.localeCompare(b.c));
+  const voided=ALL.filter(s=>s.voidStage).map(s=>s.n);
+  out.push({type:'standing',k:'Maillot Arlequin, teams drafted',v:arl[0].n,
+    d:arl.map(x=>x.c+' '+x.n).join(', ')+'. Counts every stage the pool drafted'
+      +(voided.length?', including Stage '+voided.join(' and ')+', which scored nothing after the cancellation. The result was wiped, the drafting was not.':'.')});
+
+  /* 4. biggest single-stage swing in the gap to the leader */
+  const run={}; PL4.forEach(c=>run[c]=0);
+  let swing=null, prevGap=null;
+  SC.slice().sort((a,b)=>a.n-b.n).forEach(st=>{
+    PL4.forEach(c=>PROF.picksOf(st,c).forEach(pk=>{
+      const f=PROF.finOf(pk); if(f!=null) run[c]+=(FP_SCALE[f]||0);
+    }));
+    const lead=Math.max.apply(null,PL4.map(c=>run[c]));
+    const gap={}; PL4.forEach(c=>gap[c]=lead-run[c]);
+    if(prevGap){
+      PL4.forEach(c=>{
+        const d=prevGap[c]-gap[c];
+        if(swing===null||d>swing.d) swing={c,d,n:st.n,from:prevGap[c],to:gap[c]};
+      });
+    }
+    prevGap=gap;
+  });
+  if(swing&&swing.d>0) out.push({type:'standing',k:'Biggest swing in one stage',v:swing.d+' pts',
+    d:swing.c+' closed from '+swing.from+' points behind the lead to '+swing.to+' on Stage '+swing.n+'.'});
+
+  /* 5. most shared rider across the pool */
+  const share={};
+  ALL.forEach(st=>PL4.forEach(c=>PROF.picksOf(st,c).forEach(pk=>{
+    const r=PROF.ridOf(pk); if(!r) return;
+    (share[r]=share[r]||{seats:new Set(),stages:new Set()});
+    share[r].seats.add(c); share[r].stages.add(st.n);
+  })));
+  const shared=Object.keys(share).map(r=>({r,s:share[r].seats.size,st:share[r].stages.size,seats:[...share[r].seats]}))
+    .sort((a,b)=>b.s-a.s||b.st-a.st||a.r.localeCompare(b.r));
+  if(shared.length&&shared[0].s>1) out.push({type:'record',k:'Most shared rider',v:shared[0].r,small:true,
+    d:'Drafted by '+shared[0].s+' different seats, '+shared[0].seats.join(', ')
+      +', across '+shared[0].st+' stages. Nobody else in the pool has been called on by as many.'});
+
+  /* 6. best and worst single pick by Fantasy Points */
+  const every=[];
+  PL4.forEach(c=>P[c].picks.forEach(p=>every.push(Object.assign({c},p))));
+  if(every.length){
+    const best=every.slice().sort((a,b)=>b.fp-a.fp||a.f-b.f)[0];
+    const worst=every.slice().sort((a,b)=>b.f-a.f)[0];
+    out.push({type:'record',k:'Best and worst single pick',v:best.fp+' pts',small:true,
+      d:'Best: '+best.c+' with '+best.r+' '+ord(best.f)+' on Stage '+best.n+' for '+best.fp+' points. '
+        +'Worst: '+worst.c+' with '+worst.r+' '+ord(worst.f)+' on Stage '+worst.n+', outside the scale for nothing.'});
+  }
+
+  /* 7. first cobble of the race, and how it was won */
+  /* Two different firsts, and they are not the same stage. A cobble shared by the
+     whole pool says nothing about who read the day; the first one won OUTRIGHT does.
+     Both are reported when they differ. */
+  const cobs=SC.slice().sort((a,b)=>a.n-b.n).filter(s=>s.kassei&&(s.kassei.correct||[]).length);
+  const solo=cobs.filter(s=>s.kassei.correct.length===1)[0];
+  const listOf=a=>a.length===1?a[0]:a.slice(0,-1).join(', ')+' and '+a[a.length-1];
+  if(solo) out.push({type:'record',k:'First cobble won outright',v:solo.kassei.correct[0],
+    d:'Stage '+solo.n+'. '+solo.kassei.top+' finished '+ord(solo.kassei.f)+', the best of any Belgian that day, and '
+      +solo.kassei.correct[0]+' was the only seat to name him as a first choice.'
+      +(cobs[0]&&cobs[0].n!==solo.n?' The first cobble of the race came earlier, on Stage '+cobs[0].n
+        +', where '+listOf(cobs[0].kassei.correct)+' all had '+cobs[0].kassei.top+' and split it.':'')
+      +' The rule is a target rather than a contest: naming any other Belgian scores nothing, however well that rider places, and a tiebreaker never promotes.'});
+  else if(cobs.length) out.push({type:'record',k:'First cobble of the race',v:listOf(cobs[0].kassei.correct),
+    d:'Stage '+cobs[0].n+'. '+cobs[0].kassei.top+' finished '+ord(cobs[0].kassei.f)+', the best of any Belgian that day, and '
+      +listOf(cobs[0].kassei.correct)+' all named him as a first choice, so the cobble was split.'});
+
+  return out;
+})();
+/* ---- verified race facts ----
+   Every item here carries the source it came from. Nothing is stated that the source
+   does not support, and anything that could not be verified was dropped rather than
+   softened. */
+const DP_HISTORY=(function(){
+  const ALL=PROF.ALL, P=PROF.P;
+  const out=[];
+  const voided=ALL.filter(s=>s.voidStage);
+  if(voided.length){
+    /* src: https://www.cyclingnews.com/pro-cycling/racing/a-rare-full-cancellation-ethan-hayters-lost-points-historical-precedent-how-the-uci-rulebook-was-applied-on-the-annulled-stage-3-of-the-vuelta-a-espana/
+       src: https://en.wikipedia.org/wiki/1991_Vuelta_a_Espa%C3%B1a,_Stage_11_to_Stage_21  (1991 stage 11, cancelled for snow) */
+    out.push({type:'history',k:'First full cancellation since 1991',v:'35 years',small:true,
+      d:'Stage '+voided.map(s=>s.n).join(' and ')+' was the first Vuelta stage fully cancelled for extreme weather since 1991, when Stage 11 was called off for snow. A full cancellation annuls the whole day, results included.'});
+    /* src: https://www.cyclingnews.com/pro-cycling/racing/i-dont-have-a-good-explanation-ethan-hayter-and-mats-wenzel-perplexed-at-decision-to-take-away-points-after-vuelta-a-espana-stage-3-cancellation/
+       src: https://cyclingflash.com/news/vuelta-2026-ethan-hayter-loses-points-won-in-intermediate-sprint */
+    out.push({type:'history',k:'The points that stopped existing',v:'20',
+      d:'E. Hayter took 20 points at the Stage 3 intermediate sprint, enough to move him past Pogacar into the points classification lead. The cancellation annulled the day and the sprint with it, and he started Stage 4 still behind. Mats Wenzel lost his mountain points the same way.'});
+    /* src: https://www.cyclingnews.com/news/race-organisers-confirm-that-vuelta-a-espana-has-to-stop-before-finish-of-stage-21-because-of-protests/
+       src: https://edition.cnn.com/2025/09/14/europe/spain-cycling-protest-vuelta-gaza-israel-latam-intl
+       NOTE: the claim that 2025 was the first time in the race's history was NOT
+       verified and is deliberately absent. Cyclingnews records a 1978 precedent at
+       the Vuelta in San Sebastian, so "first ever" would have been wrong. What is
+       stated here is only the consecutive-editions fact, which both sources support. */
+    out.push({type:'history',k:'Stages lost in consecutive editions',v:'2025 and 2026',small:true,
+      d:'The 2025 Vuelta lost its final stage in Madrid when pro-Palestine protesters occupied the closing circuit and the race was stopped early, with no podium ceremony. A year later Stage '+voided.map(s=>s.n).join(' and ')+' went to a hailstorm. Two editions running, for reasons with nothing to do with each other.'});
+  }
+  /* Teams collected on a stage that scored nothing. Computed, not asserted: it finds
+     the seat holding teams that appear ONLY on a void stage. */
+  voided.forEach(vs=>{
+    PL4.forEach(c=>{
+      const here=new Set(), elsewhere=new Set();
+      (vs.picks&&vs.picks[c]||[]).forEach(pk=>{ const t=PROF.teamOf(PROF.ridOf(pk)); if(t) here.add(t); });
+      ALL.filter(s=>s.n!==vs.n).forEach(s=>(s.picks&&s.picks[c]||[]).forEach(pk=>{
+        const t=PROF.teamOf(PROF.ridOf(pk)); if(t) elsewhere.add(t); }));
+      const only=[...here].filter(t=>!elsewhere.has(t));
+      const totals=PL4.map(x=>({x,n:P[x].teamsAll.size})).sort((a,b)=>b.n-a.n);
+      /* Reported only for the seat that leads, and the effect is COMPUTED rather than
+         asserted. Through stage 4 these two teams were the whole margin and removing
+         them produced a tie. That stopped being true the moment the lead widened, so
+         the text says what the number actually does now instead of repeating a claim
+         that has expired. */
+      if(only.length&&totals[0].x===c&&totals.length>1){
+        const lead=totals[0].n, chase=totals[1].n, without=lead-only.length;
+        const effect = without<chase ? 'without them the lead changes hands'
+          : without===chase ? 'without them it is a tie at '+chase
+          : 'without them the lead narrows to '+without+' against '+chase;
+        out.push({type:'history',k:'Teams collected on a cancelled stage',v:only.length,small:true,
+          d:c+' drafted '+only.join(' and ')+' on Stage '+vs.n+', a stage that scored nothing. Those two teams appear nowhere else on the sheet, and they count: the Arlequin lead reads '+lead+' to '+chase+', and '+effect+'. The hail wiped the result and left the drafting standing.'});
+      }
+    });
+  });
+  return out;
+})();
+
 /* stats */
 const stats=[{k:"Fantasy Points leader",v:OURS.fantasy[fanLeader],d:`${fanLeader}, highest total (system of record). Next: ${fanOrder.slice(1).map(k=>k+' '+OURS.fantasy[k]).join(', ')}.`},
   {k:"Rank leader",v:OURS.rank[rankLeader],ink:true,d:`${rankLeader}, lowest rank total. ${rankOrder.slice(1).map(k=>k+' '+OURS.rank[k]).join(', ')} behind.`},
-  {k:"Stage winners picked",v:`${WINS_PICKED}/${COMPLETED.length}`,d:`Days the pool drafted the actual winner, across ${COMPLETED.length} scored stages.`}].concat((CDF.editorial&&CDF.editorial.stats&&CDF.editorial.stats.length)?CDF.editorial.stats:[{k:'Stats and notes',v:'',d:'This fills in with the pool\'s highlights and records as stages are scored.'}]);
+  {k:"Stage winners picked",v:`${WINS_PICKED}/${COMPLETED.length}`,d:`Days the pool drafted the actual winner, across ${COMPLETED.length} scored stages.`}].concat((CDF.editorial&&CDF.editorial.stats&&CDF.editorial.stats.length)
+    ? CDF.editorial.stats
+    /* Computed first, then the verified history. The old placeholder is gone: it said
+       the strip would fill in as stages were scored, and it never did, because nothing
+       computed it. */
+    : DP_COMPUTED.concat(DP_HISTORY));
 const DP_TYPES={standing:{lab:'Standings',c:'#c9971a'},record:{lab:'Records',c:'#26347e'},history:{lab:'History',c:'#2f8f52'},moment:{lab:'Moments',c:'#cf2530'}};
 stats.forEach((s,i)=>{ if(!s.type) s.type=(i<3?'standing':'record'); });
 function dpRender(flt){
@@ -4630,7 +4944,9 @@ function dpRender(flt){
 (function(){ const f=document.getElementById('dpFilter'); if(!f) return; const present=['standing','record','history','moment'].filter(t=>stats.some(s=>s.type===t)); f.innerHTML='<button class="dp-chip on" data-dpt="all">All</button>'+present.map(t=>`<button class="dp-chip" data-dpt="${t}"><span class="dpdot" style="--dpc:${DP_TYPES[t].c}"></span>${DP_TYPES[t].lab}</button>`).join(''); f.addEventListener('click',function(e){ const b=e.target.closest('.dp-chip'); if(!b) return; f.querySelectorAll('.dp-chip').forEach(x=>x.classList.remove('on')); b.classList.add('on'); dpRender(b.dataset.dpt); }); })();
 dpRender('all');
 
-const arch=(CDF.editorial&&CDF.editorial.arch&&CDF.editorial.arch.length)?CDF.editorial.arch:[{k:'',t:'Rider archetypes',b:'These build up as the pool rides through the race and the picks tell a story.'}];
+const arch=(CDF.editorial&&CDF.editorial.arch&&CDF.editorial.arch.length)
+  ? CDF.editorial.arch
+  : ARCH_COMPUTED;
 document.getElementById('archetypes').innerHTML=arch.map(a=>
   `<div class="arch ${a.lead?'lead':''}"><div class="who">${a.k}</div><div><div class="t">${a.t}</div><div class="b">${a.b}</div></div></div>`).join('');
 
