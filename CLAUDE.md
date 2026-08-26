@@ -659,6 +659,40 @@ tying him with JP. That is exactly the wrong answer that was reached once by han
 
 The tally site carries the same warning in a comment. Do not "fix" it.
 
+## Every ordinal names its board
+
+Added 2026-08-26, after a badge on the Numbers panel was read as stage-over-stage
+movement by the person who designed the board.
+
+THE RULE. A bare ordinal or delta anywhere on the board defaults to Fantasy Points,
+the system of record. Anything derived from Placement or Rank must name that board in
+the VISIBLE LABEL, next to the number. Prose around it does not count: people read
+the number and skip the paragraph. That is exactly how this one was misread.
+
+What went wrong: the Fantasy Points panel carried badges reading UP 2 and DOWN 1. The
+arithmetic was correct, the Placement position minus the Fantasy Points position, but
+UP and DOWN on a leaderboard read as movement over time. It was also backwards in
+emphasis: a delta against Placement sitting on the authoritative panel implies
+Placement is the baseline.
+
+The fix moved the badge to the PLACEMENT panel and relabelled it "+2 on FP". The
+rendering decided it over merely relabelling in place: `.wi-row` declares five columns
+for both panels and the Placement row only ever filled four, so the fifth column was
+already reserved and empty. Moving the badge costs no width at any breakpoint and
+frees 60px for the bar on the Fantasy Points side, where relabelling in place would
+have widened the tighter panel.
+
+Surfaces checked and left alone, because they are already unambiguous:
+
+- Palmares cards. Two position badges side by side, but each ordinal sits directly
+  above its own board name, Fantasy Points and Rank. The label is the layout.
+- Stage card and awards prose that says "3rd out of the break" or a Kasseistampers
+  finish. Those ordinals are RACE finishing positions, not pool board positions, and
+  the surrounding words say so.
+
+Fixed alongside the badge: two persona lines emitted a bare ordinal off the Placement
+board and now say "3rd on Placement".
+
 ## Per-race scoring profiles
 
 The two races do NOT score the same way. Never apply one race's rule to the other.

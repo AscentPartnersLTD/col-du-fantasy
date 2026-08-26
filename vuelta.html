@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260826-174325Z -->
+<head><!-- build:20260826-175201Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -431,8 +431,12 @@ function isTeamResultStage(n){ return (RACE_PROFILE.teamResultStages||[]).indexO
   .pc-standings{display:flex;gap:9px}
   .pc-stat{flex:1;background:#f7f5ef;border-radius:10px;padding:8px 6px;text-align:center;line-height:1.15}
   .pc-stat em{display:block;font-family:'Montserrat',sans-serif;font-style:normal;font-weight:900;font-size:16px;color:var(--ink)}
-  .pc-stat .pl-lab{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mute);margin:2px 0 1px;font-weight:700}
-  .pc-stat b{font-size:12px;color:var(--ink2);font-weight:700}
+  /* The board name is the label for the ordinal above it, so it has to be readable
+     rather than merely present. It was 9.5px uppercase in --mute, which put it below
+     the value beneath it in visual weight and let two badges read as two bare
+     positions. Darker, larger, and no longer all-caps. */
+  .pc-stat .pl-lab{display:block;font-family:'Montserrat',sans-serif;font-size:10.5px;letter-spacing:.01em;color:var(--ink2);margin:3px 0 2px;font-weight:800;line-height:1.2}
+  .pc-stat b{font-size:11.5px;color:var(--mute);font-weight:700}
   .pc-medals{display:flex;gap:7px;margin-top:1px}
   .medal{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 4px;border-radius:11px;line-height:1}
   .medal svg{width:17px;height:17px}
@@ -1168,6 +1172,11 @@ function isTeamResultStage(n){ return (RACE_PROFILE.teamResultStages||[]).indexO
       .wi-val small{font-weight:600;color:var(--mute);font-size:10px}
       .wi-move{font-size:10px;font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:2px 7px;border-radius:999px;white-space:nowrap;justify-self:end}
       .wi-move.up{background:#eef5f1;color:var(--green)} .wi-move.down{background:#fbeceb;color:var(--red)} .wi-move.same{background:var(--paper2);color:var(--mute)}
+      .wi-ch2{font-size:10.5px;color:var(--mute);line-height:1.4;padding:6px 12px 0}
+      /* The badge column is fixed at 60px for the value+badge pair. "+2 on FP" at 10px
+         Montserrat needs about 56px with padding, so the row loses a little from the
+         value column at narrow widths rather than letting the badge wrap. */
+      @media(max-width:420px){ .wi-row{grid-template-columns:16px 24px 1fr 56px 66px;gap:6px;padding:9px 8px} }
       .wi-note{font-size:12px;color:var(--ink2);margin-top:13px;line-height:1.5}
       .wi-note b{color:var(--ink)}
     </style>
@@ -1177,7 +1186,7 @@ function isTeamResultStage(n){ return (RACE_PROFILE.teamResultStages||[]).indexO
       <div class="wi-sub"><b style="text-transform:none;letter-spacing:0">Fantasy Points</b>, the system of record, gives more for a better finish on a top-30 scale, nothing past 30th, and the highest total leads. <b style="text-transform:none;letter-spacing:0">Placement</b> instead adds up each pick's finishing place and the lowest total leads. Here is the current board both ways, with each bar showing how close a manager is to the lead in that system.</div>
       <div class="wi-cols">
         <div class="wi-col"><div class="wi-ch">Fantasy Points &middot; top-30 scale &middot; <b>highest leads</b></div><div id="wiPts"></div></div>
-        <div class="wi-col"><div class="wi-ch">Placement &middot; add up finishes &middot; <b>lowest leads</b></div><div id="wiToday"></div></div>
+        <div class="wi-col"><div class="wi-ch">Placement &middot; add up finishes &middot; <b>lowest leads</b></div><div class="wi-ch2">Badge shows where the seat sits on Fantasy Points, the system of record, against its position here. It is not movement between stages.</div><div id="wiToday"></div></div>
       </div>
       <div class="wi-note" id="wiNote"></div>
     </div>
@@ -3794,7 +3803,7 @@ const PERSONA_BANK = [
   { id:"cooke", tier:"style", rider:"Baden Cooke", epithet:"Cookie",
     fit:S=> S.sprintWins*60 + (S.placePos===2?120:0) + 10,
     blurb:"Cooke beat McEwen to the 2003 green jersey by two points, settled on the Champs-Elysees on the final afternoon.",
-    why:S=> `${S.k} sits ${ordinal(S.placePos)} and close enough that a single stage swings it - the margin is nothing.` },
+    why:S=> `${S.k} sits ${ordinal(S.placePos)} on Placement and close enough that a single stage swings it - the margin is nothing.` },
 
   /* src: https://en.wikipedia.org/wiki/Andr%C3%A9_Greipel */
   { id:"greipel", tier:"style", rider:"Andre Greipel", epithet:"The Gorilla",
@@ -3854,7 +3863,7 @@ const PERSONA_BANK = [
   { id:"voeckler", tier:"style", rider:"Thomas Voeckler", epithet:"The Grimace",
     fit:S=> (S.placePos<=2?110:0) + S.aggro*50 + 15,
     blurb:"Voeckler held the yellow jersey ten days in 2004, far longer than anyone expected, and every kilometer of it showed on his face.",
-    why:S=> `${S.k} is holding ${ordinal(S.placePos)} and defending it the hard way - visible effort, no comfort.` },
+    why:S=> `${S.k} is holding ${ordinal(S.placePos)} on Placement and defending it the hard way - visible effort, no comfort.` },
 
   /* src: https://en.wikipedia.org/wiki/Sylvain_Chavanel */
   { id:"chavanel", tier:"style", rider:"Sylvain Chavanel", epithet:"Monsieur Combatif",
@@ -4191,8 +4200,10 @@ const PERSONA_BY = (function(){
     });
   }catch(e){ /* denied until the rule ships, or a concurrent write won; either is fine */ }
 })();
-/* Palmarès cards: one per rider, ordered by the placement standing, each carrying a
-   profile-pic slot and the running medal count (awards add up across the season). */
+/* Palmarès cards: one per player, ordered by the SYSTEM OF RECORD, which on this race
+   is Fantasy Points, each carrying a profile-pic slot and the running medal count
+   (awards add up across the season). The old note here said placement standing, which
+   stopped being true when the cards moved to fanOrder; the code below is the truth. */
 (function(){
   const el=document.getElementById('palmares'); if(!el) return;
   const merIC='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#B31942" stroke-width="1.7"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="#3C3B6E" stroke-width="1.7"/><path fill="#3C3B6E" d="M12 8.2l1.15 2.33 2.57.37-1.86 1.81.44 2.56L12 14.06l-2.3 1.21.44-2.56-1.86-1.81 2.57-.37z"/></svg>';
@@ -5206,10 +5217,25 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   const bar=(w,c)=>`<span class="wi-track"><span class="wi-fill" style="width:${Math.max(w,6).toFixed(0)}%;background:${c}"></span></span>`;
   // Placement bar is proportional to the actual total (lowest leads), so a bigger
   // number draws a bigger bar - the bar reads the same direction as the score.
-  const rowT=p=>`<div class="wi-row"><span class="wi-rank">${rCur[p]}</span><span class="wi-p" style="color:${COL[p]}">${p}</span>${bar(cur[p]/maxCur*100,COL[p])}<span class="wi-val">${cur[p]} <small>total</small></span></div>`;
-  const rowP=p=>{ const d=rCur[p]-rPts[p];
-    const move=d>0?`<span class="wi-move up">up ${d}</span>`:d<0?`<span class="wi-move down">down ${-d}</span>`:`<span class="wi-move same">holds</span>`;
-    return `<div class="wi-row"><span class="wi-rank">${rPts[p]}</span><span class="wi-p" style="color:${COL[p]}">${p}</span>${bar(pts[p]/leadPts*100,COL[p])}<span class="wi-val">${pts[p]} <small>pts</small></span>${move}</div>`; };
+  /* The comparison badge sits on the PLACEMENT panel, not the Fantasy Points one.
+     Two reasons, and the second decided it.
+     Emphasis: Fantasy Points is the system of record. A delta against Placement on the
+     authoritative panel implies Placement is the baseline, which is backwards. On the
+     Placement panel it reads correctly as "here is how the explore view differs from
+     the board that counts".
+     Rendering: .wi-row already declares five columns for BOTH panels, and the
+     Placement row only ever filled four, so the fifth was reserved and empty. Moving
+     the badge there costs no width at any breakpoint and frees 60px for the bar on the
+     Fantasy Points side. Adding a label to the old position would have widened the
+     tighter panel instead.
+     The arithmetic is untouched: d is still the Placement position minus the Fantasy
+     Points position. Only where it renders and how it is labelled changed. The words
+     up and down are gone because on a leaderboard they read as movement stage over
+     stage, which is what was misread. */
+  const rowT=p=>{ const d=rCur[p]-rPts[p];
+    const move=d>0?`<span class="wi-move up">+${d} on FP</span>`:d<0?`<span class="wi-move down">${d} on FP</span>`:`<span class="wi-move same">level</span>`;
+    return `<div class="wi-row"><span class="wi-rank">${rCur[p]}</span><span class="wi-p" style="color:${COL[p]}">${p}</span>${bar(cur[p]/maxCur*100,COL[p])}<span class="wi-val">${cur[p]} <small>total</small></span>${move}</div>`; };
+  const rowP=p=>`<div class="wi-row"><span class="wi-rank">${rPts[p]}</span><span class="wi-p" style="color:${COL[p]}">${p}</span>${bar(pts[p]/leadPts*100,COL[p])}<span class="wi-val">${pts[p]} <small>pts</small></span></div>`;
   todayEl.innerHTML=PL.slice().sort((a,b)=>cur[a]-cur[b]).map(rowT).join('');
   ptsEl.innerHTML=PL.slice().sort((a,b)=>pts[b]-pts[a]||rCur[a]-rCur[b]).map(rowP).join('');
   if(noteEl){
@@ -5964,4 +5990,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy 20260826-174358Z -->
+<!-- redeploy 20260826-175201Z -->
