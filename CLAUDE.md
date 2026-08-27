@@ -693,6 +693,74 @@ Surfaces checked and left alone, because they are already unambiguous:
 Fixed alongside the badge: two persona lines emitted a bare ordinal off the Placement
 board and now say "3rd on Placement".
 
+## Abandoned riders, and the roster that drives them
+
+Added 2026-08-27. Read this before touching any rider picker.
+
+WHO IS OUT COMES FROM DATA, never a list. The source is the col-break Worker's
+`/roster?stage=N&race=vuelta`, which reads the general classification (`itg`) for the
+most recent stage that HAS one. Chosen over the alternatives for reasons worth keeping:
+
+- `itg` lists who REMAINS in the race, so an abandonment or a time-limit exclusion
+  simply stops appearing. Nothing to maintain and no special case for the time limit.
+- `/roster` already walks BACKWARD up to three stages looking for a classification, so
+  a cancelled stage is skipped by the endpoint. Stage 3 has no `itg` at all and needs
+  no guard here.
+- `/api/pool-state` cannot answer it. It carries pool PICKS, so it knows nothing about
+  the riders nobody drafted.
+- The stage FINISHERS array is deliberately not the source. Absence from one stage's
+  finishers is not abandonment, and using it would produce false positives.
+
+Verified live 2026-08-27: 180 active of 184, resolving exactly Uijtdebroeks 28,
+Kirsch 143, Chumil 194 and van Sintmaartensdijk 208. Belgians available computes to
+17, not 18.
+
+WHAT WAS ALREADY THERE, AND WHY NOTHING WORKED. The whole greyed-out treatment
+existed and had never been wired to anything:
+
+- `.mer-out` (opacity plus grayscale), `.mer-outtag` printing "Abandoned", and the
+  featured slot printing "Abandoned - not selectable" all hang off `u.out`, and
+  NOTHING anywhere set that field.
+- Both chip click handlers already refuse a chip carrying `data-out`.
+- `window.__ACTIVE` was referenced by the draft search filter and NEVER POPULATED, so
+  that guard was dead code and every abandoned rider stayed selectable.
+
+Do not rediscover this. The mechanism is sound; it was only ever missing its input.
+
+HOW IT IS WIRED NOW. A loader sits immediately after `_nrm` in the FIRST board script
+block, so `RIDERS` and `_nrm` are both above it:
+
+- `window.__ACTIVE` is a Set of active bibs, `window.__OUT` the RIDERS rows that are gone.
+- `riderIsOut(name)` maps name to bib through `_BIBMAP` and answers from `__ACTIVE`.
+- `_markOut()` stamps `u.out` on `BELGIAN_RIDERS` and `USA_RIDERS` in place, so every
+  consumer sees it without each render site asking.
+- The loader FAILS SOFT. If the roster cannot be read, `__ACTIVE` stays null,
+  `riderIsOut` returns false, and every rider stays selectable. A board that blocks
+  every pick is worse than one that blocks none.
+- The roster lands AFTER first paint, so the loader repaints the Kasseistampers card,
+  the Merica card and the draft. The draft is repainted unconditionally rather than on
+  `_markOut()`, because `_markOut` only tracks the two side-game rosters and a drafted
+  rider may be in neither.
+
+The draft search SHOWS abandoned riders greyed rather than hiding them, and emits no
+`data-i`, which is what the click handler keys on. A rider vanishing from a familiar
+list reads as a bug; a rider shown as gone reads as information.
+
+A pick locked BEFORE its rider abandoned is never silently changed. It stands exactly
+as drafted and is flagged, in the completed-draft mini bar and in the live ticker, so
+the seat knows before the stage is scored rather than after.
+
+## Where the site update stands, 2026-08-27
+
+Allen's numbering, recorded as his rather than as a verified finding: of the full site
+update, JOB 2 is the abandoned-rider work above and is COMPLETE. JOBS 1, 3, 4, 5 and 6
+are UNSTARTED. The session that wrote this did not hold that six-job list and cannot
+name those five jobs; get the list from Allen before assuming what they are.
+
+`SESSION-HANDOFF.md` in this repo carries the other open items, including the
+positional-ambiguity audit that is only partly done and the automation phases. Delete
+that file once its items close.
+
 ## Per-race scoring profiles
 
 The two races do NOT score the same way. Never apply one race's rule to the other.

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260827-131050Z -->
+<head><!-- build:20260827-172233Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -963,6 +963,13 @@ function isTeamResultStage(n){ return (RACE_PROFILE.teamResultStages||[]).indexO
       #draftMount .ac-item:first-child,#jerseyPreds .ac-item:first-child{border-top:none}#draftMount .ac-item:hover,#jerseyPreds .ac-item:hover{background:var(--paper)}
       #draftMount .ac-av,#jerseyPreds .ac-av{width:30px;height:30px;border-radius:50%;object-fit:cover;flex:none;background:var(--line2)}
       #draftMount .ac-rn,#jerseyPreds .ac-rn{font-weight:600;font-size:14px}#draftMount .ac-rt,#jerseyPreds .ac-rt{color:var(--mute);font-size:12px;margin-left:auto}
+      /* A locked pick whose rider has abandoned. Dimmed but NOT hidden and NOT
+         removed: the pick still stands and still counts as one of the seat's two, so
+         the board says so rather than quietly tidying it away. */
+      #draftMount .mb-av.mb-gone{filter:grayscale(1);opacity:.6;position:relative}
+      #draftMount .mb-av .mb-x{position:absolute;right:-2px;bottom:-2px;width:14px;height:14px;border-radius:50%;background:#b21f2b;color:#fff;font-family:'Montserrat',sans-serif;font-weight:800;font-size:10px;line-height:14px;text-align:center}
+      #draftMount .tnode-gone{opacity:.72}
+      #draftMount .tgone{font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-size:8.5px;color:#b21f2b;text-align:center;margin-top:2px}
       #draftMount .ac-gone,#jerseyPreds .ac-gone{opacity:.55;filter:grayscale(1);cursor:not-allowed}
       #draftMount .ac-gone:hover,#jerseyPreds .ac-gone:hover{background:#fff}
       #draftMount .ac-gone .ac-rt,#jerseyPreds .ac-gone .ac-rt{color:#b21f2b;font-weight:700;margin-left:auto}
@@ -1626,10 +1633,14 @@ function _markOut() {
         if (!d || !Array.isArray(d.activeBibs) || !d.activeBibs.length) return;
         window.__ACTIVE = new Set(d.activeBibs);
         window.__OUT = (typeof RIDERS !== 'undefined' ? RIDERS : []).filter(function (r) { return r.b != null && !window.__ACTIVE.has(r.b); });
-        if (_markOut()) {
-          try { if (typeof renderKassei === 'function') renderKassei(); } catch (e) { }
-          try { if (typeof renderMerica === 'function') renderMerica(); } catch (e) { }
-        }
+        /* The roster lands after the first paint, so every surface that shows a
+           rider has to be told. The draft is repainted unconditionally rather than
+           on _markOut(), because _markOut only tracks the two side-game rosters and
+           a drafted rider may be in neither. */
+        _markOut();
+        try { if (typeof renderKassei === 'function') renderKassei(); } catch (e) { }
+        try { if (typeof renderMerica === 'function') renderMerica(); } catch (e) { }
+        try { if (typeof renderDraft === 'function' && typeof draft !== 'undefined' && draft) renderDraft(); } catch (e) { }
       }).catch(function () { });
   } catch (e) { }
 })();
@@ -2826,7 +2837,12 @@ function renderMini(picks){
   picks.slice(0,SNAKE.length).forEach(pk=>{
     const col=pk.color||'#888';
     const img=pk.photo?`<img src="${esc(pk.photo)}" onerror="this.remove()">`:'';
-    avs+=`<span class="mb-av"${img?` style="border-color:${col}"`:''} title="${esc(pk.rider)} (${pk.player})">${img}${img?'':`<span class="mfb" style="background:${col}">${pk.player}</span>`}</span>`;
+    /* A pick locked before the rider abandoned is NEVER silently changed. It stays
+       exactly as drafted and is flagged instead, so the seat knows before the stage
+       is scored rather than after. riderIsOut is false until the roster loads, so
+       nothing is marked on a failed or slow fetch. */
+    const gone=(typeof riderIsOut==='function')&&riderIsOut(pk.rider);
+    avs+=`<span class="mb-av${gone?' mb-gone':''}"${img?` style="border-color:${col}"`:''} title="${esc(pk.rider)} (${pk.player})${gone?' - out of the race, this pick is locked and will score nothing':''}">${img}${img?'':`<span class="mfb" style="background:${col}">${pk.player}</span>`}${gone?'<span class="mb-x">!</span>':''}</span>`;
   });
   $('draftMount').innerHTML=`<div class="draft mini"><div class="minibar">`+
     `<div class="mb-t"><span class="mb-ico"><svg viewBox="0 0 40 40" fill="none"><path d="M4 31 L15 13 L21 22 L27 9 L36 31 Z" fill="#c8102e"/><circle cx="27" cy="9" r="3.2" fill="#c8102e"/></svg></span>Stage ${esc(STAGE)} draft locked</div>`+
@@ -2848,7 +2864,9 @@ function renderDraft(){
   if(done && picks.length){ renderMini(picks); return; }
   let nodes='';
   for(let i=0;i<SNAKE.length;i++){ if(i===ORDER.length) nodes+='<div class="tgap"></div>';
-    if(i<picks.length){ const pk=picks[i]; nodes+=`<div class="tnode">${riderAv({r:pk.rider,c:pk.color||'#888',p:pk.photo},false)}<div class="tcap"><b style="color:${PMETA[pk.player].c}">#${i+1}</b>${pk.player}</div><div class="tname">${esc(pk.rider)}</div></div>`; }
+    if(i<picks.length){ const pk=picks[i];
+      const gone=(typeof riderIsOut==='function')&&riderIsOut(pk.rider);
+      nodes+=`<div class="tnode${gone?' tnode-gone':''}">${riderAv({r:pk.rider,c:pk.color||'#888',p:pk.photo},false)}${gone?'<div class="tgone">Out of the race</div>':''}<div class="tcap"><b style="color:${PMETA[pk.player].c}">#${i+1}</b>${pk.player}</div><div class="tname">${esc(pk.rider)}</div></div>`; }
     else { const qi=i-picks.length, player=queue[qi], clk=(qi===0&&!pending); nodes+=`<div class="tnode">${riderAv(null,true,clk,player)}<div class="tcap"><b style="color:${PMETA[player].c}">#${i+1}</b>${player}</div></div>`; } }
   let badge = pending?'<span class="dh-badge badge-pending">Not started</span>':(done?`<span class="dh-badge badge-done">All ${picks.length} in</span>`:`<span class="dh-badge badge-clock">${PMETA[clock].n} on the clock<span id="drClockTimer" style="font-variant-numeric:tabular-nums;font-weight:800;letter-spacing:.02em"></span></span>`);
   const sub = pending?`Snake draft · opens on ${PMETA[leadoff].n}'s first pick`:(done?'Snake draft · complete':'Snake draft · live');
@@ -6053,4 +6071,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy 20260827-131050Z -->
+<!-- redeploy 20260827-172233Z -->
