@@ -66,13 +66,16 @@ private one.
    for `ordinal(` does not catch. The rule is in CLAUDE.md.
 
 7. **Phase 4 monitors.** Never started. Specced: break feed race label matches the
-   configured race, deployed Worker matches repo source, standings from stage docs
-   match what the board renders, the scale constant appears once per board, no
+   configured race, deployed Worker matches repo source, the deployed Firestore
+   ruleset matches `firestore.rules` in the repo, standings from stage docs match
+   what the board renders, the scale constant appears once per board, no
    wrong-race strings in the active board.
 
-8. **The persona ledger rule is unpublished**, so persistence is inert for players
-   and works only for the owner session. Exact rules text is in CLAUDE.md, including
-   the `hasOnly(['personaLedger'])` weakness.
+8. **The persona ledger rule is PUBLISHED.** CLOSED 2026-08-27, ruleset `403efc66`
+   at 20:54:38Z. Persistence is live for all four seats, not just the owner session.
+   The published rule is the SHORT form and omits the shape checks the CLAUDE.md draft
+   carried, so nothing constrains what `personaLedger` may contain. Restoring those
+   four lines is a repo edit plus `firebase deploy --only firestore:rules`.
 
 9. **The Tour pool has no `boardConfig.predictionsThroughStage`.** Since the deadline
    now fails CLOSED, its jersey predictions will never auto-reveal until one is set.

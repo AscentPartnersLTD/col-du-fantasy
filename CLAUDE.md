@@ -145,6 +145,74 @@ deployed the Worker, and it never did, which is how the live Worker ran the July
 18 build while the repo looked correct. Any `worker4.js` change needs the command
 run before it is live, and the repo cannot tell you whether it was.
 
+The Firestore security rules are the THIRD thing that does not deploy on push, and
+they behave like the Worker, not like the board. `firestore.rules` in the repo root is
+the source of truth as of 2026-08-27. Publishing it is a hand command from the repo
+root:
+
+```
+firebase deploy --only firestore:rules
+```
+
+That reads `firebase.json`, which points at `firestore.rules`, and `.firebaserc`,
+which names the project `col-du-fantasy`, so no flags are needed. Unlike the Worker,
+this is NOT a stored API token. It needs Allen's own Firebase login as the owner
+account `allen@ascentpartnersltd.com`, because the rules API authorizes against the
+signed-in user and there is no token equivalent set up.
+
+Logging in on Gerald has one trap worth reading before you repeat the wrangler
+mistake. `firebase login` and `firebase login --no-localhost` BOTH end with the same
+libuv assertion that kills `wrangler login`:
+
+```
+Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c, line 76
+```
+
+It is NOT the OAuth callback server, because `--no-localhost` never starts one. It is
+this machine, and it fires at process teardown AFTER the work is finished. So unlike
+wrangler, firebase login does work here. Use:
+
+```
+firebase login --no-localhost
+```
+
+It prints a session ID and a URL, writes the pending session synchronously to
+`C:\Users\bogie\.config\configstore\firebase-tools.json`, and then crashes. The
+pending state survives the crash. Visit the URL, approve, and finish in a fresh
+process with `firebase login <authorizationCode>`. Two gotchas: the printed URL is
+HTML-escaped in some terminals, so every `&amp;` has to become `&` or the link fails,
+and a crash AFTER "Success! Logged in" still means the credentials landed. Confirm
+from the configstore, not from what the CLI printed.
+
+Never publish rules from the Firebase console. Read the live ruleset through the rules
+API, diff it against the repo copy, and deploy the repo copy. The console is what put
+a hand edit in the loop in the first place, and it is also the only path that can
+change the live rules without leaving a trace in this repo.
+
+## What the pools block contains
+
+Read this before editing `firestore.rules`. The `pools/{poolId}` match block is where
+every hand edit has gone wrong. As published on 2026-08-27 it holds four statements,
+in this order:
+
+- `allow read` for the owner, or any signed-in address in `resource.data.members`.
+- `allow write` for the owner only.
+- `allow update` scoped with `hasOnly(['predictionsLocked'])`, which additionally
+  requires the flag to be set true and all four prediction docs, JJ, JB, JP and AA, to
+  exist.
+- `allow update` scoped with `hasOnly(['personaLedger'])`, which requires only
+  `inPool(poolId)`.
+
+Multiple `allow update` statements are ORed, which is why the two scoped updates sit
+alongside `allow write: if owner()` without either weakening the other. The owner
+keeps blanket write; a member gets exactly those two narrow fields and nothing else.
+
+The `predictionsLocked` statement is ONE line that wraps across about five visual rows
+in the console editor, and clicking what looks like its end lands mid-statement. That
+is exactly how it got split in half by hand on 2026-08-27. That edit was never
+published and the live ruleset was intact, but the next one would not be. This is the
+reason the rules are in the repo at all.
+
 ## Verify live
 
 GitHub Pages takes one to two minutes to rebuild, and the CDN then serves the old
@@ -642,12 +710,18 @@ are no pins, so there are no movers and the ladder is never reached. AA badger,
 JP professor, JJ tonymartin, JB eternalsecond stands as the engine wrote it. Simulating
 JJ overtaking JP re-draws all four and reuses nothing from the ledger.
 
-## The persona ledger is INERT until a rule is published
+## The persona ledger rule, PUBLISHED 2026-08-27
+
+This section used to say the ledger was inert. It no longer is. The rule went live in
+ruleset `403efc66` at 2026-08-27T20:54:38Z, published by hand from the console, and it
+is now carried in `firestore.rules` in this repo.
 
 The persistence has been in the board since commit `9455c5f` (2026-08-21) and was
-never removed. It is not missing code. It is code whose write is DENIED, silently,
-because no Firestore rule permits it, and the failure is swallowed on purpose so the
-board behaves exactly as it does today.
+never removed. Between those two dates it was not missing code, it was code whose
+write was DENIED, silently, because no Firestore rule permitted it, and the failure is
+swallowed on purpose so the board behaves normally either way. That swallowing is why
+the rule being absent was invisible for six days, and it is why the only trustworthy
+check is reading the live ruleset, never the board's behavior.
 
 What it does when permitted: writes `order`, `by` and `seen` together in a
 `runTransaction`, and ONLY when the computed assignment or the stored order differs
@@ -658,20 +732,32 @@ Both halves are compared, not just `by`: if the standings moved but the re-draw 
 on the same names, snapshotting only `by` would leave the old order in place and every
 later load would re-draw forever.
 
-The rule to publish, in the `pools/{poolId}` match block:
+The rule AS PUBLISHED, in the `pools/{poolId}` match block, is the short form:
 
 ```
-allow update: if request.auth != null
-  && request.auth.token.email in resource.data.members
-  && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personaLedger'])
+allow update: if inPool(poolId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personaLedger']);
+```
+
+That is NOT the longer rule this section used to propose. The version drafted here,
+and never published, also constrained the shape:
+
+```
   && request.resource.data.personaLedger.keys().hasOnly(['order','by','seen'])
   && request.resource.data.personaLedger.order is list
   && request.resource.data.personaLedger.by is map
   && request.resource.data.personaLedger.seen is map;
 ```
 
+Those four lines are absent from the live rule. `inPool(poolId)` is equivalent to the
+drafted `request.auth != null && email in members`, so the caller check is unchanged,
+but nothing now constrains what `personaLedger` may contain. A member can write it as
+a string, a number, or a map with any keys at all, and the rules will allow it. The
+board reads `order`, `by` and `seen` and would break on a malformed ledger rather than
+reject it.
+
 KNOWN WEAKNESS, accepted rather than overlooked: `hasOnly(['personaLedger'])` scopes
-the write to that one field but says nothing about WHOSE part of it is being written.
+the write to that one field but says nothing about WHOSE part of it is being written,
+and, in the short form actually published, nothing about its SHAPE either.
 Any pool member can rewrite the whole ledger, including another seat's `by` and `seen`
 history. Firestore rules cannot cheaply constrain a per-seat sub-map without naming
 every seat, so a member could wipe or forge another seat's persona history. In a
@@ -679,8 +765,10 @@ private four-person pool that is a reasonable trade, but it is a trade, and it s
 be made on purpose. Tightening it means enumerating the seats in the rule and checking
 that only the caller's own key changed.
 
-Until this is published, every rotation stays a hand edit in the console and drifts the
-moment nobody does it. That is the actual problem the persistence solves.
+Tightening this is a rules edit in the repo followed by
+`firebase deploy --only firestore:rules`, not a console visit. Restoring the four
+shape lines is the cheap half and costs nothing; per-seat scoping is the expensive
+half and needs the seats enumerated.
 
 ## Void stages COUNT for Allegiances and the Arlequin
 

@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function em() { return request.auth.token.email; }
+    function owner() { return signedIn() && em() == 'allen@ascentpartnersltd.com'; }
+
+    function hasRoster() { return exists(/databases/$(database)/documents/config/roster); }
+    function roster()    { return get(/databases/$(database)/documents/config/roster).data; }
+    function isPlayer()   { return signedIn() && hasRoster() && (em() in roster().players); }
+    function isReviewer() { return signedIn() && hasRoster() && (em() in roster().reviewers); }
+    function isMember()   { return owner() || isPlayer() || isReviewer(); }
+
+    match /config/{doc} {
+      allow read:  if signedIn();
+      allow write: if owner();
+    }
+    match /drafts/{stage} {
+      allow read:  if isMember();
+      allow write: if isPlayer() || owner();
+    }
+    match /engagement/{doc} {
+      allow read:          if isMember();
+      allow create, update: if signedIn() && doc == em();
+      allow delete:        if owner();
+    }
+
+    function poolCfg(poolId)    { return get(/databases/$(database)/documents/pools/$(poolId)).data; }
+    function poolExists(poolId) { return exists(/databases/$(database)/documents/pools/$(poolId)); }
+    function inPool(poolId)     { return signedIn() && poolExists(poolId) && (em() in poolCfg(poolId).members); }
+    function poolMember(poolId) { return owner() || inPool(poolId); }
+    function poolSeat(poolId)    { return poolCfg(poolId).members[em()]; }
+    function predsLocked(poolId) { return poolCfg(poolId).predictionsLocked == true; }
+
+    match /pools/{poolId} {
+      allow read:  if owner() || (signedIn() && em() in resource.data.members);
+      allow write: if owner();
+      allow update: if inPool(poolId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['predictionsLocked']) && request.resource.data.predictionsLocked == true && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JJ) && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JB) && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JP) && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/AA);
+      allow update: if inPool(poolId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personaLedger']);
+      match /drafts/{stage} {
+        allow read:  if poolMember(poolId);
+        allow write: if poolMember(poolId);
+      }
+      match /stages/{stage} {
+        allow read:  if poolMember(poolId);
+        allow write: if owner();
+      }
+      match /engagement/{doc} {
+        allow read:           if poolMember(poolId);
+        allow create, update: if inPool(poolId) && doc == em();
+        allow delete:         if owner();
+      }
+      match /predictions/{seat} {
+      allow read:  if poolMember(poolId) && ( poolSeat(poolId) == seat || predsLocked(poolId) );
+      allow write: if inPool(poolId) && poolSeat(poolId) == seat && !predsLocked(poolId);
+      }
+          }
+
+    match /userPools/{uid} {
+      allow read:  if signedIn() && (uid == em() || owner());
+      allow write: if owner() || (signedIn() && uid == em());
+    }
+
+    match /race/{doc=**} {
+      allow read:  if signedIn();
+      allow write: if owner();
+    }
+
+  }
+}
