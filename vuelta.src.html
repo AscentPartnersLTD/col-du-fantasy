@@ -453,6 +453,11 @@ function isTeamResultStage(n){ return (RACE_PROFILE.teamResultStages||[]).indexO
   .medal.win{background:#eef4ef;color:#2f7d4f}
   .medal.zero{background:#f3f1ea;color:#b7b1a3}
   .medal.mer{background:#eef1f8}
+  .medal.goose{background:#f4f2ec;color:#7a6f57}
+  .medal.goose.zero{background:#f3f1ea;color:#b7b1a3}
+  .goose-stamp{display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:1px 5px 1px 4px;border-radius:999px;background:#efece3;color:#7a6f57;vertical-align:1px}
+  .goose-stamp svg{width:11px;height:11px;flex:none}
+  .goose-stamp i{font-style:normal;font-family:'Montserrat',sans-serif;font-weight:800;font-size:8.5px;letter-spacing:.05em;text-transform:uppercase}
   .medal.mer.zero{background:#f3f1ea}
   .medal.mer.zero svg circle{stroke:#c2bcae}
   .medal.mer.zero svg path{fill:#c2bcae}
@@ -1347,6 +1352,31 @@ function isTeamResultStage(n){ return (RACE_PROFILE.teamResultStages||[]).indexO
       <div class="msub">Top Belgian of the stage. Back the day's best-placed Belgian call to earn a cobble; most cobbles at season's end takes the Koning der Kasseistampers jersey. Named for the cobblestone stampers of Aarschot - night-watchmen who stamped their clogs on the pave to sound busy while they slipped back to the pub.</div>
       <div id="kasseiTracker"></div>
     </div>
+    <h2 class="eyebrow mt">The Double Goose</h2>
+    <style>
+      .goose-bar{display:flex;gap:18px;align-items:center;background:linear-gradient(135deg,#2b2721,#3d372d);border:1px solid #221f1a;border-radius:14px;padding:16px 20px;margin-bottom:18px;box-shadow:var(--sh)}
+      .goose-bar .g-emblem{flex:none;display:flex;gap:8px;align-items:flex-end}
+      .goose-bar .g-emblem img{border-radius:9px;background:#f0ede4;box-shadow:0 4px 12px rgba(0,0,0,.3);display:block}
+      .goose-bar .g-jfront{width:104px;height:auto}
+      .goose-bar .g-jback{width:62px;height:auto;margin-bottom:2px}
+      .goose-bar .g-body{flex:1;min-width:0}
+      .goose-bar .g-h{font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:#f4ecd8;letter-spacing:.02em}
+      .goose-bar .g-tag{font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:10.5px;color:#e8c96a;margin:3px 0 7px}
+      .goose-bar .g-sub{font-size:11.5px;color:#cfc7b8;margin:3px 0 12px;line-height:1.45;max-width:640px}
+      .goose-bar .g-hold{font-family:'Montserrat',sans-serif;font-weight:800;font-size:12.5px;color:#e8c96a;margin:0 0 11px}
+      .goose-bar .g-rows{display:flex;flex-direction:column;gap:7px}
+      .goose-bar .g-row{display:grid;grid-template-columns:18px 116px 1fr 56px;align-items:center;gap:10px}
+      .goose-bar .g-pos{font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;color:#a2988a;text-align:center}
+      .goose-bar .g-row.lead .g-pos{color:#e8c96a}
+      .goose-bar .g-nm{font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;color:#f4ecd8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .goose-bar .g-track{position:relative;background:rgba(255,255,255,.12);border-radius:6px;height:12px;overflow:hidden}
+      .goose-bar .g-fill{display:block;height:100%;border-radius:6px}
+      .goose-bar .g-val{font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#f4ecd8;text-align:right;font-variant-numeric:tabular-nums}
+      .goose-bar .g-val .g-ck{display:inline-block;width:12px;height:12px;color:#e8c96a;margin-left:3px;vertical-align:-1px}
+      .goose-bar .g-when{font-size:11px;color:#a2988a;line-height:1.5;margin-top:11px}
+      @media(max-width:560px){.goose-bar{flex-direction:column;align-items:stretch}.goose-bar .g-emblem{align-self:center}.goose-bar .g-row{grid-template-columns:16px 76px 1fr 50px}}
+    </style>
+    <div class="goose-bar" id="gooseBar"></div>
     <div class="metricbox" id="tiltBox" style="margin-top:14px">
       <style>
         #tiltBox .tilt-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
@@ -3799,6 +3829,86 @@ const KASSEI_TALLY = (function(){
   return T;
 })();
 
+/* ---- The Double Goose ----
+   A goose egg is a zero and a double goose is both of them: a seat whose two picks
+   returned ZERO Fantasy Points on a scored stage, meaning neither rider finished inside
+   the scale. Worn with rueful pride, like the Lanterne Rouge, not as a punishment.
+
+   ONE computation, hoisted here so the palmares medals, the stage cards, the season
+   board and The Numbers all read the same table and cannot drift apart. Same discipline
+   as KASSEI_TALLY above and FP_SCALE at the top: a second copy of a scoring rule is how
+   the Fantasy Points scale ended up wrong on two widgets for days.
+
+   Three rules that each have to be explicit, because each one is a way for the mark to
+   lie about what happened:
+
+   1. Only a SCORED stage can produce one. COMPLETED already filters on
+      !voidStage && days, so a cancelled stage scores nothing and therefore cannot be
+      zero. Vuelta 2026 stage 3 is the live case: all four seats drafted, the hail
+      cancelled it, and NOBODY takes a goose for it.
+   2. A seat that missed its picks entirely does NOT get one. A missed pick is scored one
+      slot behind the worst real pick of the day, so it lands far outside the scale and
+      would otherwise fall straight through into a goose. That is a different failure and
+      conflating the two muddies the award. A seat with at least one REAL pick stays
+      eligible; if that boundary ever needs to move, it moves here and nowhere else.
+   3. Nothing is stored per stage. This recomputes from the stage data on every render,
+      so a rescored stage corrects itself instead of carrying a stale mark.
+
+   Race-neutral: the scale comes from FP_SCALE, which comes from RACE_PROFILE, so this
+   travels to the Giro and the Tour with no edit. */
+const GEESE = (function(){
+  const ridOf = pk => Array.isArray(pk) ? pk[0] : (pk && pk.r);
+  const finOf = pk => Array.isArray(pk) ? pk[1] : (pk && pk.f);
+  const isMissed = r => !r || /missed/i.test(r);
+  const byStage = {}, stages = {}, count = {};
+  PL4.forEach(p => { stages[p] = []; count[p] = 0; });
+  COMPLETED.forEach(n => {
+    const st = STAGES.find(x => x.n === n);
+    if(!st || !st.picks) return;
+    PL4.forEach(p => {
+      const picks = st.picks[p] || [];
+      if(!picks.length) return;
+      if(!picks.some(pk => !isMissed(ridOf(pk)))) return;   // missed entirely, rule 2
+      let fp = 0;
+      picks.forEach(pk => { const f = finOf(pk); if(typeof f === 'number') fp += (FP_SCALE[f] || 0); });
+      if(fp !== 0) return;
+      (byStage[n] = byStage[n] || []).push(p);
+      stages[p].push(n);
+      count[p]++;
+    });
+  });
+  /* Longest run of consecutive SCORED stages carrying a goose. Consecutive is measured
+     over COMPLETED, not over raw stage numbers, because a void stage in between is not a
+     stage anyone survived; it is a stage that never scored. */
+  const runs = {};
+  PL4.forEach(p => {
+    let best = 0, cur = 0, curStart = null, bestStart = null, bestEnd = null;
+    COMPLETED.forEach(n => {
+      if(stages[p].indexOf(n) >= 0){
+        if(!cur) curStart = n;
+        cur++;
+        if(cur > best){ best = cur; bestStart = curStart; bestEnd = n; }
+      } else cur = 0;
+    });
+    runs[p] = {len:best, from:bestStart, to:bestEnd};
+  });
+  const total = PL4.reduce((a,p) => a + count[p], 0);
+  const max = Math.max(0, ...PL4.map(p => count[p]));
+  const leaders = PL4.filter(p => count[p] === max && max > 0);
+  const runMax = Math.max(0, ...PL4.map(p => runs[p].len));
+  const runLeaders = PL4.filter(p => runs[p].len === runMax && runMax > 1);
+  /* Size of the scoring scale, read from the scale itself so the copy names the right
+     number on any race: 30 on the Vuelta, 15 on the Tour. */
+  const scaleN = Math.max(0, ...Object.keys(FP_SCALE).map(Number).filter(n => FP_SCALE[n] > 0));
+  return {byStage, stages, count, total, max, leaders, runs, runMax, runLeaders, scaleN,
+          on:(n,c) => (byStage[n] || []).indexOf(c) >= 0};
+})();
+
+/* Flat egg mark. An open outline reads as an egg AND as a zero at 20px, which is the
+   whole joke, and it survives being drawn at 11px on a stage row. Deliberately not a
+   bird: a bird at this size is a smudge. */
+const GOOSE_IC = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.1" d="M12 3.3c3.4 0 6.2 5 6.2 9.1 0 4.2-2.8 7.1-6.2 7.1s-6.2-2.9-6.2-7.1c0-4.1 2.8-9.1 6.2-9.1z"/></svg>';
+
 /* ---- Dynamic persona engine ----
    Each player is scored against every persona from their current pool profile, then
    matched greedily (highest fit first, one persona each). Every persona is a positive
@@ -4385,6 +4495,7 @@ const PERSONA_BY = (function(){
     if(prix) hb.push(prix+'× Premio');
     if(WINS_BY[k]) hb.push(WINS_BY[k]+'× '+(WINS_BY[k]===1?'Stage win':'Stage wins'));
     if(MER[k]) hb.push(MER[k]+"× Kasseistampers");
+    if(GEESE.count[k]) hb.push(GEESE.count[k]+'× Double Goose');
     const curLine=hb.length?hb.join(' · '):'No honours yet - the Vuelta is where it starts';
     /* Jerseys Awarded trophy view: the classification jerseys this player carries across
        races, from the CDF.carriedJerseys map (Firestore). Icons from JERSEY_ICONS. */
@@ -4411,6 +4522,7 @@ const PERSONA_BY = (function(){
         <span class="medal prix${prix?'':' zero'}">${prixIC}<b>${prix}</b><span>Premio</span></span>
         <span class="medal win${WINS_BY[k]?'':' zero'}">${winIC}<b>${WINS_BY[k]}</b><span>${WINS_BY[k]===1?'Win':'Wins'}</span></span>
         <span class="medal mer${MER[k]?'':' zero'}"><img src="/emblem-belgium.png" alt="" style="width:18px;height:18px;object-fit:contain;vertical-align:-3px"><b>${MER[k]}</b><span>Cobbles</span></span>
+        <span class="medal goose${GEESE.count[k]?'':' zero'}" title="Double Goose: both picks scored nothing">${GOOSE_IC}<b>${GEESE.count[k]}</b><span>Geese</span></span>
       </div>
       ${story?`<details class="pc-story-d"><summary>My Rider Profile<span class="jtog"></span></summary><div class="pc-story">${story}</div></details>`:''}
       ${jerseysHtml}
@@ -4501,7 +4613,7 @@ function stageCard(st){
         return mode==='points' ? b.total-a.total : a.total-b.total;
       });
       const rows=rowsData.map(r=>`<tr>
-          <td class="plr">${r.k}</td>
+          <td class="plr">${r.k}${GEESE.on(st.n,r.k)?`<span class="goose-stamp" title="Double Goose: both picks finished outside the top ${GEESE.scaleN}">${GOOSE_IC}<i>Goose</i></span>`:''}</td>
           <td>${r.detail}</td>
           <td class="r sum">${r.total!==null?r.total:'-'}</td></tr>`).join('');
       const lab = mode==='points' ? 'Fantasy pts' : 'Day total';
@@ -4810,7 +4922,10 @@ const PROF=(function(){
         const t=teamOf(r); if(t) P[c].teamsScored.add(t);
       });
       if(fins.length===2) P[c].spreads.push(Math.abs(fins[0]-fins[1]));
-      if(dayFP===0&&fins.length) P[c].zeroDays.push({n:st.n,place:(st.days&&st.days[c]),picks:pk.map(x=>({r:ridOf(x),f:finOf(x)}))});
+      /* Read the hoisted GEESE table rather than re-deriving the test here. This used
+         to be dayFP===0 && fins.length, which also caught a seat that missed both picks,
+         because a missed pick still carries a finish number. GEESE excludes those. */
+      if(GEESE.on(st.n,c)) P[c].zeroDays.push({n:st.n,place:(st.days&&st.days[c]),picks:pk.map(x=>({r:ridOf(x),f:finOf(x)}))});
       if(st.kassei&&(st.kassei.correct||[]).indexOf(c)>=0) P[c].cobbles++;
     });
   });
@@ -4950,8 +5065,38 @@ const DP_COMPUTED=(function(){
     const others=[];
     SC.forEach(s=>PL4.forEach(c=>{ if(s.days&&s.days[c]!=null&&!(zeros.some(z=>z.n===s.n&&z.c===c))) others.push(s.days[c]); }));
     const typical=others.length?Math.round(others.reduce((a,b)=>a+b,0)/others.length):null;
-    out.push({type:'standing',k:'Zero days, and what the floor saved',v:zeros.length,small:true,
-      d:lines.join(' ')+(typical!=null?' A normal day runs about '+typical+' on Placement, so those are the worst days anyone has had by a wide margin. The top-30 scale caps the loss at zero, which is the floor doing its job.':'')});
+    out.push({type:'standing',k:'Double Geese across the pool, and what the floor saved',v:zeros.length,small:true,
+      d:lines.join(' ')+(typical!=null?' A normal day runs about '+typical+' on Placement, so those are the worst days anyone has had by a wide margin. The top-'+GEESE.scaleN+' scale caps the loss at zero, which is the floor doing its job.':'')});
+  }
+
+  /* 2b. The Double Goose: who leads it, and the longest run of them. Both read the
+         hoisted GEESE table, so they agree with the season board and the stage stamps. */
+  if(GEESE.total){
+    const gdetail=c=>GEESE.stages[c].map(n=>{
+      const st=SC.filter(s=>s.n===n)[0]||{};
+      const pk=PROF.picksOf(st,c).map(x=>PROF.ridOf(x)+' '+ord(PROF.finOf(x))).join(' and ');
+      const took=st.combatif&&PROF.picksOf(st,c).some(x=>_nrm(PROF.ridOf(x))===_nrm(st.combatif));
+      const side=st.combatif?(took?', taking the Premio the same day with '+st.combatif
+                                   :', on a day the Premio went to '+st.combatif):'';
+      return 'Stage '+n+', '+pk+side;
+    }).join('. ');
+    const lead=GEESE.leaders.length===1
+      ? GEESE.leaders[0]+' holds it with '+GEESE.max
+      : GEESE.leaders.join(' and ')+' are tied on '+GEESE.max+', and a tie shares the jersey';
+    const rest=PL4.filter(c=>GEESE.count[c]>0&&GEESE.leaders.indexOf(c)<0)
+      .map(c=>c+' '+GEESE.count[c]).join(', ');
+    const none=PL4.filter(c=>!GEESE.count[c]);
+    out.push({type:'standing',k:'Double Goose, current leader',v:GEESE.max,
+      d:lead+'. '+GEESE.leaders.map(gdetail).join('. ')+'.'
+        +(rest?' Then '+rest+'.':'')
+        +(none.length?' '+none.join(' and ')+(none.length===1?' has':' have')+' not taken one.':'')});
+    if(GEESE.runMax>1){
+      const rl=GEESE.runLeaders;
+      const r=GEESE.runs[rl[0]];
+      out.push({type:'standing',k:'Most Double Geese in a row',v:GEESE.runMax+' stages',
+        d:(rl.length===1?rl[0]:rl.join(' and '))+' took one on Stage '+r.from+' and again on Stage '+r.to
+          +', back to back across scored stages. Counted over stages that actually scored, so a cancelled stage neither breaks a run nor extends one.'});
+    }
   }
 
   /* 3. Maillot Arlequin. Counts EVERY stage including void ones, because the picks
@@ -5287,6 +5432,31 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   const wrows=watch.map(s=>{const cor=(s.kassei.correct||[]).map(nameOf);const who=cor.length?cor.join(', '):'no call took it';return `<div class="mt-wrow"><span class="mt-wn">St ${s.n}</span><span class="mt-wr">${s.kassei.top} <em>${ord(s.kassei.f)}</em></span><span class="mt-ww">${who}</span></div>`;}).join('');
   el.innerHTML=`<div class="mt-top">${PRIZE}<div class="mt-tally"><div class="mt-hold"><span class="mt-holdlab">Current holder</span><span class="mt-holdnm">${holderTxt}</span></div>${tally}</div></div>${watch.length?`<div class="mt-watch"><div class="mt-wlab">Stage-by-stage Belgian watch</div>${wrows}</div>`:''}`+kasAnthemHTML();
 }catch(e){ console.error('kassei tracker',e); } })();
+
+/* Double Goose season board. Same markup shape as the Maillot Arlequin bar, reading the
+   hoisted GEESE table so it can never disagree with the palmares medals or the stage
+   stamps. Most geese takes the jersey and a tie shares it. */
+(function(){ try{
+  const el=document.getElementById('gooseBar'); if(!el) return;
+  const PL=(CDF.seats||CDF.order).slice();
+  const COL=(function(){var _p=['#c9971a','#26347e','#2f8f52','#cf2530'],_s=CDF.order.slice().sort(),o={};_s.forEach(function(c,i){o[c]=_p[i%_p.length];});return o;})();
+  const nameOf=c=>(CDF.names&&CDF.names[c])||c;
+  const max=GEESE.max;
+  const board=PL.map(p=>({p,n:GEESE.count[p]})).sort((a,b)=>b.n-a.n||a.p.localeCompare(b.p));
+  const holder = max===0
+    ? 'Nobody has taken one yet'
+    : (GEESE.leaders.length===1
+        ? nameOf(GEESE.leaders[0])+' leads with '+max
+        : GEESE.leaders.map(nameOf).join(' & ')+' share the lead at '+max);
+  const rows=board.map((b,i)=>{
+    const pct=max>0?Math.round(b.n/max*100):0, lead=max>0&&b.n===max;
+    return `<div class="g-row${lead?' lead':''}"><span class="g-pos">${i+1}</span><span class="g-nm">${nameOf(b.p)}</span><span class="g-track"><span class="g-fill" style="width:${Math.max(pct,4)}%;background:${COL[b.p]||'#c9971a'}"></span></span><span class="g-val">${b.n}${lead?'<span class="g-ck">'+GOOSE_IC+'</span>':''}</span></div>`;
+  }).join('');
+  const listStages=a=>a.length===1?('Stage '+a[0]):('Stages '+a.slice(0,-1).join(', ')+' and '+a[a.length-1]);
+  const when=board.filter(b=>b.n>0).map(b=>nameOf(b.p)+' on '+listStages(GEESE.stages[b.p])).join('. ');
+  const prize='<div class="g-emblem"><img class="g-jfront" src="/jersey-goose-front.jpg" alt="Double Goose jersey, front" loading="lazy" onerror="this.closest(\'.g-emblem\').style.display=\'none\'"><img class="g-jback" src="/jersey-goose-back.jpg" alt="Double Goose jersey, back" loading="lazy" onerror="this.style.display=\'none\'"></div>';
+  el.innerHTML=prize+`<div class="g-body"><div class="g-h">The Double Goose</div><div class="g-tag">Most zero-point stages</div><div class="g-sub">A goose egg is a zero, and a double goose is both of them at once: neither pick inside the top ${GEESE.scaleN} on a scored stage. It is worn with rueful pride, the way the Lanterne Rouge is, and most of them at season's end takes the jersey. A tie shares it. A cancelled stage scores nothing, so it can never produce one.</div><div class="g-hold">${holder}</div><div class="g-rows">${rows}</div>${when?`<div class="g-when">${when}.</div>`:''}</div>`;
+}catch(e){ console.error('goose board',e); } })();
 
 ;
 

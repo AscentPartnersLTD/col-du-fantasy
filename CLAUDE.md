@@ -438,6 +438,74 @@ whole board. Same trap as the `MER` note in Open items.
 The `.dns-stamp` and `.stage.dns` CSS classes now render more than DNS and are misnamed.
 Renaming them is its own commit, like `gcPlace` and `barsPlace`.
 
+## The Double Goose
+
+Added 2026-08-27. A per-stage mark for a seat whose two picks return ZERO Fantasy
+Points, meaning neither rider finished inside the scoring scale. A goose egg is
+American vernacular for a zero and "double" is both picks. It is worn with rueful
+pride, like the Lanterne Rouge, not as a punishment. The season award goes to the MOST
+geese and a tie shares it.
+
+ONE computation, `GEESE`, hoisted next to `KASSEI_TALLY` and above every site that
+reads it: the palmares medal, the stage card stamps, the season board and two
+datapoints in The Numbers. `P[c].zeroDays` inside the profile block reads it too rather
+than re-deriving the test. Do NOT write the test a second time; that is exactly the
+FP_SCALE mistake.
+
+Three rules, each of which is a way for the mark to lie if it is left implicit:
+
+- A VOID stage can NEVER produce one. `COMPLETED` already filters `!voidStage && days`,
+  so a cancelled stage scores nothing and nothing is zero. Vuelta 2026 stage 3 is the
+  live case: all four seats drafted, the hail cancelled it, and nobody takes a goose.
+- A seat that missed its picks ENTIRELY does not get one. A missed pick is scored one
+  slot behind the worst real pick of the day, so it lands far outside the scale and
+  falls straight through into a goose if nothing stops it. `GEESE` requires at least one
+  real, non-missed pick. NOTE THE BOUNDARY: a seat with one missed pick and one real
+  pick outside the scale DOES take a goose today. That is the literal reading of "missed
+  its picks entirely", it has no live case yet, and it is one predicate in `GEESE` if it
+  ever needs to move.
+- Nothing is stored per stage. It recomputes from stage data at render time, so a
+  rescored stage corrects itself instead of carrying a stale mark.
+
+Consecutive runs are counted over `COMPLETED`, not over raw stage numbers, so a void
+stage in between neither breaks a run nor extends one. A void stage is not a stage
+anyone survived.
+
+Race-neutral. The size of the scale is read from `FP_SCALE`, so the copy says top-30 on
+the Vuelta and would say top-15 on the Tour with no edit. It is built on the Vuelta
+board only so far; carrying it to the Tour or the Giro means copying the same five
+insert points, not a rewrite.
+
+State at first ship, computed from Firestore rather than taken on trust: AA 2 (stages 5
+and 6), JB 1 (stage 4), JJ 0, JP 0, three across the pool. JJ missed one by a single
+place on stage 6, where Bisiaux finished 30th, the last scoring position. AA took the
+Premio on stage 5 with the same Hayter ride that helped earn the goose, and on stage 6
+the Premio went elsewhere; the datapoint copy computes both observations rather than
+stating them.
+
+## Jersey art: the PNG is the master, the JPG is what ships
+
+The board references JPGs only. Generated masters stay in the repo as PNG source and
+are never linked from a board file. `goose_plumage_clean_front_jersey.png` and
+`goose_plumage_clean_back_jersey.png` are the masters for `jersey-goose-front.jpg` and
+`jersey-goose-back.jpg`; `make_goose_jerseys.py` is the conversion and can be re-run.
+
+Match the Kasseistampers precedent rather than picking numbers. Measured off
+`jersey-kasseistampers-front.jpg`: 560px wide, JPEG quality 84, 4:2:0 subsampling,
+progressive. The quality was confirmed by round-tripping quantization tables, not
+guessed. Height follows the art: the reference back is 560x418 because it is a
+landscape crop of a narrower pose, and forcing another jersey into that box cuts it.
+
+Two things the goose conversion had to handle, and the next one probably will too:
+
+- Generated art carries a generator WATERMARK. Both goose masters had "Gemini Notebook"
+  bottom right. It sits on bare background, so it is erased and then cropped out, but a
+  file that ships with it is a file that says who made it on the board.
+- Fine detail is the artifact risk, not flat color. The plumage was checked at the sizes
+  the board actually draws it, 118px and 70px plus 2x, against a quality 95 encode.
+  There was no visible difference, so the matched quality 84 stands. Look at the render
+  size before raising quality, and say which way it went.
+
 ## Writing boardConfig, two traps
 
 `POST /api/board-config` writes to EVERY pool doc when `pools` is omitted. That default
