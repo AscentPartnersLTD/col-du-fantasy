@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260827-221719Z -->
+<head><!-- build:20260827-222710Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -443,8 +443,8 @@ function isTeamResultStage(n){ return (RACE_PROFILE.teamResultStages||[]).indexO
      positions. Darker, larger, and no longer all-caps. */
   .pc-stat .pl-lab{display:block;font-family:'Montserrat',sans-serif;font-size:10.5px;letter-spacing:.01em;color:var(--ink2);margin:3px 0 2px;font-weight:800;line-height:1.2}
   .pc-stat b{font-size:11.5px;color:var(--mute);font-weight:700}
-  .pc-medals{display:flex;gap:7px;margin-top:1px}
-  .medal{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 4px;border-radius:11px;line-height:1}
+  .pc-medals{display:flex;gap:7px;margin-top:1px;flex-wrap:wrap}
+  .medal{flex:1 1 76px;min-width:76px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 4px;border-radius:11px;line-height:1}
   .medal svg{width:17px;height:17px}
   .medal b{font-family:'Montserrat',sans-serif;font-weight:900;font-size:15px}
   .medal span{font-size:9px;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
@@ -4522,7 +4522,7 @@ const PERSONA_BY = (function(){
         <span class="medal prix${prix?'':' zero'}">${prixIC}<b>${prix}</b><span>Premio</span></span>
         <span class="medal win${WINS_BY[k]?'':' zero'}">${winIC}<b>${WINS_BY[k]}</b><span>${WINS_BY[k]===1?'Win':'Wins'}</span></span>
         <span class="medal mer${MER[k]?'':' zero'}"><img src="/emblem-belgium.png" alt="" style="width:18px;height:18px;object-fit:contain;vertical-align:-3px"><b>${MER[k]}</b><span>Cobbles</span></span>
-        <span class="medal goose${GEESE.count[k]?'':' zero'}" title="Double Goose: both picks scored nothing">${GOOSE_IC}<b>${GEESE.count[k]}</b><span>Geese</span></span>
+        <span class="medal goose${GEESE.count[k]?'':' zero'}" title="Double Goose: both picks scored nothing">${GOOSE_IC}<b>${GEESE.count[k]}</b><span>${GEESE.count[k]===1?'Goose':'Geese'}</span></span>
       </div>
       ${story?`<details class="pc-story-d"><summary>My Rider Profile<span class="jtog"></span></summary><div class="pc-story">${story}</div></details>`:''}
       ${jerseysHtml}
