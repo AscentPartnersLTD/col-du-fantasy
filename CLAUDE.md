@@ -750,6 +750,50 @@ A pick locked BEFORE its rider abandoned is never silently changed. It stands ex
 as drafted and is flagged, in the completed-draft mini bar and in the live ticker, so
 the seat knows before the stage is scored rather than after.
 
+## The startlist is scored by BIB, so a wrong bib is silent and total
+
+Added 2026-08-27, after two bibs were found swapped on a live board.
+
+`RIDERS` is not a display list. It is the bib table, and it is what turns a pick into
+a result. `close-stage.js` builds `bibByName` from it, resolves every pick to a bib,
+and reads the finish off `posByBib`. Its own gate says it: "a pick did not resolve to
+a bib; never fall back to name matching". So a name attached to the wrong bib does not
+error, does not look wrong, and does not fail a gate. It hands one rider another
+rider's finish, forever, and the board reports it with full confidence.
+
+The same table is read by `belFinOf()` for the Kasseistampers call, by `nameByBib()`
+for the stage winner and the top Belgian, by the break widget's rider audit, and by
+`_BIBMAP` / `riderIsOut()` for the abandoned-rider greyout. One wrong row corrupts all
+of them at once and none of them complains.
+
+WHAT WAS WRONG. Vuelta 2026 bibs 103 and 104 were swapped. Ours had 103 L. de Vylder
+and 104 R. Debruyne; the official list has 103 R. Debruyne and 104 L. de Vylder. Every
+other Alpecin bib matched, so the error was ours, not the feed's. Fixed 2026-08-27.
+
+The full 184 were then audited by bib against
+`https://racecenter.lavuelta.es/api/allCompetitors-2026`, comparing surname tokens and
+team slug. No bib is missing, none is extra, no team is wrong, and 103/104 was the only
+identity error. Seven rows differ in spelling only and are correct riders: hyphenated
+surnames the feed splits (Fisher-Black, Paret-Peintre, Renard-Haquin), known short
+first names (Eddie Dunbar, Nick Schultz, Larry Warbasse), and one transliteration
+(Mulubrhan). Around 40 more carry the short Spanish surname where the feed carries both
+surnames, which is the display convention and is deliberate.
+
+NOTHING SCORED WAS CORRUPTED, and this was checked rather than assumed. No seat drafted
+either rider in any of stages 1, 2, 4, 5 or 6. Stage 6's top Belgian genuinely WAS
+R. Debruyne, 3rd, and the stored stage doc names him correctly, because that stage was
+closed by hand from the result rather than through the bib table. JJ named Debruyne as
+his Kasseistampers TIEBREAKER, not his first choice, and only a first choice can be on
+target, so `correct: []` is right. Had he named him first, `belFinOf('R. Debruyne')`
+would have returned bib 104, de Vylder's finish, and denied him the cobble with no
+error anywhere. That is how close this came to deciding a side game wrongly.
+
+THE RULE. Audit the whole startlist against the official competitor list, by bib, on
+every race launch and after any edit to `RIDERS`. `RACE_PROFILE.startlist` now carries
+an `audited` date beside `captured` so the age of the CHECK is visible, not just the
+age of the capture. Cross-checking against procyclingstats is not a substitute: the
+bib is what scores, and only the race's own feed is authoritative about bibs.
+
 ## Where the site update stands, 2026-08-27
 
 Allen's numbering, recorded as his rather than as a verified finding: of the full site
