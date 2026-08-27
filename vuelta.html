@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260827-175558Z -->
+<head><!-- build:20260827-180424Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -4175,8 +4175,22 @@ const PERSONA_BY = (function(){
     if(!orderChanged && prev && prev.tier===wantTier){ assigned[p]=prev; used[prevId]=1; }
     else movers.push(p);
   });
-  /* everything that was on the previous board is off-limits for a mover (no swaps, no hand-me-downs) */
+  /* NO SWAPS and NO HAND-ME-DOWNS are two different rules, and only the first was
+     ever enforced. prevBoard is the board a mover is leaving, so excluding it stops
+     a straight SWAP inside one rotation. It cannot stop a hand-me-down, because a
+     persona another seat gave up TWO rotations ago is not on the previous board and
+     nothing else remembered it.
+     That is exactly how JJ drew tonymartin on the Stage 6 rotation. JP wore it on
+     board 2, handed it back on board 3, and by board 4 the previous board held
+     renshaw, lemond, gilbert and purito while JJ's own history held cancellara,
+     vanimpe and gilbert. Both guards passed it and the name changed seats.
+     everWorn is the union of every persona every seat has ever been assigned, taken
+     from the ledger's own record, so a name that has been on this board once is
+     retired rather than recirculated. A seat's own history was already excluded
+     through seen; this extends the same rule to the other three seats. */
   const prevBoard=new Set(Object.values(L.by||{}));
+  const everWorn=new Set(prevBoard);
+  Object.keys(L.seen||{}).forEach(q=>(((L.seen||{})[q])||[]).forEach(id=>everWorn.add(id)));
   /* 3) each mover earns a NEW persona: leader from winners, everyone else from styles;
         best fit for how they are riding now, excluding the previous board and their own history */
   movers.sort((a,b)=>curPos[a]-curPos[b]);
@@ -4184,8 +4198,16 @@ const PERSONA_BY = (function(){
     const tier=(p===leader)?'winner':'style';
     const seen=new Set((L.seen&&L.seen[p])||[]);
     const rank=list=>list.slice().sort((a,b)=>b.fit(PSTATS[p])-a.fit(PSTATS[p]));
-    let pool=rank(PERSONA_BANK.filter(c=>c.tier===tier && !used[c.id] && !prevBoard.has(c.id) && !seen.has(c.id)));
-    if(!pool.length) pool=rank(PERSONA_BANK.filter(c=>c.tier===tier && !used[c.id] && !seen.has(c.id)));
+    /* A widening ladder. Rung 1 is the rule; the rest exist so a depleted bank
+       degrades instead of leaving a seat with no persona at all, and each rung gives
+       up exactly one guard. The bank holds 44 style rows and 12 winner rows against
+       three styles and at most one winner per rotation, so rung 1 carries a full
+       race on styles and can run short on winners late in a long one. Rung 2 is the
+       OLD rule, which is where it lands if that happens: never this seat's own name
+       and never a swap off the board it is leaving. */
+    let pool=rank(PERSONA_BANK.filter(c=>c.tier===tier && !used[c.id] && !everWorn.has(c.id)));
+    if(!pool.length) pool=rank(PERSONA_BANK.filter(c=>c.tier===tier && !used[c.id] && !prevBoard.has(c.id) && !seen.has(c.id)));
+    if(!pool.length) pool=rank(PERSONA_BANK.filter(c=>c.tier===tier && !used[c.id] && !prevBoard.has(c.id)));
     if(!pool.length) pool=rank(PERSONA_BANK.filter(c=>c.tier===tier && !used[c.id]));
     const pick=pool[0]; if(pick){ assigned[p]=pick; used[pick.id]=1; }
   });
@@ -4193,9 +4215,14 @@ const PERSONA_BY = (function(){
   PL4.forEach(p=>{ if(assigned[p]) return; const tier=(p===leader)?'winner':'style';
     const pool=PERSONA_BANK.filter(c=>c.tier===tier && !used[c.id]).sort((a,b)=>b.fit(PSTATS[p])-a.fit(PSTATS[p]));
     const pick=pool[0]||PERSONA_BANK.find(x=>!used[x.id]); if(pick){ assigned[p]=pick; used[pick.id]=1; } });
-  /* TEMPORARY DIAGNOSTIC, 2026-08-25. `by` reverts on page load and the cause is not
-     established, so the decision inputs are EXPOSED rather than reasoned about. This
-     changes no assignment logic. Remove once the cause is found. */
+  /* The inputs that decide a draw, exposed rather than reasoned about. Opened 2026-08-25
+     while `by` was reverting on load; that cause was found and was riderProfile pins
+     bypassing the engine, and the pins are cleared. It is kept, and no longer marked
+     temporary, because the same question keeps coming back in a different form: the
+     Stage 6 hand-me-down was a rotation that looked broken and was not, it was a
+     guard that did not reach far enough back. everWornCount answers that one at a
+     glance, since a count that stops growing means the ledger write is being denied.
+     This changes no assignment logic. */
   try{ window.__personaDiag={
     ledgerOrder:((L&&L.order)||[]).slice(),
     ledgerBy:JSON.parse(JSON.stringify((L&&L.by)||{})),
@@ -4204,6 +4231,7 @@ const PERSONA_BY = (function(){
     orderChanged:orderChanged,
     leader:leader,
     movers:movers.slice(),
+    everWornCount:everWorn.size,
     pinned:PL4.filter(p=>((rp[p]||{}).pin)),
     prevIdFound:PL4.reduce((o,p)=>(o[p]=!!(((L&&L.by)||{})[p] && byId(((L&&L.by)||{})[p])),o),{}),
     assigned:PL4.reduce((o,p)=>(o[p]=assigned[p]?assigned[p].id:null,o),{})
@@ -4225,8 +4253,13 @@ const PERSONA_BY = (function(){
       having held, and freeze the personas permanently. That failure is silent, which is
       why the guard is here rather than in a comment.
 
-   A mover can never redraw its own previous persona (movers exclude prevBoard), so any
-   standings move that reshuffles seats also changes `by`, and the snapshot advances.
+   A mover can never redraw a persona anybody has worn (movers exclude everWorn, which
+   is built from `by` and `seen` together), so any standings move that reshuffles
+   seats also changes `by`, and the snapshot advances.
+   That makes `seen` load-bearing rather than decorative: it is the only record of
+   who has worn what, and it is what stops a name moving between seats. If the write
+   is denied and `seen` stops growing, the guard silently narrows back to the
+   previous board alone, which is the fault this rule was written to close.
 
    Needs a Firestore rule allowing a member to update personaLedger and nothing else.
    Until that is published every attempt is denied and swallowed, and the board behaves
@@ -6101,4 +6134,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy 20260827-175720Z -->
+<!-- redeploy 20260827-180425Z -->

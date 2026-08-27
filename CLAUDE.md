@@ -589,6 +589,59 @@ Two guards survive the change and are deliberately separate from it:
 standing against a seat list and the same personas kept reappearing. If a stale seat
 order is ever restored there, every load will see a change that never clears.
 
+### Hand-me-downs, and why the previous-board guard could not catch one
+
+Added 2026-08-27.
+
+NO SWAPS and NO HAND-ME-DOWNS are two different rules. Only the first was enforced.
+
+`prevBoard` is the board a mover is leaving. Excluding it stops a straight SWAP inside
+one rotation. It cannot stop a hand-me-down, because a persona another seat gave up two
+rotations ago is not on the previous board, and nothing else remembered it. The comment
+on that line claimed it delivered both, and it never did.
+
+Read off the live ledger, the assignment history was:
+
+    board 1  AA contador   JP pirate       JJ cancellara  JB valverde
+    board 2  AA cannibal   JP tonymartin   JJ vanimpe     JB greipel
+    board 3  AA lemond     JP purito       JJ gilbert     JB renshaw
+    board 4  AA badger     JP professor    JJ tonymartin  JB eternalsecond
+
+JP wore tonymartin on board 2 and handed it back on board 3. When JJ drew on board 4,
+the Stage 6 rotation, the previous board held renshaw, lemond, gilbert and purito, and
+JJ's own history held cancellara, vanimpe and gilbert. Both guards passed it honestly.
+The rule was too narrow, not broken.
+
+THE FIX. `everWorn` is the union of every persona every seat has ever been assigned,
+built from `by` and `seen` together, and a mover is now drawn from names nobody has
+worn. A seat's own history was already excluded through `seen`; this extends the same
+rule to the other three seats.
+
+The draw is a widening ladder, each rung giving up exactly one guard, so a depleted
+bank degrades instead of leaving a seat with no persona:
+
+1. never worn by anyone
+2. not this seat's own and not on the previous board, which is the OLD rule
+3. not on the previous board
+4. anything free of the right tier
+
+The bank holds 44 style rows and 12 winner rows against three styles and at most one
+winner per rotation, so rung 1 carries a full race on styles and can run short on
+winners late in a long one. Verified: with all 12 winners already worn and the order
+changed, the leader still draws a winner and still does not redraw its own.
+
+This makes `seen` LOAD-BEARING rather than decorative. It is the only record of who has
+worn what. If the ledger write stays denied and `seen` stops growing, the guard silently
+narrows back to the previous board alone, which is the exact fault this closes. That is
+one more reason to publish the rule in the section above.
+
+The current assignment was NOT hand-edited and does not move. Verified by running the
+shipped block on live pool state: the ledger order matches the Fantasy Points order, so
+`orderChanged` is false, every seat's persona already matches the tier it is owed, there
+are no pins, so there are no movers and the ladder is never reached. AA badger,
+JP professor, JJ tonymartin, JB eternalsecond stands as the engine wrote it. Simulating
+JJ overtaking JP re-draws all four and reuses nothing from the ledger.
+
 ## The persona ledger is INERT until a rule is published
 
 The persistence has been in the board since commit `9455c5f` (2026-08-21) and was
