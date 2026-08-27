@@ -794,6 +794,45 @@ an `audited` date beside `captured` so the age of the CHECK is visible, not just
 age of the capture. Cross-checking against procyclingstats is not a substitute: the
 bib is what scores, and only the race's own feed is authoritative about bibs.
 
+## Archetype labels must describe something, and the shape ladder
+
+Added 2026-08-27.
+
+Every archetype label names a trait the record actually shows. The old catch-all,
+"Still finding a shape", named nothing, and because it sat at the BOTTOM of the ladder
+it landed on whichever seat had the least extreme record. Balance therefore read as a
+failure to have a style. JJ carried it while holding the flattest stage-type profile in
+the pool and the widest team variety, which is a shape, not the absence of one.
+
+It is replaced by a three-rung shape ladder in `shapeLabel()`, reached only when no
+dominant trait fired:
+
+- `Spreads the risk` - the two picks routinely finish a third of the field apart.
+- `No single lane` - best-to-worst stage-type gap under a sixth of the field.
+- `Even across the profiles` - the general fallback, and the only rung that can be
+  reached with no usable data.
+
+BOTH THRESHOLDS ARE FRACTIONS OF `RIDERS.length`, not typed place counts. A gap of 40
+places is wide in a small field and narrow in a big one, and a race-neutral board
+cannot tell those apart from a constant. Stated as fractions, they travel to the Giro
+and the Tour with no edit. Every rung is reachable and the edges were exercised, empty
+`typeMean` included, which returns the general fallback rather than throwing.
+
+Live on stage 6 data: JJ moves from "Still finding a shape" to "No single lane", spread
+44 against a 61.3 threshold and a type range of 23 against 30.7. The other three seats
+are unchanged because they never reached the fallback.
+
+SENTENCE ORDER IN `body()`. The shape sentence now leads and the stage-winner sentence
+follows. It was the other way round, so a seat with no stage win opened on "No stage
+winner drafted yet" before the card said anything about how that seat drafts. The
+sentences themselves are unchanged and are deliberately left alone; only the order is.
+
+Not changed, on purpose: "Fast men on the wrong roads". It describes the picks rather
+than the person, and the body supplies the other half immediately. Worth knowing that
+no seat currently earns it. JB did when it was written, and now scores "Against the
+clock" instead, because its hilly mean drifted above the fast-men test while its time
+trial mean held. The rule is untouched; the data moved.
+
 ## Where the site update stands, 2026-08-27
 
 Allen's numbering, recorded as his rather than as a verified finding: of the full site

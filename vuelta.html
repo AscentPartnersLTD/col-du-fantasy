@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260827-173713Z -->
+<head><!-- build:20260827-175558Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -4806,6 +4806,26 @@ const ARCH_COMPUTED=(function(){
   const P=PROF.P, n=x=>x===1?'once':x+' times';
   const ord=x=>{const s=['th','st','nd','rd'],v=x%100;return x+(s[(v-20)%10]||s[v]||s[0]);};
   const nameOf=c=>(CDF.players&&CDF.players[c]&&CDF.players[c].name)||c;
+  /* ---- shape labels, for a seat whose record has no dominant trait ----
+     'Still finding a shape' was the only label that described nothing, and it
+     landed on the seat with the LEAST extreme record, so balance read as a
+     failure to have a style. These three say something true instead, and all
+     three are computed from figures the profile already holds.
+     The thresholds are FRACTIONS OF THE FIELD rather than typed place counts, so
+     they mean the same thing in a 184-rider Vuelta and in any other race. A gap
+     of 40 places is a wide spread in a small field and a narrow one in a big
+     one, and a race-neutral board cannot tell the difference from a constant. */
+  const FIELD=(typeof RIDERS!=='undefined'?RIDERS.length:0);
+  const SPREAD_WIDE=FIELD/3;  /* picks a third of the field apart are two separate bets */
+  const TYPE_FLAT=FIELD/6;    /* a best-to-worst type gap under a sixth of the field is no lane */
+  const typeRange=t=>{ const v=Object.keys(t||{}).map(k=>t[k]);
+    return v.length>1?Math.max.apply(null,v)-Math.min.apply(null,v):null; };
+  function shapeLabel(p){
+    if(FIELD&&p.meanSpread!=null&&p.meanSpread>=SPREAD_WIDE) return 'Spreads the risk';
+    const r=typeRange(p.typeMean);
+    if(FIELD&&r!=null&&r<=TYPE_FLAT) return 'No single lane';
+    return 'Even across the profiles';
+  }
   function label(p){
     const winRate=p.scored?p.wins.length/p.scored:0;
     const mt=p.typeMean||{};
@@ -4818,15 +4838,14 @@ const ARCH_COMPUTED=(function(){
     if(climbGood) return 'Climbers first';
     if(mt['time trial']!=null&&mt['time trial']<=15) return 'Against the clock';
     if(p.repeats.length>=2) return 'Loyal to a short list';
-    return 'Still finding a shape';
+    return shapeLabel(p);
   }
+  /* The shape sentence leads and the stage-winner sentence follows. It used to be
+     the other way round, which opened every seat without a stage win on a negative
+     before saying anything about how the seat actually drafts. The sentences
+     themselves are unchanged; only the order is. */
   function body(p){
     const bits=[];
-    if(p.wins.length) bits.push('Has drafted the stage winner '+n(p.wins.length)
-      +' in '+p.scored+' scored '+(p.scored===1?'stage':'stages')
-      +', '+p.wins.map(w=>w.r+' on Stage '+w.n).join(' and ')+'.');
-    else bits.push('No stage winner drafted yet across '+p.scored+' scored '
-      +(p.scored===1?'stage':'stages')+'.');
     const mt=p.typeMean||{}, keys=Object.keys(mt);
     if(p.bestType&&p.worstType&&p.bestType!==p.worstType){
       bits.push('The picks land on '+p.bestType+' days, average finish '+mt[p.bestType]
@@ -4834,6 +4853,11 @@ const ARCH_COMPUTED=(function(){
     } else if(keys.length===1){
       bits.push('Only '+keys[0]+' days scored so far, average finish '+mt[keys[0]]+'.');
     }
+    if(p.wins.length) bits.push('Has drafted the stage winner '+n(p.wins.length)
+      +' in '+p.scored+' scored '+(p.scored===1?'stage':'stages')
+      +', '+p.wins.map(w=>w.r+' on Stage '+w.n).join(' and ')+'.');
+    else bits.push('No stage winner drafted yet across '+p.scored+' scored '
+      +(p.scored===1?'stage':'stages')+'.');
     if(p.zeroDays.length){
       const z=p.zeroDays[0];
       bits.push('The cost shows on Stage '+z.n+': '+z.picks.map(x=>x.r+' '+ord(x.f)).join(' and ')
@@ -6077,4 +6101,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy 20260827-173752Z -->
+<!-- redeploy 20260827-175720Z -->
