@@ -37,7 +37,11 @@ service cloud.firestore {
       allow read:  if owner() || (signedIn() && em() in resource.data.members);
       allow write: if owner();
       allow update: if inPool(poolId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['predictionsLocked']) && request.resource.data.predictionsLocked == true && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JJ) && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JB) && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JP) && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/AA);
-      allow update: if inPool(poolId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personaLedger']);
+      allow update: if inPool(poolId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personaLedger'])
+        && request.resource.data.personaLedger.keys().hasOnly(['order','by','seen'])
+        && request.resource.data.personaLedger.order is list
+        && request.resource.data.personaLedger.by is map
+        && request.resource.data.personaLedger.seen is map;
       match /drafts/{stage} {
         allow read:  if poolMember(poolId);
         allow write: if poolMember(poolId);

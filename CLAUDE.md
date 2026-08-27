@@ -184,6 +184,12 @@ HTML-escaped in some terminals, so every `&amp;` has to become `&` or the link f
 and a crash AFTER "Success! Logged in" still means the credentials landed. Confirm
 from the configstore, not from what the CLI printed.
 
+PROVEN 2026-08-27: ruleset `b1901550` at 21:49:08Z was deployed with this command from
+this repo, verified by re-reading the live ruleset through the rules API and
+byte-comparing it against `firestore.rules`. Unlike the col-break Worker, this path is
+not assumed to work; it has been exercised once and the check that proved it is the
+one the Phase 4 monitor repeats.
+
 Never publish rules from the Firebase console. Read the live ruleset through the rules
 API, diff it against the repo copy, and deploy the repo copy. The console is what put
 a hand edit in the loop in the first place, and it is also the only path that can
@@ -200,8 +206,9 @@ in this order:
 - `allow update` scoped with `hasOnly(['predictionsLocked'])`, which additionally
   requires the flag to be set true and all four prediction docs, JJ, JB, JP and AA, to
   exist.
-- `allow update` scoped with `hasOnly(['personaLedger'])`, which requires only
-  `inPool(poolId)`.
+- `allow update` scoped with `hasOnly(['personaLedger'])`, which additionally
+  requires the ledger to hold only `order`, `by` and `seen`, with `order` a list and
+  the other two maps.
 
 Multiple `allow update` statements are ORed, which is why the two scoped updates sit
 alongside `allow write: if owner()` without either weakening the other. The owner
@@ -712,9 +719,15 @@ JJ overtaking JP re-draws all four and reuses nothing from the ledger.
 
 ## The persona ledger rule, PUBLISHED 2026-08-27
 
-This section used to say the ledger was inert. It no longer is. The rule went live in
-ruleset `403efc66` at 2026-08-27T20:54:38Z, published by hand from the console, and it
-is now carried in `firestore.rules` in this repo.
+This section used to say the ledger was inert. It no longer is. The rule went live
+FROM THE CONSOLE, by hand, on 2026-08-27 at 20:54:38Z, as ruleset `403efc66`. The repo
+file was captured from that live ruleset, not the other way round: `firestore.rules`
+did not exist until after the rule was already published, so the console was the
+source and the repo is the record of it.
+
+It was then tightened from the repo and redeployed the same day as ruleset
+`b1901550` at 21:49:08Z, which is the first Firestore rules change ever made from this
+repo rather than from the console, and the run that proved the deploy path works.
 
 The persistence has been in the board since commit `9455c5f` (2026-08-21) and was
 never removed. Between those two dates it was not missing code, it was code whose
@@ -732,32 +745,30 @@ Both halves are compared, not just `by`: if the standings moved but the re-draw 
 on the same names, snapshotting only `by` would leave the old order in place and every
 later load would re-draw forever.
 
-The rule AS PUBLISHED, in the `pools/{poolId}` match block, is the short form:
+The rule AS PUBLISHED, in the `pools/{poolId}` match block, live since ruleset
+`b1901550`:
 
 ```
-allow update: if inPool(poolId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personaLedger']);
-```
-
-That is NOT the longer rule this section used to propose. The version drafted here,
-and never published, also constrained the shape:
-
-```
+allow update: if inPool(poolId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personaLedger'])
   && request.resource.data.personaLedger.keys().hasOnly(['order','by','seen'])
   && request.resource.data.personaLedger.order is list
   && request.resource.data.personaLedger.by is map
   && request.resource.data.personaLedger.seen is map;
 ```
 
-Those four lines are absent from the live rule. `inPool(poolId)` is equivalent to the
-drafted `request.auth != null && email in members`, so the caller check is unchanged,
-but nothing now constrains what `personaLedger` may contain. A member can write it as
-a string, a number, or a map with any keys at all, and the rules will allow it. The
-board reads `order`, `by` and `seen` and would break on a malformed ledger rather than
-reject it.
+The console version, `403efc66`, stopped after the `hasOnly(['personaLedger'])` line.
+The four shape lines were added from the repo, and they matter for a reason worth
+keeping: `inPool(poolId)` covers WHO may write, but nothing in the short form covered
+WHAT `personaLedger` may contain. A member could write it as a string and the board
+would break on read rather than the write being rejected. The engine writes `order` as
+a list and `by` and `seen` as maps, so the four constraints match exactly what the
+code actually produces and reject anything else. `inPool(poolId)` is equivalent to the
+originally drafted `request.auth != null && email in members`, so the caller half was
+never the gap.
 
 KNOWN WEAKNESS, accepted rather than overlooked: `hasOnly(['personaLedger'])` scopes
-the write to that one field but says nothing about WHOSE part of it is being written,
-and, in the short form actually published, nothing about its SHAPE either.
+the write to that one field, and since `b1901550` constrains its shape, but says
+nothing about WHOSE part of it is being written.
 Any pool member can rewrite the whole ledger, including another seat's `by` and `seen`
 history. Firestore rules cannot cheaply constrain a per-seat sub-map without naming
 every seat, so a member could wipe or forge another seat's persona history. In a
@@ -765,10 +776,10 @@ private four-person pool that is a reasonable trade, but it is a trade, and it s
 be made on purpose. Tightening it means enumerating the seats in the rule and checking
 that only the caller's own key changed.
 
-Tightening this is a rules edit in the repo followed by
-`firebase deploy --only firestore:rules`, not a console visit. Restoring the four
-shape lines is the cheap half and costs nothing; per-seat scoping is the expensive
-half and needs the seats enumerated.
+Tightening this further is a rules edit in the repo followed by
+`firebase deploy --only firestore:rules`, not a console visit. The shape half is done.
+Per-seat scoping is the expensive half that remains, and it needs the seats
+enumerated in the rule.
 
 ## Void stages COUNT for Allegiances and the Arlequin
 

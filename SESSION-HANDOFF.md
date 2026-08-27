@@ -71,11 +71,11 @@ private one.
    what the board renders, the scale constant appears once per board, no
    wrong-race strings in the active board.
 
-8. **The persona ledger rule is PUBLISHED.** CLOSED 2026-08-27, ruleset `403efc66`
-   at 20:54:38Z. Persistence is live for all four seats, not just the owner session.
-   The published rule is the SHORT form and omits the shape checks the CLAUDE.md draft
-   carried, so nothing constrains what `personaLedger` may contain. Restoring those
-   four lines is a repo edit plus `firebase deploy --only firestore:rules`.
+8. **The persona ledger rule is PUBLISHED and tightened.** CLOSED 2026-08-27. Went
+   live from the console as ruleset `403efc66` at 20:54:38Z, then redeployed from the
+   repo as `b1901550` at 21:49:08Z with the four shape constraints added. Persistence
+   is live for all four seats, not just the owner session. What remains is per-seat
+   scoping, which is noted in CLAUDE.md as the expensive half.
 
 9. **The Tour pool has no `boardConfig.predictionsThroughStage`.** Since the deadline
    now fails CLOSED, its jersey predictions will never auto-reveal until one is set.
