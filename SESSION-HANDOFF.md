@@ -69,7 +69,12 @@ private one.
    configured race, deployed Worker matches repo source, the deployed Firestore
    ruleset matches `firestore.rules` in the repo, standings from stage docs match
    what the board renders, the scale constant appears once per board, no
-   wrong-race strings in the active board.
+   wrong-race strings in the active board, the roster resolves so that
+   `window.__ROSTER_STATE` is `ok` and `window.__ACTIVE` is populated, and
+   `__personaDiag.everWornCount` grows after each rotation.
+   The last two were added 2026-08-28 after both guards were found failing OPEN.
+   Check the STATE, not the absence of an error: both faults were invisible because
+   nothing threw where anyone could see it.
 
 8. **The persona ledger rule is PUBLISHED and tightened.** CLOSED 2026-08-27. Went
    live from the console as ruleset `403efc66` at 20:54:38Z, then redeployed from the

@@ -506,6 +506,69 @@ Two things the goose conversion had to handle, and the next one probably will to
   There was no visible difference, so the matched quality 84 stands. Look at the render
   size before raising quality, and say which way it went.
 
+## Two guards that failed OPEN, and how to tell
+
+Both were found on 2026-08-28, both had been broken for the whole race, and neither
+ever logged anything. A guard that fails open looks exactly like working software, so
+the monitor has to assert the guard's STATE rather than the absence of an error.
+
+### The abandoned-rider roster: typeof is NOT safe on a let
+
+`loadRoster()` sits near the top of the big script block and read `STAGE`, which is
+declared with `let` about 130 lines FURTHER DOWN THE SAME BLOCK. That puts `STAGE` in
+the temporal dead zone at that point, and this is the one case where `typeof` does not
+protect you: on a TDZ `let`, `typeof x` throws a ReferenceError rather than returning
+`'undefined'`. The throw was the first statement inside a `try` whose `catch` was
+empty, so the fetch never fired, `window.__ACTIVE` stayed null, and `riderIsOut()`
+returned false for every rider on every load. Nothing appeared in the console.
+
+The endpoint was never the problem, and this is worth remembering before blaming it:
+`/roster?stage=7` answers with 178 active bibs and reports `stage: 6`, because it walks
+BACKWARD to the last stage that has a classification. Void stage 3 is skipped for free.
+
+The fix is `window.__loadRoster(stage)`, which takes the stage as an argument and never
+reads `STAGE`. It is called from `__runBoard` with the last SCORED stage,
+`Math.max(...COMPLETED)`, since `COMPLETED` already filters `!voidStage && days`. The
+walk-back is then a safety net rather than the mechanism.
+
+It also fails LOUD. `window.__ROSTER_STATE` is `pending`, `ok` or `failed`, and on
+`failed` the rider search says so on the panel instead of quietly showing every rider
+as selectable. If you add a race, that state is what the monitor reads.
+
+Do not put a bare `typeof SOMELET` guard in this file. Pass the value in.
+
+### The persona duplicate: everWorn guards a redraw, not the board
+
+`everWorn` stops a MOVER from drawing a name anyone has worn. It cannot undo a
+duplicate already sitting in `by`, and when the order has not changed there are no
+movers, so nothing re-examines the board and the duplicate stays forever.
+
+That is what happened to `tonymartin`: JP wore it, handed it back, and JJ drew it on the
+stage 6 rotation, which was BEFORE `everWorn` shipped in `1f3691b`. Every later load
+held it in place because nothing had moved. The mechanism was working and `seen` was
+growing normally; the board was simply frozen around an assignment made before the rule
+existed.
+
+A seat holding a name that appears in ANOTHER seat's `seen` is now forced to move, but
+only when a fresh persona of the right tier still exists, so a depleted bank degrades to
+holding rather than redrawing into another duplicate on every load and writing every
+time. It converges because the redraw excludes everything ever worn: verified live, JJ
+went to `roglic`, `seen.JJ` grew from 4 to 5, `everWornCount` from 15 to 16, and the
+next load repaired nothing and wrote nothing.
+
+`__personaDiag.duplicatesRepaired` names any seat repaired on this load. It should
+normally be empty. If it names the same seat on every load, the bank has run out at the
+right tier and the ladder is falling through to a rung that allows a worn name.
+
+### Reading the diagnostics
+
+`window.__personaDiag` and `window.__ledgerDiag` answer this class of question without
+guessing. `everWornCount` that has stopped growing across rotations means the ledger
+write is being denied; a count that grows means it is not. `ledgerSeenCounts` compared
+against `__ledgerDiag.serverLedger.seen` separates a stale board from a denied write.
+For the roster, `performance.getEntriesByType('resource')` filtered for `col-break`
+proves whether the request was ever made, which is what settled this one.
+
 ## Writing boardConfig, two traps
 
 `POST /api/board-config` writes to EVERY pool doc when `pools` is omitted. That default
