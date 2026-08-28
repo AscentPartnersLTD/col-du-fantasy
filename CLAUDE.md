@@ -1149,6 +1149,144 @@ Surfaces checked and left alone, because they are already unambiguous:
 Fixed alongside the badge: two persona lines emitted a bare ordinal off the Placement
 board and now say "3rd on Placement".
 
+## THE ABANDONED-RIDER GREYOUT IS OFF
+
+Disabled 2026-08-28, mid-race, during an OPEN stage 8 draft. `window.__ROSTER_ENABLED`
+is `false` in `vuelta.src.html`. The section below describes the feature as designed;
+read this first, because as built it has shipped three times and has never once worked.
+
+DO NOT RE-ENABLE IT until the fix below is built and verified against the standard in
+"How a feature is verified from now on".
+
+### What /roster actually returns, probed across every stage state
+
+Measured 2026-08-28 against the live worker. This is the contract; it was never
+established before the feature was built, three times.
+
+| Asked | Reports | Count | Delta | State |
+|---|---|---|---|---|
+| 1 | 1 | 184 | | scored |
+| 2 | 2 | 183 | -1 | scored |
+| 3 | 3 | 182 | -1 | VOID, and it still answers |
+| 4 | 4 | 182 | 0 | scored |
+| 5 | 5 | 180 | -2 | scored |
+| 6 | 6 | 178 | -2 | scored, correct |
+| 7 | 7 | 139 | -39 | in progress, INCOMPLETE |
+| 8, 9, 10 | 7 | 139 | | unraced, walks back to 7 |
+
+Everything is derived from `itg`, the general classification, via `rankingType-{year}-{s}`
+in `worker4.js handleRoster`. `itg` lists who REMAINS in the race, so when it is COMPLETE
+it is the right source and the design reasoning below still holds.
+
+THE PROBLEM IS THAT NOTHING SAYS WHETHER IT IS COMPLETE. Four findings, each independent:
+
+1. The worker's walk-back accepts ANY non-empty classification:
+   `if (g && (g.rankings || []).length) { useStage = s; break; }`. A 29-row
+   mid-compile `itg` satisfies that as well as a 178-row final one. This is the same
+   non-empty-only guard as the board's, one layer down, so a client-side fix alone
+   would have been fighting a wrong answer chosen upstream.
+2. A partial classification is INDISTINGUISHABLE IN SHAPE from a complete one. It is
+   the same JSON with fewer rows. There is no `final` flag, no expected count, nothing.
+3. It is ORDERED BY GC, so the rows that arrive first are the leaders. On stage 8 only
+   van Aert, Debruyne and Widar of 18 Belgians were present, because they are the only
+   three high on GC. Every domestique was reported abandoned for being a domestique.
+4. `out` is a pure set difference between that partial and the previous stage's cached
+   set, so it NAMES riders as abandoned with full confidence. Measured on stage 8, `out`
+   named Meeus, de Vylder, Sentjens, van Tricht, de Schuyteneer and van Boven, all six
+   of them still racing.
+
+IT MUTATES WHILE YOU WATCH. The same stage 7 request returned 29 rows on the live board,
+50 when Allen probed it, 139 on the first probe here and 146 two minutes later. There is
+no moment at which a single reading can be trusted on its own.
+
+SO: CAN THE ENDPOINT DISTINGUISH "STILL RACING" FROM "ABANDONED"? Not from any field, no.
+Not for an unraced or in-progress stage. It can only be distinguished by COMPARISON, and
+the comparison that works is the delta: real attrition ran -1, -1, 0, -2, -2 across
+stages 2 to 6. A drop of 39 in one stage is not attrition, it is a half-written file.
+
+Two smaller contract notes:
+
+- The VOID stage 3 answers with its own classification, count 182, one fewer than stage 2
+  (Kirsch). The claim below that stage 3 "has no itg at all and is skipped for free" is
+  WRONG. It is not skipped, it answers, and it happens to answer correctly.
+- The worker CACHES whatever it resolved into KV as `roster:active:{stage}`, so a partial
+  reading is written under the stage number and becomes the baseline for the next diff.
+  It self-heals as the classification fills, but the poisoned window is real.
+
+### The fix, PROPOSED and not built
+
+Not written yet, deliberately. Two diagnoses of this feature have already been wrong,
+including a completeness floor and a last-scored-stage walk-back that were built and
+reverted unbuilt, and both would have made a wrong answer harder to see rather than
+correct.
+
+The floor belongs in the WORKER, not the board, because the worker chooses the stage:
+
+1. `handleRoster` refuses a classification whose row count is materially below the most
+   recent stored roster and keeps walking back. Plausible attrition is a handful per
+   stage; the observed maximum is 2. A drop past a small threshold means mid-compile.
+2. It returns what it did: the stage used, the count, and whether anything was refused,
+   so the board can tell "178 from stage 6" apart from "we gave up".
+3. `out` is only ever computed between two roster sets that both passed. A diff against
+   a partial is never emitted, because that diff is what names live riders as abandoned.
+4. The board asks only for stages the POOL has scored, and treats anything other than an
+   explicit pass as UNKNOWN.
+5. UNKNOWN marks nobody out and SAYS SO on the card and in the draft search.
+
+Remember the worker does not deploy on push. `npx wrangler deploy` from the repo root,
+see Deploy.
+
+## A PARTIAL FEED IS NOT A FEED
+
+Added 2026-08-28, after the third instance of one class of bug.
+
+THE RULE, in Allen's words: ANY feed result whose row count is materially below the
+startlist is incomplete and must be REFUSED rather than used. It goes in the Phase 4
+monitors and in the close-stage gates.
+
+A non-empty check does not implement this. Every one of these failures produced valid,
+well formed, non-empty JSON. The bug is never a malformed response, it is a response
+that is honestly reporting a partial state which the caller reads as final.
+
+Three instances, all the same shape:
+
+1. The 44-of-184 finisher snapshot, which would have recorded two real picks as
+   fabricated missed picks.
+2. Stale group data that showed finished riders still racing.
+3. This one: a 29, then 50, then 139-row general classification read as the active
+   field, which marked 15 of 17 Belgians abandoned during an open draft, including
+   van Aert on a day he finished third.
+
+The test is a COUNT against a known denominator. The startlist size is known, 184, and
+`RIDERS.length` carries it. State the expected count, compare, and refuse below it.
+Express any threshold as a FRACTION of the startlist rather than a typed number, the
+same rule the archetype shape ladder follows, so it travels to the Giro and the Tour.
+
+Where a previous reading exists, the DELTA is a sharper test than the fraction: rosters
+shrink slowly and monotonically, so an implausible one-stage drop is conclusive where an
+absolute floor is a guess.
+
+## How a feature is verified from now on
+
+Added 2026-08-28, set by Allen after the greyout shipped three times without ever
+working. This applies to everything, not only the roster.
+
+1. A feature is NOT DONE until it has been exercised in the LIVE STATE IT SERVES. For
+   anything touching a draft that means DURING AN OPEN DRAFT ON AN UNRACED STAGE, not
+   after a close. Structural checks pass on broken features, and a stage that happens to
+   work is not evidence: every one of the three greyout builds passed its checks.
+2. Any external data source is PROBED ACROSS EVERY STATE IT WILL MEET before it is
+   trusted: unraced, in progress, scored, void. Write the contract down. The table above
+   is what that looks like, and none of it was known before the feature was built three
+   times.
+3. Player-facing exclusions FAIL OPEN. Showing a live rider as abandoned is worse than
+   showing an abandoned rider as available. The first silently deletes a choice the seat
+   can never know it lost; the second costs a visible, changeable pick.
+4. WHOEVER WROTE THE CODE DOES NOT GET TO BE THE ONLY ONE WHO VERIFIED IT. State
+   explicitly what was checked, in what state, and with what evidence, so somebody else
+   can reproduce it. "Verified" without those three is not a claim, it is a feeling.
+
+
 ## Abandoned riders, and the roster that drives them
 
 Added 2026-08-27. Read this before touching any rider picker.
