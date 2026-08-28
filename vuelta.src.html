@@ -1672,9 +1672,27 @@ window.__ACTIVE = null; window.__OUT = [];
 /* 'pending' before the first attempt, 'ok' once a classification is loaded, 'failed'
    when it cannot be. Read by riderRows so the draft can admit it does not know. */
 window.__ROSTER_STATE = 'pending'; window.__ROSTER_STAGE = null;
+/* ===== THE GREYOUT IS OFF =====
+   Disabled 2026-08-28, mid-race, during an OPEN stage 8 draft. Set true to re-enable,
+   and do not re-enable it until /roster has been probed in every stage state it will
+   meet and the contract is written down.
+   WHAT HAPPENED. /roster?stage=N for an UNRACED stage does not return the active field.
+   It returns a general classification TOP 50. Of 17 Belgians only van Aert, Debruyne and
+   Widar are high enough on GC to appear, so the other 14 were marked ABANDONED for the
+   crime of being domestiques. van Aert was greyed out on a day he finished THIRD. The
+   board's __ACTIVE held 29 bibs, an even worse snapshot than the 50.
+   The guard was `if (!d.activeBibs.length) return`, which rejects an EMPTY list only, so
+   a well formed 50-row answer passed it and was trusted as authoritative.
+   WHY OFF RATHER THAN PATCHED. A feature that removes real riders from a live draft is
+   worse than no feature: it silently deletes choices a seat can never know it lost. It
+   has shipped three times and has never once worked. Off is the correct state until the
+   source is understood, and a floor or a walk-back would only have made a wrong answer
+   harder to see. */
+window.__ROSTER_ENABLED = false;
 var _BIBMAP = (function () { var o = {}; (typeof RIDERS !== 'undefined' ? RIDERS : []).forEach(function (r) { if (r && r.b != null && r.r) o[_nrm(r.r)] = r.b; }); return o; })();
 function _bibOf(name) { var m = _BIBMAP[_nrm(name)]; return m == null ? null : m; }
 function riderIsOut(name) {
+  if (!window.__ROSTER_ENABLED) return false;  // greyout disabled, nobody is marked out
   if (!window.__ACTIVE) return false;          // roster unknown, assume in
   var b = _bibOf(name);
   if (b == null) return false;                 // not on the startlist, do not guess
@@ -1713,6 +1731,20 @@ function _rosterRepaint() {
    The caller passes the last SCORED stage so the walk-back is a safety net and not the
    mechanism. */
 window.__loadRoster = function (stage) {
+  /* OFF. No fetch, and the out flags are actively CLEARED rather than merely left alone,
+     because `out` is stamped onto the roster rows in place and a row can carry one from a
+     previous render in the same session. */
+  if (!window.__ROSTER_ENABLED) {
+    window.__ACTIVE = null; window.__OUT = [];
+    window.__ROSTER_STATE = 'off'; window.__ROSTER_STAGE = null;
+    try {
+      [(typeof BELGIAN_RIDERS !== 'undefined' ? BELGIAN_RIDERS : []),
+       (typeof USA_RIDERS !== 'undefined' ? USA_RIDERS : [])]
+        .forEach(function (list) { list.forEach(function (u) { u.out = false; }); });
+    } catch (e) { }
+    _rosterRepaint();
+    return Promise.resolve(false);
+  }
   var st = Number(stage);
   if (!st) { window.__ROSTER_STATE = 'failed'; _rosterRepaint(); return Promise.resolve(false); }
   if (window.__ROSTER_STATE === 'ok' && window.__ROSTER_STAGE === st) return Promise.resolve(true);
@@ -1810,7 +1842,7 @@ function riderRows(ms,emptyNote){
   /* When the roster cannot be resolved every rider still reads as selectable, because
      there is no honest way to guess who abandoned. Say that out loud on the panel where
      the pick is made. Silence here is what let a dead guard look like working software. */
-  var warn = (window.__ROSTER_STATE === 'failed')
+  var warn = (window.__ROSTER_ENABLED && window.__ROSTER_STATE === 'failed')
     ? '<div class="ac-item ac-none ac-warn">Abandons could not be checked. Every rider is shown as available.</div>' : '';
   return warn + ms.map(function(r,i){
     /* A drafted rider who has abandoned scores nothing on BOTH picks, so the search
