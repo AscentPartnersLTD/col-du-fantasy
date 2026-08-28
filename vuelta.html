@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260827-223740Z -->
+<head><!-- build:20260828-130134Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -984,6 +984,7 @@ function isTeamResultStage(n){ return (RACE_PROFILE.teamResultStages||[]).indexO
       #draftMount .ac-gone,#jerseyPreds .ac-gone{opacity:.55;filter:grayscale(1);cursor:not-allowed}
       #draftMount .ac-gone:hover,#jerseyPreds .ac-gone:hover{background:#fff}
       #draftMount .ac-gone .ac-rt,#jerseyPreds .ac-gone .ac-rt{color:#b21f2b;font-weight:700;margin-left:auto}
+      #draftMount .ac-warn,#jerseyPreds .ac-warn{color:#b21f2b;font-weight:700;background:#fdf3f2}
       #draftMount .ac-none,#jerseyPreds .ac-none{color:var(--mute);cursor:default}
       #draftMount .ac-none:hover,#jerseyPreds .ac-none:hover{background:#fff}
       /* Predictions differences: no Lock button beside the field, so the panel runs the
@@ -1637,9 +1638,13 @@ function _nrm(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-
        about the riders nobody drafted.
    A rider absent from ONE stage's finishers is NOT out, which is why the finishers
    array is not used: itg is the classification of who REMAINS, not who finished today.
-   Fails soft. If the roster cannot be read, __ACTIVE stays null and every rider stays
-   selectable, which is today's behavior rather than a board that blocks every pick. */
+   Fails LOUD now, not soft. If the roster cannot be resolved, __ACTIVE stays null and
+   every rider stays selectable, but the search says so instead of pretending it checked.
+   A silent no-op here is what hid this bug for the whole race. */
 window.__ACTIVE = null; window.__OUT = [];
+/* 'pending' before the first attempt, 'ok' once a classification is loaded, 'failed'
+   when it cannot be. Read by riderRows so the draft can admit it does not know. */
+window.__ROSTER_STATE = 'pending'; window.__ROSTER_STAGE = null;
 var _BIBMAP = (function () { var o = {}; (typeof RIDERS !== 'undefined' ? RIDERS : []).forEach(function (r) { if (r && r.b != null && r.r) o[_nrm(r.r)] = r.b; }); return o; })();
 function _bibOf(name) { var m = _BIBMAP[_nrm(name)]; return m == null ? null : m; }
 function riderIsOut(name) {
@@ -1660,26 +1665,45 @@ function _markOut() {
     });
   return changed;
 }
-(function loadRoster() {
-  try {
-    var st = (typeof STAGE !== 'undefined' && STAGE) ? STAGE : 1;
-    fetch('https://col-break.allen-19a.workers.dev/roster?stage=' + encodeURIComponent(st) + '&race=vuelta&cb=' + Date.now())
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) {
-        if (!d || !Array.isArray(d.activeBibs) || !d.activeBibs.length) return;
-        window.__ACTIVE = new Set(d.activeBibs);
-        window.__OUT = (typeof RIDERS !== 'undefined' ? RIDERS : []).filter(function (r) { return r.b != null && !window.__ACTIVE.has(r.b); });
-        /* The roster lands after the first paint, so every surface that shows a
-           rider has to be told. The draft is repainted unconditionally rather than
-           on _markOut(), because _markOut only tracks the two side-game rosters and
-           a drafted rider may be in neither. */
-        _markOut();
-        try { if (typeof renderKassei === 'function') renderKassei(); } catch (e) { }
-        try { if (typeof renderMerica === 'function') renderMerica(); } catch (e) { }
-        try { if (typeof renderDraft === 'function' && typeof draft !== 'undefined' && draft) renderDraft(); } catch (e) { }
-      }).catch(function () { });
-  } catch (e) { }
-})();
+/* The roster lands after the first paint, so every surface that shows a rider has to
+   be told. The draft is repainted unconditionally rather than on _markOut(), because
+   _markOut only tracks the two side-game rosters and a drafted rider may be in neither. */
+function _rosterRepaint() {
+  try { if (typeof renderKassei === 'function') renderKassei(); } catch (e) { }
+  try { if (typeof renderMerica === 'function') renderMerica(); } catch (e) { }
+  try { if (typeof renderDraft === 'function' && typeof draft !== 'undefined' && draft) renderDraft(); } catch (e) { }
+}
+/* Loads the roster for an explicit SCORED stage, which the caller supplies.
+   This NEVER reads STAGE, and that is the whole bug it replaces. This block sits in the
+   same script block as `let STAGE` further down, so `STAGE` here is in the temporal dead
+   zone, and `typeof STAGE` is the one case where typeof is NOT safe: on a TDZ let it
+   throws ReferenceError rather than returning 'undefined'. The throw was the first
+   statement inside a try whose catch was empty, so the fetch never fired at all,
+   __ACTIVE stayed null, and riderIsOut() returned false for every rider on every load.
+   The endpoint was never at fault: /roster?stage=7 answers with 178 active bibs and
+   reports that it used stage 6, because it walks backward to the last stage that has a
+   classification. Stage 3 is skipped for free that way, it having none.
+   The caller passes the last SCORED stage so the walk-back is a safety net and not the
+   mechanism. */
+window.__loadRoster = function (stage) {
+  var st = Number(stage);
+  if (!st) { window.__ROSTER_STATE = 'failed'; _rosterRepaint(); return Promise.resolve(false); }
+  if (window.__ROSTER_STATE === 'ok' && window.__ROSTER_STAGE === st) return Promise.resolve(true);
+  return fetch('https://col-break.allen-19a.workers.dev/roster?stage=' + encodeURIComponent(st) + '&race=vuelta&cb=' + Date.now())
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d || !Array.isArray(d.activeBibs) || !d.activeBibs.length) {
+        window.__ROSTER_STATE = 'failed'; _rosterRepaint(); return false;
+      }
+      window.__ACTIVE = new Set(d.activeBibs);
+      window.__OUT = (typeof RIDERS !== 'undefined' ? RIDERS : []).filter(function (r) { return r.b != null && !window.__ACTIVE.has(r.b); });
+      window.__ROSTER_STATE = 'ok';
+      window.__ROSTER_STAGE = Number(d.stage) || st;
+      _markOut(); _rosterRepaint();
+      return true;
+    })
+    .catch(function () { window.__ROSTER_STATE = 'failed'; _rosterRepaint(); return false; });
+};
 // "The Climb" loader (rebuilt lightweight from Design's source): a cyclist scaling
 // the col with the road drawing in behind, looping until the board loads. Defined
 // FIRST and independent of Firebase, so it animates from the first paint even while
@@ -1756,7 +1780,12 @@ function riderMatches(q,opts){
    apart. */
 function riderRows(ms,emptyNote){
   if(!ms.length) return '<div class="ac-item ac-none">'+esc(emptyNote||'No match')+'</div>';
-  return ms.map(function(r,i){
+  /* When the roster cannot be resolved every rider still reads as selectable, because
+     there is no honest way to guess who abandoned. Say that out loud on the panel where
+     the pick is made. Silence here is what let a dead guard look like working software. */
+  var warn = (window.__ROSTER_STATE === 'failed')
+    ? '<div class="ac-item ac-none ac-warn">Abandons could not be checked. Every rider is shown as available.</div>' : '';
+  return warn + ms.map(function(r,i){
     /* A drafted rider who has abandoned scores nothing on BOTH picks, so the search
        marks them and gives them no data-i, which is what the click handler keys on. */
     if(typeof riderIsOut==='function' && riderIsOut(r.r))
@@ -3063,6 +3092,13 @@ const COMPLETED = STAGES.filter(s=>!s.voidStage && s.days).map(s=>s.n).sort((a,b
    Misses and the What-if panel scored a top-30 race on the Tour's curve. */
 const FP_SCALE=RACE_PROFILE.scoring.fantasyScale;
 
+/* Who is still in the race, resolved from the LAST SCORED stage. COMPLETED already
+   filters !voidStage && days, so stage 3 is excluded here rather than relied on the
+   endpoint to skip. Called from here because this is the first point that knows which
+   stages have actually been raced; the roster block itself cannot know it. */
+try{ if(typeof window.__loadRoster==='function')
+       window.__loadRoster(COMPLETED.length?Math.max.apply(null,COMPLETED):null); }catch(e){}
+
 const OURS = { through: COMPLETED.length?Math.max(...COMPLETED):0, placement:{}, rank:{}, fantasy:{} };
 PL4.forEach(p=>{OURS.placement[p]=0;OURS.rank[p]=0;OURS.fantasy[p]=0;});
 COMPLETED.forEach(n=>{
@@ -4271,6 +4307,28 @@ const PERSONA_BY = (function(){
   const prevOrder=(L.order||[]).slice();
   const orderChanged = prevOrder.length!==fanOrder.length
     || fanOrder.some((p,i)=>prevOrder[i]!==p);
+  /* Hoisted above the movers loop, because the duplicate test below needs them. Same
+     two sets as before, built only from the ledger: the board being left, and the union
+     of everything every seat has ever worn. */
+  const prevBoard=new Set(Object.values(L.by||{}));
+  const everWorn=new Set(prevBoard);
+  Object.keys(L.seen||{}).forEach(q=>(((L.seen||{})[q])||[]).forEach(id=>everWorn.add(id)));
+  /* everWorn guards a REDRAW. It cannot undo a duplicate already sitting in `by`, and
+     with the order steady there are no movers, so nothing ever re-examines the board and
+     a hand-me-down stays forever. tonymartin sat on JJ exactly this way: JP wore it,
+     handed it back, and JJ drew it on the stage 6 rotation, which was before everWorn
+     shipped. The engine then held it in place on every later load because nothing had
+     moved.
+     A seat holding a name that is in ANOTHER seat's history is now forced to move. Only
+     when a fresh name of the right tier actually exists, so a depleted bank degrades to
+     holding rather than redrawing into another duplicate on every load, which would
+     write on every load and freeze the ledger. It converges: the redraw excludes
+     everything ever worn, so the replacement is unique and the next load repairs
+     nothing. */
+  const wornElsewhere=(seat,id)=>!!id && Object.keys(L.seen||{})
+    .some(q=>q!==seat && (((L.seen||{})[q])||[]).indexOf(id)>=0);
+  const freshLeft=tier=>PERSONA_BANK.some(c=>c.tier===tier && !everWorn.has(c.id));
+  const dupes=[];
   const movers=[];
   PL4.forEach(p=>{
     if(assigned[p]) return;
@@ -4282,7 +4340,9 @@ const PERSONA_BY = (function(){
        sitting on it. This is a separate guard from the standings test: it can move one
        seat on its own when the order did not change at all. */
     const wantTier=(p===leader)?'winner':'style';
-    if(!orderChanged && prev && prev.tier===wantTier){ assigned[p]=prev; used[prevId]=1; }
+    const dupe=wornElsewhere(p,prevId) && freshLeft(wantTier);
+    if(dupe) dupes.push(p);
+    if(!orderChanged && prev && prev.tier===wantTier && !dupe){ assigned[p]=prev; used[prevId]=1; }
     else movers.push(p);
   });
   /* NO SWAPS and NO HAND-ME-DOWNS are two different rules, and only the first was
@@ -4298,9 +4358,6 @@ const PERSONA_BY = (function(){
      from the ledger's own record, so a name that has been on this board once is
      retired rather than recirculated. A seat's own history was already excluded
      through seen; this extends the same rule to the other three seats. */
-  const prevBoard=new Set(Object.values(L.by||{}));
-  const everWorn=new Set(prevBoard);
-  Object.keys(L.seen||{}).forEach(q=>(((L.seen||{})[q])||[]).forEach(id=>everWorn.add(id)));
   /* 3) each mover earns a NEW persona: leader from winners, everyone else from styles;
         best fit for how they are riding now, excluding the previous board and their own history */
   movers.sort((a,b)=>curPos[a]-curPos[b]);
@@ -4342,6 +4399,7 @@ const PERSONA_BY = (function(){
     leader:leader,
     movers:movers.slice(),
     everWornCount:everWorn.size,
+    duplicatesRepaired:dupes.slice(),
     pinned:PL4.filter(p=>((rp[p]||{}).pin)),
     prevIdFound:PL4.reduce((o,p)=>(o[p]=!!(((L&&L.by)||{})[p] && byId(((L&&L.by)||{})[p])),o),{}),
     assigned:PL4.reduce((o,p)=>(o[p]=assigned[p]?assigned[p].id:null,o),{})
