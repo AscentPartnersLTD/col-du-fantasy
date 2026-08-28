@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260828-160126Z -->
+<head><!-- build:20260828-171229Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -1672,23 +1672,41 @@ window.__ACTIVE = null; window.__OUT = [];
 /* 'pending' before the first attempt, 'ok' once a classification is loaded, 'failed'
    when it cannot be. Read by riderRows so the draft can admit it does not know. */
 window.__ROSTER_STATE = 'pending'; window.__ROSTER_STAGE = null;
-/* ===== THE GREYOUT IS OFF =====
-   Disabled 2026-08-28, mid-race, during an OPEN stage 8 draft. Set true to re-enable,
-   and do not re-enable it until /roster has been probed in every stage state it will
-   meet and the contract is written down.
-   WHAT HAPPENED. /roster?stage=N for an UNRACED stage does not return the active field.
-   It returns a general classification TOP 50. Of 17 Belgians only van Aert, Debruyne and
-   Widar are high enough on GC to appear, so the other 14 were marked ABANDONED for the
-   crime of being domestiques. van Aert was greyed out on a day he finished THIRD. The
-   board's __ACTIVE held 29 bibs, an even worse snapshot than the 50.
-   The guard was `if (!d.activeBibs.length) return`, which rejects an EMPTY list only, so
-   a well formed 50-row answer passed it and was trusted as authoritative.
-   WHY OFF RATHER THAN PATCHED. A feature that removes real riders from a live draft is
-   worse than no feature: it silently deletes choices a seat can never know it lost. It
-   has shipped three times and has never once worked. Off is the correct state until the
-   source is understood, and a floor or a walk-back would only have made a wrong answer
-   harder to see. */
-window.__ROSTER_ENABLED = false;
+window.__ROSTER_WHY = ''; window.__ROSTER_COUNT = 0; window.__ROSTER_REFUSED = [];
+/* ===== WHO HAS LEFT THE RACE =====
+   Rebuilt 2026-08-28 on a different source, after three builds that never worked.
+
+   THE SOURCE IS FINISHER LISTS, NOT A RANKING. /api/break?stage=N returns `finished`,
+   the complete classification of a SCORED stage: one row per rider with bib, pos and
+   name. A rider who appeared in an earlier scored stage and is ABSENT from the most
+   recent scored stage has left the race. Nothing else counts.
+
+   WHAT THIS REPLACES, and why /roster must NOT be used for this. /roster derives from
+   `itg`, the general classification, and for an unraced stage it answers with a GC TOP
+   50, which is a RANKING and not a field. It is ordered by GC, so the rows present are
+   the leaders: of 18 Belgians only van Aert, Debruyne and Widar appeared, and the other
+   fourteen were marked ABANDONED for being domestiques. van Aert was greyed out on a day
+   he finished THIRD. Its `out` array is a set difference against that partial, so it
+   NAMES live riders as abandoned. Full contract in CLAUDE.md.
+
+   MEASURED CONTRACT of `finished`, 2026-08-28, every stage state probed:
+     stage 1  184   stage 2  183   stage 3    0 (VOID, correctly empty)
+     stage 4  182   stage 5  180   stage 6  178
+     stage 7  178   stage 8    0 (UNRACED, correctly empty, live:false)
+   A clean monotonic decline from the 184-rider startlist, which is what a real field
+   looks like. The void and unraced stages return an EMPTY list rather than a partial
+   one, so they fail the floor below instead of being mistaken for an answer.
+
+   GROUND TRUTH this must reproduce, computed from those lists and verified twice,
+   independently, before this was written: SIX riders out of 184, and exactly ONE of them
+   Belgian, C. Uijtdebroeks bib 28, who finished stages 1, 2 and 4 and is absent from 5,
+   6 and 7. Seventeen Belgians selectable. Any other answer is wrong. */
+window.__ROSTER_ENABLED = true;
+/* The floor, as a FRACTION of the startlist so it travels to the Giro and the Tour with
+   no edit. Real attrition over a whole grand tour runs well under 10 percent, and the
+   observed decline here is 184 to 178 across seven stages. The GC top 50 that caused all
+   of this scores 27 percent and is rejected instantly; so is any empty list. */
+window.__ROSTER_MIN_FRACTION = 0.9;
 var _BIBMAP = (function () { var o = {}; (typeof RIDERS !== 'undefined' ? RIDERS : []).forEach(function (r) { if (r && r.b != null && r.r) o[_nrm(r.r)] = r.b; }); return o; })();
 function _bibOf(name) { var m = _BIBMAP[_nrm(name)]; return m == null ? null : m; }
 function riderIsOut(name) {
@@ -1730,38 +1748,100 @@ function _rosterRepaint() {
    classification. Stage 3 is skipped for free that way, it having none.
    The caller passes the last SCORED stage so the walk-back is a safety net and not the
    mechanism. */
-window.__loadRoster = function (stage) {
-  /* OFF. No fetch, and the out flags are actively CLEARED rather than merely left alone,
-     because `out` is stamped onto the roster rows in place and a row can carry one from a
-     previous render in the same session. */
-  if (!window.__ROSTER_ENABLED) {
-    window.__ACTIVE = null; window.__OUT = [];
-    window.__ROSTER_STATE = 'off'; window.__ROSTER_STAGE = null;
+/* Everything here is exported so it can be exercised without a browser. */
+window.__rosterFloor = function () {
+  var n = (typeof RIDERS !== 'undefined' && RIDERS.length) ? RIDERS.length : 0;
+  return n ? Math.ceil(n * window.__ROSTER_MIN_FRACTION) : 0;
+};
+/* Turns one /api/break payload into an active bib set, or null if it may not be trusted.
+   Every rejection is a SEPARATE named reason, because "it did not work" is what let three
+   builds of this ship. */
+window.__rosterFromBreak = function (d, wantRace) {
+  if (!d || typeof d !== 'object') return { ok: false, why: 'no answer from the results feed' };
+  /* The board NAMES its race and AUDITS the reply, per CLAUDE.md. A feed answering for
+     the wrong race is valid JSON about a real race, which is exactly how a board once
+     told three players the stage winner was off the back. */
+  if (wantRace && d.race && String(d.race) !== String(wantRace))
+    return { ok: false, why: 'the results feed answered for ' + String(d.race) };
+  var f = d.finished;
+  if (!Array.isArray(f)) return { ok: false, why: 'the results feed sent no finishers' };
+  var bibs = f.map(function (x) { return x && x.bib; }).filter(function (b) { return b != null; });
+  var set = {}; var uniq = [];
+  bibs.forEach(function (b) { if (!set[b]) { set[b] = 1; uniq.push(b); } });
+  var floor = window.__rosterFloor();
+  /* An EMPTY list is the honest answer for a void or unraced stage, and it is caught by
+     the same floor as a partial one. Void stage 3 and unraced stage 8 both return zero
+     finishers, so neither needs a special case. */
+  if (floor && uniq.length < floor)
+    return { ok: false, why: uniq.length + ' of ' + RIDERS.length + ' riders classified, too few to trust', count: uniq.length };
+  return { ok: true, bibs: uniq, count: uniq.length };
+};
+/* Resolves the roster from the most recent SCORED stage, walking BACK past any stage
+   whose classification is missing or short.
+   `scored` is the caller's list of stages the POOL has scored, which already excludes
+   void stages. This NEVER asks for the current or an in-progress stage: the highest
+   number it will ever request is the last one that has been closed and scored, and an
+   in-progress stage is not in that list.
+   It also NEVER reads STAGE. That is the temporal dead zone bug this replaced: `let
+   STAGE` is declared further down this same script block, and `typeof` is NOT safe on a
+   TDZ let, it throws rather than returning 'undefined'. */
+window.__loadRoster = function (scored) {
+  function clearFlags() {
     try {
       [(typeof BELGIAN_RIDERS !== 'undefined' ? BELGIAN_RIDERS : []),
        (typeof USA_RIDERS !== 'undefined' ? USA_RIDERS : [])]
         .forEach(function (list) { list.forEach(function (u) { u.out = false; }); });
     } catch (e) { }
-    _rosterRepaint();
+  }
+  function unknown(why) {
+    /* FAIL OPEN, and the direction is not a preference. Showing a LIVE rider as abandoned
+       silently deletes a choice the seat can never know it lost. Showing an abandoned
+       rider as available costs one visible, changeable pick. The first is invisible and
+       unrecoverable; the second is neither. */
+    window.__ACTIVE = null; window.__OUT = [];
+    window.__ROSTER_STATE = 'unknown'; window.__ROSTER_WHY = why || '';
+    clearFlags(); _rosterRepaint();
+    return false;
+  }
+  if (!window.__ROSTER_ENABLED) {
+    window.__ACTIVE = null; window.__OUT = [];
+    window.__ROSTER_STATE = 'off'; window.__ROSTER_STAGE = null;
+    clearFlags(); _rosterRepaint();
     return Promise.resolve(false);
   }
-  var st = Number(stage);
-  if (!st) { window.__ROSTER_STATE = 'failed'; _rosterRepaint(); return Promise.resolve(false); }
-  if (window.__ROSTER_STATE === 'ok' && window.__ROSTER_STAGE === st) return Promise.resolve(true);
-  return fetch('https://col-break.allen-19a.workers.dev/roster?stage=' + encodeURIComponent(st) + '&race=vuelta&cb=' + Date.now())
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (d) {
-      if (!d || !Array.isArray(d.activeBibs) || !d.activeBibs.length) {
-        window.__ROSTER_STATE = 'failed'; _rosterRepaint(); return false;
-      }
-      window.__ACTIVE = new Set(d.activeBibs);
-      window.__OUT = (typeof RIDERS !== 'undefined' ? RIDERS : []).filter(function (r) { return r.b != null && !window.__ACTIVE.has(r.b); });
-      window.__ROSTER_STATE = 'ok';
-      window.__ROSTER_STAGE = Number(d.stage) || st;
-      _markOut(); _rosterRepaint();
-      return true;
-    })
-    .catch(function () { window.__ROSTER_STATE = 'failed'; _rosterRepaint(); return false; });
+  var list = (Array.isArray(scored) ? scored : []).filter(function (n) { return Number(n) > 0; })
+    .map(Number).sort(function (a, b) { return b - a; });
+  if (!list.length) return Promise.resolve(unknown('no stage has been scored yet'));
+  var race = (typeof RACE_PROFILE !== 'undefined' && RACE_PROFILE.id) ? RACE_PROFILE.id : '';
+  var base = (typeof BREAK_ENDPOINTS !== 'undefined' && BREAK_ENDPOINTS.length)
+    ? BREAK_ENDPOINTS[0] : 'https://api.coldufantasy.com/api/break';
+  window.__ROSTER_REFUSED = [];
+  var tried = list.slice(0, 4);   // bounded: four scored stages back is already generous
+  function attempt(i) {
+    if (i >= tried.length) return unknown('no complete classification in the last ' + tried.length + ' scored stages');
+    var st = tried[i];
+    return fetch(base + '?stage=' + encodeURIComponent(st) + '&race=' + encodeURIComponent(race) + '&cb=' + Date.now())
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        var v = window.__rosterFromBreak(d, race);
+        if (!v.ok) {
+          window.__ROSTER_REFUSED.push({ stage: st, why: v.why, count: v.count == null ? 0 : v.count });
+          return attempt(i + 1);
+        }
+        window.__ACTIVE = new Set(v.bibs);
+        window.__OUT = (typeof RIDERS !== 'undefined' ? RIDERS : [])
+          .filter(function (r) { return r.b != null && !window.__ACTIVE.has(r.b); });
+        window.__ROSTER_STATE = 'ok'; window.__ROSTER_WHY = '';
+        window.__ROSTER_STAGE = st; window.__ROSTER_COUNT = v.count;
+        _markOut(); _rosterRepaint();
+        return true;
+      })
+      .catch(function () {
+        window.__ROSTER_REFUSED.push({ stage: st, why: 'the results feed could not be reached', count: 0 });
+        return attempt(i + 1);
+      });
+  }
+  return attempt(0);
 };
 // "The Climb" loader (rebuilt lightweight from Design's source): a cyclist scaling
 // the col with the road drawing in behind, looping until the board loads. Defined
@@ -1842,8 +1922,10 @@ function riderRows(ms,emptyNote){
   /* When the roster cannot be resolved every rider still reads as selectable, because
      there is no honest way to guess who abandoned. Say that out loud on the panel where
      the pick is made. Silence here is what let a dead guard look like working software. */
-  var warn = (window.__ROSTER_ENABLED && window.__ROSTER_STATE === 'failed')
-    ? '<div class="ac-item ac-none ac-warn">Abandons could not be checked. Every rider is shown as available.</div>' : '';
+  var warn = (window.__ROSTER_ENABLED && (window.__ROSTER_STATE === 'unknown' || window.__ROSTER_STATE === 'pending'))
+    ? '<div class="ac-item ac-none ac-warn">Abandons could not be checked'
+        + (window.__ROSTER_WHY ? ' - ' + esc(window.__ROSTER_WHY) : '')
+        + '. Every rider is shown as available.</div>' : '';
   return warn + ms.map(function(r,i){
     /* A drafted rider who has abandoned scores nothing on BOTH picks, so the search
        marks them and gives them no data-i, which is what the click handler keys on. */
@@ -2915,6 +2997,15 @@ function renderKassei(){
   else if(pick1&&pick2){ foot='Both picks locked in. Tap a rider to release and replace, or tap the X above.'; }
   else if(pick1){ foot='First choice set. Tap a second Belgian to set the tiebreaker.'; }
   else{ foot='Tap a Belgian to set the first choice. Two picks are required.'; }
+  /* Say it on the CARD, not only in the draft search. This is the surface where the
+     damage showed on 2026-08-28, when a ranking read as a field greyed out 14 Belgians
+     who were still racing. Nobody is marked out when the roster is unknown, and the card
+     now admits that rather than looking authoritative. A silent no-op hid this for a day. */
+  if(window.__ROSTER_ENABLED && (window.__ROSTER_STATE==='unknown'||window.__ROSTER_STATE==='pending')){
+    foot+=' Abandons could not be checked'
+      +(window.__ROSTER_WHY?' - '+esc(window.__ROSTER_WHY):'')
+      +', so every Belgian is shown as available.';
+  }
   const minBtn=stageOn?'<button type="button" class="mer-minbtn">Minimize</button>':'';
   const desc='Two picks per stage, ordered. The first choice decides the cobble; the second breaks ties only. A rider who does not finish scores nothing and is out of contention. Most cobbles at season end takes the Koning der Kasseistampers jersey.';
   mm.innerHTML='<div class="mer-card kassei"><div class="mer-h">'+shield+'<div><div class="mer-t">KASSEISTAMPERS - STAGE '+esc(String(STAGE))+'</div><div class="mer-s">'+desc+'</div></div>'+minBtn+'</div>'+topCard+pickSlots+'<div class="mer-chips">'+chips+'</div><div class="mer-foot">'+foot+'</div>'+kasAnthemHTML()+'</div>';
@@ -3160,8 +3251,11 @@ const FP_SCALE=RACE_PROFILE.scoring.fantasyScale;
    filters !voidStage && days, so stage 3 is excluded here rather than relied on the
    endpoint to skip. Called from here because this is the first point that knows which
    stages have actually been raced; the roster block itself cannot know it. */
-try{ if(typeof window.__loadRoster==='function')
-       window.__loadRoster(COMPLETED.length?Math.max.apply(null,COMPLETED):null); }catch(e){}
+/* COMPLETED is every stage the POOL has scored, already filtered on !voidStage && days,
+   so void stage 3 never appears and neither does the stage being drafted. The WHOLE list
+   is passed rather than just its maximum, so the loader can walk back on its own without
+   guessing which stages exist. */
+try{ if(typeof window.__loadRoster==='function') window.__loadRoster(COMPLETED); }catch(e){}
 
 const OURS = { through: COMPLETED.length?Math.max(...COMPLETED):0, placement:{}, rank:{}, fantasy:{} };
 PL4.forEach(p=>{OURS.placement[p]=0;OURS.rank[p]=0;OURS.fantasy[p]=0;});
@@ -6529,4 +6623,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy: abandoned-rider greyout disabled, 2026-08-28 -->
+<!-- redeploy: greyout rebuilt on scored-stage finishers, 2026-08-28 -->

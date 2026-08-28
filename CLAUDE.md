@@ -1149,14 +1149,79 @@ Surfaces checked and left alone, because they are already unambiguous:
 Fixed alongside the badge: two persona lines emitted a bare ordinal off the Placement
 board and now say "3rd on Placement".
 
-## THE ABANDONED-RIDER GREYOUT IS OFF
+## The abandoned-rider greyout: OFF, then REBUILT on a different source
 
-Disabled 2026-08-28, mid-race, during an OPEN stage 8 draft. `window.__ROSTER_ENABLED`
-is `false` in `vuelta.src.html`. The section below describes the feature as designed;
-read this first, because as built it has shipped three times and has never once worked.
+Turned OFF mid-race on 2026-08-28 during an open stage 8 draft, then rebuilt the same day
+on scored-stage FINISHER lists instead of a ranking. `window.__ROSTER_ENABLED` is `true`
+again. Read this whole section before touching it: it shipped three times on the wrong
+source and never once worked.
 
-DO NOT RE-ENABLE IT until the fix below is built and verified against the standard in
-"How a feature is verified from now on".
+### The source is `finished`, and /roster must NEVER be used for this
+
+`/api/break?stage=N` returns `finished`, the complete classification of a SCORED stage,
+one row per rider with bib, pos and name. THE RULE: a rider who appears in an earlier
+scored stage and is ABSENT from the most recent scored stage has left the race. Nothing
+else counts. Do not infer from rankings, from the general classification, or from the
+stage currently being raced.
+
+`/roster` derives from `itg` and for an unraced stage answers with a GC TOP 50. That is a
+RANKING, not a field. It is ordered by GC, so the rows present are the leaders: of 18
+Belgians only van Aert, Debruyne and Widar appeared and the other fourteen were marked
+ABANDONED for being domestiques. Its `out` array is a set difference against that
+partial, so it NAMES live riders as abandoned. The full probe is below.
+
+MEASURED CONTRACT of `finished`, 2026-08-28, every stage state:
+
+| Stage | finished | State |
+|---|---|---|
+| 1 | 184 | scored |
+| 2 | 183 | scored |
+| 3 | 0 | VOID, correctly empty |
+| 4 | 182 | scored |
+| 5 | 180 | scored |
+| 6 | 178 | scored |
+| 7 | 178 | scored |
+| 8 | 0 | UNRACED, correctly empty, `live:false` |
+
+A clean monotonic decline from the 184-rider startlist, which is what a real field looks
+like. Void and unraced stages return an EMPTY list rather than a partial one, so they are
+caught by the floor and need no special case.
+
+### The ground truth any implementation must reproduce
+
+Computed from those lists, twice and independently, before the code was written. SIX
+riders out of 184: Uijtdebroeks 28, Tarling 67, Kirsch 143, Beloki 163, Chumil 194, van
+Sintmaartensdijk 208. Exactly ONE is Belgian, C. Uijtdebroeks, who finished stages 1, 2
+and 4 and is absent from 5, 6 and 7. SEVENTEEN Belgians selectable.
+
+If a change to this code produces any other answer, it is wrong. Stop rather than ship.
+
+### The guards
+
+- FLOOR: refuse any classification below 90 percent of `RIDERS.length`, expressed as a
+  fraction so it travels to the Giro and the Tour. The GC top 50 scores 27 percent and is
+  rejected instantly; an empty void or unraced stage is rejected by the same test.
+- NEVER the current or an in-progress stage. The loader is handed `COMPLETED`, the stages
+  the POOL has scored, which already excludes void stages and the stage being drafted. It
+  walks BACK through that list and never invents a stage number.
+- RACE AUDIT: the reply must name the race the board asked for. A feed answering for
+  another race is valid JSON about a real race.
+- FAIL OPEN: if the roster cannot be resolved, `__ACTIVE` is null, nobody is marked out,
+  and any `out` flag left on a roster row from an earlier render is CLEARED rather than
+  left behind. The draft search AND the Kasseistampers card both say so, with the reason.
+
+### Verified
+
+`tools-roster-verify.js` lifts the roster block VERBATIM out of the built `vuelta.html`
+and runs it against the real `/api/break` payloads in `tools-roster-fixtures/`. It is the
+shipped code under test, not a transcription of it. Run `node tools-roster-verify.js`.
+
+It asserts the ground truth above, and separately that the void stage, the unraced stage,
+a 50-row GC snapshot and a reply for the wrong race are all REFUSED with nobody marked
+out, that the walk-back lands on stage 6 when stage 7 comes back short, and that the
+disabled switch marks nobody out. Per the standard below, this is what was checked and
+with what evidence; confirmation on the live board during an open draft is separate and
+belongs to Allen.
 
 ### What /roster actually returns, probed across every stage state
 
