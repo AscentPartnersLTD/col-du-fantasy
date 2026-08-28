@@ -569,6 +569,62 @@ against `__ledgerDiag.serverLedger.seen` separates a stale board from a denied w
 For the roster, `performance.getEntriesByType('resource')` filtered for `col-break`
 proves whether the request was ever made, which is what settled this one.
 
+## The nationality side game: ONE per race, never two
+
+There is one nationality side game, and its country changes per race. It is not two
+games that coexist:
+
+- Tour de France: Americans. Captain 'Merica, shields.
+- Vuelta a Espana: Belgians. Kasseistampers, cobbles.
+- The Giro will be its own country.
+
+Same mechanic, same markup, different nationality, which is why the Kasseistampers card
+is built on `.mer-card` and reuses the Merica implementation rather than duplicating it.
+If a board is showing both at once, that is the bug.
+
+`RACE_PROFILE.sideGames` is the switch. It was DECLARED in both profiles and read by
+NOTHING until 2026-08-28, so it documented an intention instead of enforcing one.
+Every render site now asks `sideGameOn(id)`, which is strict true: an absent flag is
+off. Vuelta is `merica:false`, Tour is `merica:true` and `kasseistampers:false`.
+
+### A game can be enabled and still invisible
+
+"Not on the board" is NOT evidence of "not enabled". Captain 'Merica was switched ON in
+the Vuelta profile for the entire race and nobody ever saw it, because the only thing
+that called `renderMerica()` was the roster repaint, and the roster fetch was dead from
+the temporal dead zone bug above. Repairing the fetch did not add the card; it revealed
+a game the profile had been asking for all along. Check the FLAG, not the screen. This
+is the same class as the col-break Worker: the repo said a thing was happening and
+nobody had asked the provider.
+
+### Turning a game off must not erase history won elsewhere
+
+`JERSEY_ICONS.merica` STAYS on the Vuelta board even with the game off, because JP
+carries a Captain 'Merica jersey won at the 2026 Tour and the trophy case is cross-race.
+Disable the game for THIS race; never delete the honour from another one.
+
+### Curated rosters are a copy hazard, so compute them
+
+`USA_RIDERS` was never decoupled when `vuelta.src.html` was copied from
+`board.src.html`, exactly as the copying rule above warns. Measured 2026-08-28 against
+`racecenter.lavuelta.es/api/allCompetitors-2026`: four of its six names, McNulty,
+Jorgenson, Q. Simmons and S. Quinn, are not in the 2026 Vuelta at all, and three
+Americans who ARE in it, Vermaerke, Warbasse and Barta, were missing. So the card was
+offering four riders who were not in the race. `BELGIAN_RIDERS` matches the feed
+exactly, 18 of 18, which is luck of maintenance rather than a different mechanism.
+
+The feed carries `nationality` on every rider and matched all 184 startlist bibs with
+zero misses, so this list should be computed rather than typed. See the generalization
+report in the session notes.
+
+### The country is fixed for a whole race
+
+A season jersey for most cobbles cannot survive the nationality moving mid-race, so the
+country is a race setting and never a per-stage one. Eligibility is judged ONCE, on the
+startlist at race start, not continuously: Austria has exactly 4 riders in this Vuelta
+and would fall to 3 on a single abandon, which must not make a running season game
+uncontestable halfway through.
+
 ## Writing boardConfig, two traps
 
 `POST /api/board-config` writes to EVERY pool doc when `pools` is omitted. That default
