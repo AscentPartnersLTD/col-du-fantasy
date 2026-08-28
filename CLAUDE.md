@@ -627,8 +627,12 @@ offering four riders who were not in the race. `BELGIAN_RIDERS` matches the feed
 exactly, 18 of 18, which is luck of maintenance rather than a different mechanism.
 
 The feed carries `nationality` on every rider and matched all 184 startlist bibs with
-zero misses, so this list should be computed rather than typed. See the generalization
-report in the session notes.
+zero misses, so this list should be computed rather than typed. The generalization
+report is `NATIONALITY-SIDE-GAME.md` in this repo, committed 2026-08-28 so it survives
+the conversation it was written in. It carries the profile block, the build-time vs
+runtime decision and why, the measured country menu for this Vuelta, and the two
+decisions Allen made that day: bios degrade to initials and never gate the feature, and
+eligibility is judged once at race start and never recomputed.
 
 ### The country is fixed for a whole race
 
