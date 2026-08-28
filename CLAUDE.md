@@ -915,18 +915,11 @@ built from `by` and `seen` together, and a mover is now drawn from names nobody 
 worn. A seat's own history was already excluded through `seen`; this extends the same
 rule to the other three seats.
 
-The draw is a widening ladder, each rung giving up exactly one guard, so a depleted
-bank degrades instead of leaving a seat with no persona:
-
-1. never worn by anyone
-2. not this seat's own and not on the previous board, which is the OLD rule
-3. not on the previous board
-4. anything free of the right tier
-
-The bank holds 44 style rows and 12 winner rows against three styles and at most one
-winner per rotation, so rung 1 carries a full race on styles and can run short on
-winners late in a long one. Verified: with all 12 winners already worn and the order
-changed, the leader still draws a winner and still does not redraw its own.
+The draw WAS a widening ladder, each rung giving up one guard. SUPERSEDED 2026-08-28,
+see "Personas never repeat within a race" below. The fallbacks turned out to be the
+defect rather than graceful degradation: they fired routinely instead of at the end of a
+depleted bank, and because every rung ranks by fit, the names they reached for were the
+well-fitting ones, which are exactly the ones already spent. Rung 1 is now the only rung.
 
 This makes `seen` LOAD-BEARING rather than decorative. It is the only record of who has
 worn what. If the ledger write stays denied and `seen` stops growing, the guard silently
@@ -939,6 +932,94 @@ shipped block on live pool state: the ledger order matches the Fantasy Points or
 are no pins, so there are no movers and the ladder is never reached. AA badger,
 JP professor, JJ tonymartin, JB eternalsecond stands as the engine wrote it. Simulating
 JJ overtaking JP re-draws all four and reuses nothing from the ledger.
+
+## Personas never repeat within a race
+
+Added 2026-08-28. This supersedes the widening ladder above.
+
+ALLEN'S RULE. Within a single race a persona may be used ONCE. Not once per seat, once
+per RACE. Nobody gets a name anyone has already worn in this Vuelta, and every rotation
+puts a NEW name in front of people. Novelty is the entire point of the feature and
+recycling defeats it.
+
+THE USED LIST is `everWorn`, the union of `by` and `seen` from the ledger. A name in it
+is unavailable to EVERYONE for the rest of the race. It is scoped to the pool, because
+the ledger lives on `pools/{poolId}`, so Tour history cannot constrain the Vuelta and the
+Vuelta cannot constrain the Giro. A new race starts with all 56 rows free. That is the
+reset, and it needs no code and no migration.
+
+### The two defects this closed
+
+ONE, the fallbacks. Rungs 2 to 4 of the old ladder each surrendered a guard, and they
+were not a last resort. They fired routinely, and the rotation before this change
+replaced reused personas with even MORE frequently used ones. Rung 1 is now the only
+rung. The worst offender was not even in the ladder: step 4, the safety net, fell back to
+`PERSONA_BANK.find(x => !used[x.id])`, any tier and any history, which could put a worn
+name on the board without any rung firing at all.
+
+TWO, and this one matters more: `everWorn` guards a REDRAW, not the STORED board. With
+the order steady there are no movers, so nothing re-examined `by`, and a duplicate made
+before the rule existed stayed forever. That is why JJ went on wearing tonymartin after
+JP had worn it. A guard on future draws does not clean up a board that is already wrong.
+There is now a repair pass: a seat holding a name another seat has worn, or a name held
+twice on the same board, is forced to move even when nothing in the standings changed.
+
+### When a tier runs dry, HOLD, never repeat
+
+If no unworn name of the right tier remains, the seat KEEPS the persona it is wearing.
+It never repeats one, and it is never left silently blank. The card prints "Persona
+held, no unworn champion name left", or "No unworn style name left" if the seat had
+nothing to keep.
+
+That announcement is not decoration. A frozen persona and a broken engine look identical
+from the outside, which is the same lesson that produced the pin announcement two
+sections up. A silent hold is indistinguishable from a rotation that stopped working.
+
+### Retirement is DATA, and it is a cleared `by`
+
+To retire the whole board at once, clear `personaLedger.by`. A seat with no previous
+persona has nothing to hold, so all four move, and the next write repopulates `by` so it
+cannot fire twice.
+
+It is deliberately NOT a generation counter or any other new field. The published
+Firestore rule is `hasOnly(['order','by','seen'])`, so a new key would be DENIED and the
+denial is swallowed. The retirement would never record as done, it would re-fire on every
+single load, and it would strip the bank in an afternoon. Nothing is lost by clearing
+`by`, because the persistence block pushes every assigned id into `seen` on each write,
+so `seen` is always a superset of `by`.
+
+    db.doc('pools/vuelta-2026').update({'personaLedger.by': {}})
+
+### CAPACITY, and winner tier is the binding constraint
+
+The bank is 12 winner rows and 44 style rows. A rotation burns one winner and three
+styles, so the bank is worth roughly 12 winner-tier rotations and 14 style-tier ones.
+Winners bind first, and not by much.
+
+Measured by simulation against the real bank, 2026-08-28, from a used list of 16: the
+winner tier empties on the eighth further rotation and the style tier on the tenth. Four
+rotations had fired in the first seven stages, so at that rate the fourteen remaining
+stages want about eight more. The budget is real but it has NO margin.
+
+Three options if it binds, none of them chosen yet:
+
+- grow the winner bank, which is the blocked `persona-bank-additions.js` work, and every
+  row needs its `/* src: */` citation fetched and checked
+- let the leader draw from the style tier once winners are spent, which is cheap and
+  gives up the champion signal
+- let the leader HOLD its champion unless the LEADERSHIP changes, rather than redrawing
+  on every order change. This cuts winner burn hardest, since leadership changes far less
+  often than the order does, and it does not touch the bank at all
+
+### Verified, by simulation rather than by reading
+
+`scratchpad/sim.js` runs the real 56-row bank through the shipped rules. Twelve
+consecutive rotations with the leadership moving between all four seats: zero repeats,
+zero names on two seats at once, the used list growing 16 to 56 and both tiers reaching
+exactly full. With all 12 winners worn, the leader holds its champion and is flagged
+`exhausted` rather than repeating. A stored hand-me-down is detected and moved with the
+order completely steady. A cleared `by` moves all four to unworn names and the load after
+it is stable, which is what stops the ledger writing forever.
 
 ## The persona ledger rule, PUBLISHED 2026-08-27
 

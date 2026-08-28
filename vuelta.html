@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260828-132349Z -->
+<head><!-- build:20260828-152936Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -418,6 +418,24 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
   .refresh-fab.spin svg{animation:fabspin .6s linear}
   @keyframes fabspin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
   .palmares-note{font-size:12px;color:var(--mute);font-style:italic;margin:-6px 0 16px;max-width:680px;line-height:1.5}
+  /* Persona bank panel. Sits under the Palmares cards, same surface treatment. */
+  .pbank{background:var(--card);border:1px solid var(--line);border-radius:15px;box-shadow:var(--sh);padding:14px 16px;margin:-18px 0 34px}
+  .pb-h{font-family:'Montserrat',sans-serif;font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-size:11px;color:var(--ink)}
+  .pb-sub{font-size:11.5px;color:var(--mute);line-height:1.5;margin:5px 0 11px;max-width:660px}
+  .pb-row{display:grid;grid-template-columns:88px 1fr auto;align-items:center;gap:10px;padding:4px 0}
+  .pb-lab{font-family:'Montserrat',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
+  .pb-bar{height:7px;border-radius:999px;background:var(--line2);overflow:hidden}
+  .pb-bar>i{display:block;height:100%;background:var(--vred2,#d81830);border-radius:999px}
+  .pb-ct{font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;color:var(--ink2);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .pb-row.low .pb-ct{color:var(--vred2,#d81830)}
+  .pb-d{margin-top:9px;border-top:1px solid var(--line);padding-top:8px}
+  .pb-d summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
+  .pb-d summary::-webkit-details-marker{display:none}
+  .pb-ct2{font-family:'Montserrat',sans-serif;font-weight:800;font-size:10.5px;color:var(--ink2)}
+  .pb-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .pb-chip{font-size:11px;color:var(--ink2);background:var(--paper2);border:1px solid var(--line2);border-radius:999px;padding:3px 9px}
+  .pb-none{font-size:11.5px;color:var(--gray);font-style:italic}
+  @media(max-width:440px){ .pb-row{grid-template-columns:74px 1fr auto} }
   .palmares{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:34px}
   .pcard{border:1px solid var(--line2);border-radius:16px;padding:16px 16px 15px;background:#fff;display:flex;flex-direction:column;gap:13px}
   .pcard.lead{border-color:#e8cf8a;box-shadow:0 4px 16px rgba(232,179,30,.16);background:linear-gradient(180deg,#fffdf6,#fff)}
@@ -1127,6 +1145,7 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
     <h2 class="eyebrow"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGwAAABgCAYAAAD4pJe2AAAxmklEQVR42u19eXxV1dX2s/Y+071JIAEiIqO5N4BBcYi2atVAnTqoVZRLEKvVOrRah+rbfu1ra5JW7ait1lrROlRUwg2iUrW21QKtYxVnQMmgTCJzxnvPtNf6/kiCEcGKBSvlPb8ff5CcnLP3Wmev/axnDRvYgZfUQAFAbmbq8PzM1IS+PwMAEVDf/+/ql9RAiYA+MP9suipsSB2+5fw/fRNA9+A3PTCy2M+mp0u2wumdUO/vtjbpbBZ6q78T0Lb+bmeNv68CthiL2pbwN89RQDK90vZnpW+TbMWAD5v3p0dp0j2p/Kz0A1316UMBQHoUInOHJDuz5Qf0fpmyDUUBQM1/8Mv8sFWRzUL3WoogW37A6rsHF/SdY5hNVeZnpR/cWatrxwultqrXTBAR0gAwf1EVSXZYIp8veFgb2YPqwKiFpgxMmE1V5uvLj9msVIBkOuy6OnBu9qiRfjZd0fcr3kkfGQFA+8zyfWTmmFFUB5bpsHtXh9RA5RvKjg4fSFVmMjBogKI6MDMGlbhFf5S5lcn5i6oIAGKR0QC6Lcu4HT/mnaCwBUwEgWAPkFA2Cz2hboEJ4V6lIMnE1Ka/5LOpL1AdYn9W+jZo+gHABqjQMr3SBgC6AFEuWzaCjL7Gdc0GEdBONSzUrTSSeGOg4qvzM0eOogsQESAyvdLGuAoLMRkYutKflbqDMjD5menjEtWNj4vA9XOttRPqFhjJQmulNEQGEEEwGbIThrpj94DeSQbFbSsgfI5X3fIoAPj16UYhXEdMa8kSzYwDiWSkl2metuVzggfKv4ZIfshMF/QIRRGBd7YpJwLn61MTifB7cvS17ilL7+ie1nuXn03NIMaqGPS8BSgmKYbgqkR183AAyNenjgcww1PuMMosDntl8ulUWLbHzDWUHcys/tkZojih+Rzt4BEYdacAfyfCGgFCsJQnqpsvl3kVheH6YKQC0ix0rLboS0zixxGfn8y0PPlJKGtLpeWyqcMsS/1eAUlj+FFF+CsLGh3bWk4nv9mRr09fB5IWIrKEUQqS46BVtQR8csJ2b/U5bGfg8ILqpmd7ZfLpNImlPXY8VhcA8rJxHU6W2L8ipnME8jgEx0FIyPAaEr4lnlPeEG2IFkPoOQHdpzQOYcHPXv1T0/7JTMuTAPBJKavvu5KZ5meeeqVxf2b8RJE6SITuFaF/RhEvDu9P3x+Z6DY28o6wMEiOg+AxxXxWYoB1Xc+jFmqS8/vK5D+ywkRAqAVR3QeFKAIigsijaTfoQCszvk4kA71S+wZ/XfQmaXUlmG8wQhcmFb0YERYoC6uNyCIl8qB9avNj7zOL2bL98vBWFWcWb9zRZuVDzfm9I0pC8oa7py99te/vo9mp46HVyQSp4BgjYuEqBTpAGL8l0GUC1Hl7WBXBuvgKgqwC4W4HQQllVuZ7ZbNVNFoL2drvdqhJ3HIAvSiLCJLLlh2hhB4PfHuo68WPOS4dbGJhjlFtID9OpIv3C5ra/gDCADAcO0GlUSBFWmO5MXiZIBuVo1ImkNa1yv/u8EUrg619IDsNzo8a6QSe/XPtUQmH3MxCJZaFA5kxXDvUGeV5IynKi6AtUd1Una9PLVaEGiiaadukgoBf8eLkxNDOrzLAF5OZpgV95bMtGe5Qk9jrT+Qb0sf5M/ceTQTpC7OJILgx7YiAhNVgCK3ol1CBiJSZUGA5SjFJMREWhc3tpzEkEMjzounu5mVyMGL1BSGaqxT20FqNEyMvuOn+l4/IrMyjdueurPcjXAidvcx39xx6uTCe11qN0xqDhWiuROqL+iW7UllyB0GeF0hnkE1lFGERi5Q4rlJxKAAwAkXrA2ZZDiN7ioDwp7SzNWXls6m031D2xe3x2egjm0IAaCjfyxe+0UvoC7Bw6UaMA1EGpm3GmDGuzZO96sarczNTw5XC35lxFAh/TyT1qNDnNhZ8DyLfVAq/ceDWo3SxTxMR75KUVBZ6LSoSxQgni8ilQjRdAdc4nioJcrycRY5Qiv4uHE1MTF32tp9NXQmj5nhTG5dIFhqLIB2jRw+wbXOrQC5LZFpW9Nhk2SErjAiC+VWaMo2rROQlP8c/pDowCtMWADh2VAeSLpkzdmBCCwH0RwATFNEqQ/CZ5REBSpXWX3Uzzb9Haam/vnlMQvqwBjKvytr8r6bK+k9SOgKQ1PQZz7wq6/3sTEVij02JwM003UkkXxWDUmZ5xBB8gazWmo4kwSNiSCSbLhWgTTT/CABQmLaoDmxb5kowXktmWpZjXpX+qOaRtsu+10KC+vKxUPywS8G+WLQywDhQIOkVzHKapdW+UYxXjFCzrcwkaEXE8n1lYzGL3Eox+jn9dIHfYZQXFNxFZ77a9XFt+X+IdusGVtlhCV/cc7wizWG76RIbrUrofI6xnyL8xIjEcShzyaFhGuoQreKXmNVDzyxpHj4BYIwa6eQT1usacrIzpWXRtoDcvwfr67rRjKvtZhE4Ofb2pzowZWBExCKiA5i5CEqo37Sl6z3Xvp8gg7VDd4vQC5ZW31QOfTvM8TBStCxK5i72s+VfJoLsCgy+1EARQfyGsi8GKnE5KVoW53kv5dC3LaUuEqYXtU13xYLBkaKHis5sWUsKROBCw3SgAPbEOsRUB44K9b4EJJy8aSKCoG4no0S/PrUCChdB6aVRpxliJ1AJwWUG+JkClnrJ3D/8XMEdAjlEE6As9a4wHhDIRiKaohT6sZFHbXF+hcmLu0Dd7NCnWmFAtx1oqCgIEFxqWeoEZnQIZJawFGtNp3AsQ0z3XvRSa9B5VpFd9DlL0ViQXAGWW8IcP4lCvcFhGgWSW7wpTSO2dxzWx3TfHBghYXNsYrD1i6iLK8jIJcQyFhqNfj55DZEc7JXYZQAAjTIk1OHhyvA5W+xj6LTFnbsa0CCgB3ot7gRwDYBrJFtRGFL4F3eYexjyDJjuG4MNEfo7hdcq4cdEKEUCLZaalRisF5kucyU0looR7+OMw9pe+730hrQrkEIQd5HSo3WBcqM28ytS+J4iXA2GEmChEBabDnaMkX2JRIGwmEm9jkFd8QdMTd0nx2b822ax71hLu2K1wboyWh3tB5ZxAoi21WtCCEkgIDqJCMcR6HsSyy+tIssznWa0AhYaUKFkhyU+zLHeISts6BAaRAInImeNFlOOjUa8AnVS0Cl/IIJhkUWJqc2/z81MXxWzjLEszI9i8UjUAQp8QrDOLgob0htI4RVmuZcmNy/aFYBHzxg5aEiNg6JpxNg/WIeBROgg5uUs8gopyseRVAFo8qY01/nZMouEjhORDq9An4KNRiAoY8I6QOy8cQcBWIFaED7ilvDRN/uGblirfHJEhBV4o+5+AkUBGyi+jkkKoPEYACSnNv0IgtkC+bwCTSCSdwR8swFdEsdyDYPegMHX89n0sTsr2LdDGRAA+WzZ55lxrtb0BiDXKNAliuS3RFipSFUpTUdrYE5iSnMtEQRk/RmAC4VfRyEbKBCIyOSoDQATK3t742bWv6KdNtvwHsZZstYqX4xPhkeKwt9h0fE6Is0CBcJ9P800tUgNVH5c2eFepvEBAA9s491PA7g7ly0bAQCfZrNIdWCpBUnIzckz3v72Vm55sO9/wmzZEQ+i5ZlEZunb+VnpegJOtYg0LAILnoSDYSAEXhi+0yNr81EowG2ixK1yX3ePL0BR1wA6pXmFn01dDsFkaDnTVnopG+li4cPi2N6QLOEDIx9j2ecm0fpVgtnPLR326KJ169Q4LDZY1PPMcSBMBu8qPtj7ZNMA9b55lFUqdBRKsG7ll1ylXs+FvK+dUOV2Qr+ZWxe/rF30U4TnbJsKg3w8BkrfAaKHvEzjL3LZshEd8DYOzizu7NGHbE3+W11hMr3SDgo7UkRL39gMZbNQlIHxnfwZEipfssOybQjucsUdBkMTwogfUBZVGqO+bLt8cJiTUonldTdJxVHItbHoizFhgRkH8NZCJbui47zlihBZKABEzU6tj1geSCb1w6HP/UNjTrSTtD4O5QWysNb35QlofSREnvfs6LZV04ckNaiqnwkLAfxOslDIvPcR+/eOHuvaVgtlFocf2MOkBgqjC4Vss79fn75V7h5fAAFQVtl9D/GxBHbycA9IiHtMorr5cmJaTZr6KwsP2g4K2OBlMfIYKRXFMe0lUGclM0ufRMO2g5C70grb1liJwGiAciY3Px2Az4hZBsOCEeY/Q/CSbVPSsughIvQjlg2JKc3fDgP72JL+iQMZokE4FuiRtQAytzLpz0rdwlZ8IEpLue/+rvraacxfwG6meRYISwI39zBqQVjYYwaEGELHakI7Cx0CAEzoLyKbYl+GEuFSErnYttU0ZumwT238uju5O6a0IyOun1pl9syxKNPymj2p8VywtNqWmsZGLiEllwU+jxLIRlKUBACGVGpltxPTsSDpNoMLe2KBftsfQdKcnNIyE/MXcN/9/QN7mMyrsmjigtiflXqGhR5LVjfVdW+kqUq7n/VCfmM8hRQd4ln2Tb6JboDIGG8vZyy6GCAg7jJLwkC+lyzg5yKjxxJTAWu84wzvt4gOXhj9NypLplfaGNReESsMtcA5RO4buSD4jFugrtVJNQ4CoEDBXx0uAVEjjL4U2lzMMZ5JDtAN+fb48GSm+RkAyM1MXak0TvIyzZ/t1cWHgg7JQmMy2J+VmgDQw55ySjrjoByxkOvpz9kJusXPy9nEcrBAhgBY5NjkGaI2Ynk1Zu6yHP01YhxqYlkOkjcdW23wQ1ntRWE9Tl/euquZwg+lqh4c2d+P7KmORUNiwwMhNEZpGgGNZ2Of77RcKhSm/TSkOIzEB6GCBGsJeNYu0H+I83whB1hAnpAzaNib/pqVm6Bokje56XE0dOOHf40SAUINyK9Ir2fBWQAcb4Ce5W80p9gWjRWW/xGRt6DwE2Yqsm06SGJpA+EgZdOBApkV53FLYmpT8/s+hE2Vii7471plMq/KwroF0lew+ezovS2LLwRRtcR4ScAvglR/w/yiYmoFyf8S0Siy6PrQN4u9QfZD8UYzRZR0ganeWzJ0EOoWmM2U2L9S2LwaWBPrEOdnpR8lknfY4I5Ef+spAAjb47MYtD9BpnrVzXvJ9Eo7GtB6iFLqcCi0d67Pzy4+b+XG9xzOKoVx75/Qf6VZzEJjURUB7+05rbcNG1A4MHEqgGJm87S9oeSfdMHCyK9PrRDQHEV43inSM0BAvpWPUoqnAUh5U5qP3Va21VapqQkTqoC6BQDwsggdo2y10eQYhkWE6Pda4X7DtK47LWxhJNMrn6cLFj793uAna0xu6IHxCxi7wdUt3AXv89Uos3IjgNsA4PVshbPvBQsjESi/Hhu0hSHGyO1hpxFLEyktG8A0XsBPdfOUVdT7vH9NTa1bID2s02skknLZWhnH8q7WJCzQdlJVE2Rtdw7f6COCfm1XSLaiMD8z9S2ZB6tHWYLd9OrJ+mWZByufTX1rzU0VhWkOrggbyo8kApPCOrtATwbIUpokjHi92z+5TEjKBfRa91MWbAeXuKjb247CYL5jqwGdob+3kFyli7SyLCDfYd4Q0ucH2fTpWsyJYsmzIYUPkYJHExFjfpXG7n7Nr9I0ETExWcV7hH/UFp41zCfksqmvCsfn5dvNIssCrEKtIHRV54auUZ6lBolST4iAMH8bfuuHxH8gAPL16au1jQtyfjjatZ27vFL7JH9t9CcSelrbciwzQstWpXFoFriZ5kvlhUoblQtjIsgnkU/4aUSP1EsvLay06OCFUZBN/dpy1OdNJGtIwTUx/iqQz3ilzgn+uujRrhBT+yVpqUR8l1vd/L1/EZfb+rUmW1G4R2EY0ZeagnB2+RVs+CtG6Lu2jbtE0AGRR7RWXWykwxhqSlQ3Po7/u7Z5RQ2jjxZwudJUZGIuBNEXSNGA2PCZSvBTS9Mj1mlNP5dH0+7aTsfu4RY/yNb30h69yKYXIRZJ8I0gpx8OsmV2bpN9p5f05zoaZXGE10TQYWs6xcQywinSxdwePw7g8WhO+jil1KkmYiit3szF/Fi/TNPiXYkv/Hd5Rn/26LFKmS/B0BhtK4TGPJA4tfkxw/wdt78+Pmg3bZpoeWTkeURSTDYVwZjzOnK8Nrhv7/FBm/H7q/AUAD/rixQ362nLmA8mVCmauCD261O/B+j1iNXfLMVnJKqbvivZYQmfvTc9l4bDVYBDiNrix8NceKZX5P5OCGVs5NeRhH8qSDgbsaI//7f5XR+J9SjJU1fQOdAucI9TCpcLsLxtvX9B/2LnTrvYPg6hAAHDD3iVV1Iwho5/tSuYlb4WFs2KAz5CaRyWmNJ8hsyrsjB/AaP2vbx/K2woO1gUfDq15XUAkHHrrG6ekObbNt3W0bhhj4IRxQW5+vKjcrFqchweHsWykQy/Kb7M8jujvyT6uU+x4Cn7pcaDqG7XTA7dYQjxvQ90NYA/yGTcE52evr14gPdMviP8AkgdQ0C1GBlj22povq1zYNiQ2p9Z+re92tZcsn/xUyY23+pG6+sU1SFGHRDcX7ZvHEmCgoa9xwP6TAKNNkKXJjJL3+rlsML7y+eRQ+Njn7/DkSS0RTYpVDPTnbYFnw2GkoXLEPPN9uTm2p5iCY06mN0NbGwNfMyvgZ5QC0MECRvSP4RFl8Dg16KwkmJ4pOXMKOQHSVNeQXWqBH6JUJZYk5qO6kaZC+JctmyEpdSNwtICVn/YbBLDbPpCgfwkZn1MQfXS5+Xe0YPeXhvEQ0c631IufTfuMlkYBCCyFegesnAMCHYQcUNhdfOLvRzk7ux/bZPm64kpBg3pA5WiDLPEHMsTRJgCAEqTUgl1ehzyL/LLohv1Hq7Vb9rS9V33pipthx6HoNbJNN0AoKcNw16Vmi5YGOVmpi63bHWtzWZwYGiCW6RvjHy50c/H//RcfZkuUicGbebcZHXz3X0HtfruwQVDzlzT9X/q+RDFzR2SpJNW5/r+LMimp1mF6i7TyY/EEf/SctQhdkJdEnTIFZ2xPN4viXfZcI2XafmFTK+08c5CY3Wjw4UsL1TadPDC64Ns+tQQ6l5X+5PDnDfMKbZ+qS0sD30+Xzp5kFIY1BtuYWCoYtkQk9obWHNPL6rZHf2vbfpjPTIJ/IIv5WbuvUZpVaJYr3aqlz4vBoOiHD8TG9ycKNQzlKdHRe0xNhR0PTYoX3CfGHm1V1m9e+NmpqOhZSF398XQ5zhJ9eWQ3DIjuAMhxzAYAeCP2qZyEQzvypYPNYzTgkiWMKmbLSUt3cULFXprDPNuCT42y6BCi4AU0QpS+mZEssTATOqakR4mhGHaojFaycOIMQoRx8bIH4o6ikY4BeorYDlXBISShVsPYPZ+DX59+h9Cstaj+CJ47uowYMNGxCuyrFx7fLICBitPHaAtOirO81NepumCvrC2c9CmksJJLes/yXLXT9XqqoHqHF82qHBkyaa+QVt/VuoWndBHcSTzOeaXmLE22c960O+IY1JEbkLpXMjDVYjrSMkIb0rzYVuy9mprDiAr9X2vyJrk+1Zh0BF/2fGU9jxtBR0mb9l0hHZoslIoNAF+5trR/wOA5dlhiaAh/eOwtO1XNtNhb9810vnUd4HZWSDjs2nbAx0ar2i7PmpIX71q+pAkAORz8fc4xrXKQqG21WTLoqPCDpP3PG25CaVzreYrlI+1119nRPC/W+tNQltRmCIC+7PSNyqXziOhE2LfGNul35FWY01oZgOYT6T2VQmaGHXx72JEsxyynhTQHEecH1Fm18ud3ynKu3twQZgo/AGBpkRCR9oiJ+oC9W2T4wUAXhbCBO2oyTD8ZhTwRVbCZhDP5ZBnuJObL9xaB4UPXQHBnPQZ2lLnSCyv5Dqjei+pfyQxbQLkFHeg7URtcVuUx76WK88K041eddPP+yp9t1ZWnzz8MJu6gpn+x0Q4xPLwqlNilQQbo5AYc6FpQBya71uuNVU7dICJ5E731Ma7t/Vc9YHlDECy6VIA6FiBudZJSz9vgFsdz1nLMTa4xXqK6ygHISOO5EuWK7+C0NNeddPPJVvhSHfLIt7dVxfVgQUgyVY4Tqb5OgEWKAc3xaH5AvIM11KOU2ydxgbrlW2vE4VbrZOWTmxdbc8BALl39KB/qTDM645jBYyz8zPTxxUO5cF+ffomb1LjkkRm6Vukuje/GHgxv54nWDbtz4Kj15B/VrfjvDj6P4S4BVKcvDiaV1NlefnoawQ5wnbVZ/Ib4yNj6UlqI3Ais/Qtb1LjkiCb+nX/PeNh+WzZ5wOLvw705IxsU2E9kWZWeA4KszpXqTUCedmflfpt54yxQ8DoiPI8l0O53h2opkHhEmL1uRGZlXks2r5+E7uN0ggyAQuYzl7mQ+sjoOgid4D9tSiWX0d5fogI7ZIduadfn/4NC73hsrWSoBqE+YW+OvmAwqQGCqVVJFnoZKZpASD/6D9KrbW1Kgapd2zHTBDGeo54nbLQzrE85Exq2seb2rhEHk27fZMdBf9djSw/zv7VFyFTHVgeTbveaUvfcCY17cPgOTZJO4eyThjrQnEmQtG7WlNB7EZrCfJMYmrLE5KFRun7ZUly9/gCDAbo+Fc3U0u9tH40Pn0Jgc4DoZ+J+C1lK9+EvCRR3XwpAAQNqXFMKk/GnOBNablRBAoN3a0g/m9tbc7xlJ6mYxdD6FECOd7UxiUAkK9PX6dt7M+x2NpWZSTSwSK/t19r/nVvmGvzs/48vgBrACtI5I/XnXJ4+MDoMih5atWL4W9p4gJf5owdyCZu0oa/BUslRJDSNs6MQxoPAK33jigRgy/EJn7F0uo4ADeiocKizOJQHhxTFPrRSGdJy+JdpbpyR66ucFzZOKdQLaMvNbVLtsIBFocAJoJoCUj2kzlj19KkNzYQyXht62IY+QMELZHhPJFKdowePaDfxAXr5Ya0a0aqi1hwRNyZf8s48jQB3d0/vzs+/RlbUy2IxpkgPsub3DI/yKbXu/10SdhhWrXGM1Eoj4Lox5GJDnNta38TQyybfgiWP9iZ5uu6q+zTJ8DgNAXzW3vKWwuB3Wdv623smZu1d6VW6kJj8GDB1OaHREBBQ/pSRfi6GPwICjZD/gmmF5jlh66jjjMsn3OKdInfZto8deBA37x4pFWg7xYjSyBca7/S/BzVgWnL8H04O/09u0D/JGiLT4GoN90CWhz6LI6nCLHACCSMZAoRBloOXS6RzLNLo0tp4jLfvy91kii6Orb5mKJTW9buDqkBW1MaEaQ9my51WP5igLqC6uYH5c6RXlhgXU+2OtaE/GsSeteyqUETCBahV8ZhFO8nPka4JfYjgc8/8CY1XtP32apXoL3daJzTmn7qd5gL3YH2A7GB29Uen+0UW2RCQT7kSESMpWgMiZxtYtyEpGrx19h3SbaiUBTdqjTOKjq1Za3Mq7J2R9RIBJF5sPplmtYR81kaNF2yFYVBgXUHJfVyE+FGAGdB0T7CYvyQIxMKnBKL/Jw5L+wC3D2cR6LO+GJvUuM1vV14ep/9QWqqO8wSBQ3pG7WtvqXX5QZ1FTqfTbj6l0pTBWxClDMbjMF3taZqe5hzrP+2/1MRaiOFIxNTmr68taqL3Q5w9MggPys1l4BnCZRwRro/iFYGfxOmGaTkF3ZSD0IsMIaX+Hn+TkFX+ExUmlgnEd/iTm6+qEcXMfr4th+E3pULY5lXZbmTmy5hI3Pj0sQKz6Z+cWyqw5C/yrHUm1iaIfI1O6mOxbshoOSvpCQDkt+IgLb0HXbLa92C7txEUTcKkGGRv+HdEHZSf15EzuUYjRzLzDA0Z5q8qfY8lYxLE8vBeNid3HyRzKuyUPl+ZW2TS+xbYxvOTl2ulZpsjGwkW71sOsK7xbaynqfGwyX4bWaOhvkpKz3XLY32xvxl4ZbIcHcIaG5tjlIDhXEVls/B2wKZTFCXesV6MvIMP5BFJGaS7emvmhgHKY2BLDTbObXxlx9W4/yR/Ynl2WEJoDvUna9PXyd/HSvhnPK/+LNHjw2z6Tf8WWWXbAvm7k6Qfms/z9enLwyy6UZ/9uix4f3lj8lfx0q+PnWDzO0Ou8ijaXdezXuFKR8WlvrQkw5yM1PD27PpCnhD3D3YvT5XX34UnbQ6py2eE3WZ1XHAtyuRqwHc4E1puTE3MzW88/6xQ3qf0ctYt947ouS/WXFSAyX37ldCdeC+x3t0ZkfumcuWjUhUN91MoF8q8DVxZO6KOs1qgbqfTlqdC2eP/lzQITdMSA12/Wy6Ij9z5CjC+xuI/kuF9Qo8Zp23BTOiuOCQiLlWazkhfGj0dxFLGOd4g6XU4LffkWlOpul3/uyycpCM0FHc3cdiYaVFdeDczNRXE5b7hf/W1dY7p1Dnjwmyqa9SHRgLKy0A0LAvt4nK/Jl7j3YyjdNtdqYSqNTkudVS8MO55f8jJCcZY/0oSvQ7SAQz4kjnPuxQBbUtaIoGqH7Tlq4nwbUgmuc6+ncw4nPI+xpSp2ubWo3wZ0df2hTIPFhi6DhAayJ8TgSKDl4Y+TPTJyhFX3KnNM5E7ae7ecq/E0ZBLeBWNzWI4Hh/ZuordHB3HRgJDo8hWpQ6VqZX2pRZHELoYGXRJsNcjUDGcyyh7ZjfwMICJfhp0Zkta3u6LshHUljfM1FkXpXlVTfdHweYoLUKRKFKDPqDMVwrRMpSJ/jZUWPeXTHeJSitINOE5B0isGQrHCi5koh+ttv4YJb8VBSufOvOkR4RWAQrxdBUguj1utPLz0ynyKKTtaJQAcONQT+CHEWKIuPz593qpobecEpvt9athGw+oud+7+hBRcV8YNglIwlUaATtpHAJWPKRyHk2qfMhcoJEOAee1tpE7Qbq1kR184G7A+NRUwNVVwf2s+kXGHKxzfDiCEIObofQo6TlFjZ0GykUSIwbyEI/gnQ6Hi1fs8a8sud5b635KJ3trC3RoI/U3qRRYYlOaEILGqxXgMWha/OJKLTvcDQDscAWIMwzs4C1UgOFMUFIXWn3p5tMzjxnlHoOQm8DQHeB33+3I107oUrV1i0Qn+UtAh1oCAdaxXQE582VDLqShWYTpFIRabtI3Q4CYBGQVOifl/MB3LZwr0od3t9RKQZliowfCxZ5aH6rb/TD6ruKcijf01JSRYxBMXOFaDqYrKgomlN+f+tGdVWRCTdqT820NCX8PPe0fCTYimZEwrcQkLEG2ePiFTxXCUaJYNWHrdr/Bs5wC3MlvshqIdpbgHXWQHusv4KnEcl9mtQ9TCDD0KaLxUsqMnnOBxujacmO/J+jOelfEtonC0sXQxaKYLEiGpiT8jzQuKr3fVZfB60g07gKwO3vIaAqKxi36mTLoR8X78HnIVSZuCMYRwXOL7WmozWhv9KwIBgeR+ivNE5Gu2ER6WCgFKDu1OR169QH+LaePhe7ZHOw2q3krfTMUYhygCREaB3aDFuKTggNlroOhsFW4FhggA5j+PHOjeF3vH7WmHhI4RoYrDIRf9fZVDzH3kqJVq+ctt5YpbSK5s8HJta9Z8aCB8prnYSqiX25Nb+Bf6CKIq3JHafEDDWMoxxXnR2FbLyEtgOfx0HkdhB+8pNFzQ/X9SSkQHremB05OGT76IdUU/3kRZBdqSMpaoF8Q2qaxNYTydPfXN07J0J3s+lgXPkXhaWWlD7DceSNMDCR5Sg7jvh2Av6uSK+yJFjU0WGbxACqs5Lqm3EX/9ie1HhV73vm1cCaMKEKW/b/2CpKpAwMTVwQ9yqrF624pzTW5lu5CiJHef3RYsF+WBOfT5oGkNLXxBG/7g2wbb+Lr2PBiSK0ycs0z/3O+LGD89nUuYSe3veA+GxdZoSWZzIwqN3l2HgG0KQsc1nfOeVnpr+eS6f38jKNj4DkXZj4tCBvfu4OsG2OZJFE6lrSqliIzw9g/9HrjxYIPu9vjCfakxqv6ovOJ9YhpokL4q1F7j963/q+5Zv3l+0biR4Qs3k7mWlZDgCd96UPdDx6mkOpgRLbhfuLQMVlQZda53jxDCG+NrGo5WmMSw8MGHe7qumEXTWVQGqg/Ir0w55nzsaLb62L9kl/xhCuimJ1puuYwc7G4qVBcet3ABUqG1dHvjmi4PSWF3rZI8tWewuZjW5vEeV2HFn1kXv+UgbmvdN4ul8U1qcvDGenC0nUQsvFqnyXuYuILkxkmkeJgNTs8v5uIt4XjBYFOobq8GQ0U8ZBdddLbQvGfhpAyTZPJOrNjK4Xy8/Rvok6POFncZywvO3Y8ZEmpjU4f2HsEa7161PNHNDdScfqzDeMPlorOdBEknNOa7z5ffvhdny46mOYBMnXp8/2s6mTnOqmm43gZVIyLgrlVK3xNGns4WfT9xFBjNBaAENBUmkELf7M8n1iYktABd1YeNvv+BSYvg8fA8G1LMCfPXosM5oVUKmgh5HGWiKIn03NIE17kZZ/RJBTtZJxxvDrieqmm/2G9An5+tS5H2dc6uN8eVDyD0V0TTwn/RIZmRLHMoWACwB8jxgPWzYdHjSkf+NpjiAyGkI5UugH4j8xdCcgA3pOWmB8oIKmwsnNTA3vS0J/4igQQNf96WHdCTQf3MO676GBkVAOsXmElAwAoZ2ZKzxNfjA7fYO21FEs8jAB34PIBdwto9PiB8pfVISfkJEFO11hveYrkWluWrex67PMNJtsGqCI/gTIRWKpH2otz5pQXnJK7W/lQ5koRL4AzwrjPDehRyrmJADyx6XKeuz3+44IDtg/RkH2BQA0fPJkcUPPO1WIigDRsUCfo4B7xug3jB4lIhYxPNdTZWLwDRF6ToAwH6HKGWRfwpG8pBWeIUv9kA0uUpoeVRYNYJYHNuQ6DvWmtTT2lelHvT7WyRA95Zs+XYBrAMCvT1+mNa5WRsbrpIYOBNH6KHRs+nlssARKHna0Gg8FJqUKILICjHFSg5bNQGZeT16/oiMVq3oA2NwI+RO8Jve8U4l6FzBnAHhk8iIQZbp7/UoNVEDxWECthKIkNLHnqoow5DtAdKilMSVeHweOTV+Bq74S5RjawmvGyJ3eaU2TNodjplfatbULDbYzsGttr7notu0fcOxSINrPLlRA0B1+s13lIKH2RGu8ZxRjE5OwElIs1KoUFCtZS3XgIJuqizXdhglNq0RA/iyMMIqT/+k9LBbxFNPIHhNpusaVD7XA51OmuaarXtZrgmI2rWBLGQYLcCgBR1slFpDrpu8QAXahRpzn/WA4/X5L1V1Vub0Ay9rejThoGD2elDmSmPZmkAHkTcfWP1mTC68eRNZX2MhJwihFJCu5i98gJTki1FiuUkGOm7TmoSyUS2wqfqFrRnqYYV6imbK4tbKKLlgY+VlAQ+0ngmcxv0qh7pNt3zcfVUpkgfizeDxAPVlQVZbiVVkQ/a4rWz40uanfy35xa6dWamQ+ZxoTBbrcGDoZwFX+uthVSsYCNJy0rFd5/NH3zQOF/Zji2eVfM8xjQWQR0dvCeJKo8eUduocJQDU1UPJoup8/K/1tpeUSEqSY4UB4HwJ+EBteNdDVfzGxxFEe3wh9PtHxMN1yAAb+pkQmGgs5srAsNqqEyPoOzl8YK1tO0Vq9CUJBvn/7Ya9nKxxhPMvCpxJBsG6PT9wkThi3h3Snk9GppPDM0hvSbrRm1cFEUgCi1xX4FJy/MPY8XB7HUqJt9TbblGOho42hv1g2lOPRraHPJ7bncIGJEXiO/nPkO++wSA2ACjAcAZcpC9/y68uv2Jgt679lPv62welHUFh3NXxZ/3zIxckz3l625T1Bffn+0HIuEaYyI6EIbaTQFLNclZjcPB8ActPLRtiD9RMmkme8yU1nAt3dXSSmkwA6llnuUJrOgVLfhOEFIH2Ul3nzza057jscGW7xbH92WbkYeprIOoJgfgfgdmGcA6G/EeFht7rxFQAIZ5ffQRZVda4Oji755rK3ASBXX36UbcvVEKSZ0Y80AmGaFQluLcx8cDXJzNTwTVraB2Ra2j5KstJ2w2YRKMyv6l6ZH+S6SOaky/Jsx8nTlizLz0wfZzlUQCIJKKiutqgp2d+5HYRYmM61Bwx5KVy78gcMTGTQg8mhzvX+O9ElYN4bCqMSmeZJ6x4cU1R68psdm7m8OsiOysASgGprQHU9SG3d78cUlZ77Zke+PtUAYBUIjd5Q96bgneAKMJ0ohCe91v4/igZs2p8sfTtEnLDdnOX2t8eAmbWmnO9zLlHd/Jfc7H1GJFRk4ZSmlvedsNHD1XYv5wW8vcWPtD2T2xa7LjVQW1ZbAEDXjPQwtxBHGUMOQUaQTSciEjFAkyacIIYaoohvVhb9P4Ksc0usbwQbTYuBOV2Rvscj/4BO3ymyHf0rwNzrVbc8uqOYkL7PiLKpL8SGzorFXFZYrFv9dryiYb5qoGd4A3V5fkN8KxEVs+HrtEXf0JoyRvCIBlJkEeJQHiFFyzRJ1NYmfx94TvOK972rpxpoW6zO9hx4t2OPtpfuPbGjIT3WU/iuUtQYBbJRaTpZOTgCLL82AT+pXX2sGD7DdnWpifiJOJLVAqzziqzLgs44VAqfZ6ar3YLwVHTYhaHFJWz0Ag11XJcbNJacsqz131Fa799uemBkcTK292aDvylFE43hDb6W9iSrOazlh8T0hFeo3bDTXC9AqWVhqLbU0WHAG5Sme0xo/qw9dThAl4vBk1EgD7lJKo5jGUOQnzunNS/pQxjvGAZmZ3FwYX3Z52Cri4loXwCvc2iuJqWOVBZ+rh1V6HeyCCRODLRt02YQG3nRsumgKORNAlymCJ91FzdfHOyTOomFkqTkEDBARDYp0W6m+ZsfZ1/b3JlmVuq33Y1kpItIuUTyVMwIkkua5wbjUjcR8CwzrnccNTCM5EVL4SCrxIK/PooAsrxCRSaUrijG91XMf1Oe+l8B9ifBosiY3yQzLU/uDE50Z1E/HzjALF+fvs9LuVOxPgYi6Q6PiyDM8zNgutUYPtRJqGkcozCO5PuA3Juc2m1a8vXpC0nJ5yDUIYyEN9w5M78iuCI5tfn67VFa7735+tTF3jD3xmBl+AdAciAqEcI/EpmmmwEgd0dquCqkaSBca9mUj0O+h0Q9rbScayX0ESB0+1k2AQMt+G/5cxJTmk/9RDjOncbJTa+0MbpQeve1oL5sX8e1xoUx7ysie2mi1SLyiGF4Cjh+fTL3owEdhXtaBfR1AVcT1Bz2zUxnoDSvX2ZzYWF8JYARBARusXVm2B7HHKl9EtMaWz5K8krvPfnsiL0J9htuP8vy28w9BNEitLorwo8H7skUrlNlysPpUHQagFlxXm7z+mOl305XAvHftbY6SMkJwjJEhN7Vml43xixyMy2vbd6vlnbSzmrsuVMU1leAQUP6QAAHEqHIGIktojUhYyUZIbdAZeJQvigRn9jLreVnpo9jhmsn6SYl2MvEvJw0vRFF+LGCXEGKFloWXa1t0kEuvtTdY/jNePttCwXLIiyCdId/ekqoesIXGAdC10gbo0bF/tqVF3gJfRMbMVHIVxHoACL5FSy6UmLso20aLsAak5MLY0hYOK35zwCQn11eplj+pBz156jLzLQcxUwyTIzsqTVZStBhlLzsntr84pYy2CVWWNCQnqw0XQrGnoYlJ4IIgiKCDARRUmnklaIngy65kGwe6RRaR0rIqTAvr7hF6lhhDIxz5irtqOvtQr2/32paLQccR3iORMa6A+29gw3RHV5189e3Z1x+fXq6O8A6P9gUv03AErJwqIkEXrFVEnXxIhPFl1mefZUQt5su+ZPlqQPIoeYwL0+JoMW2cDOJHBHHSEIkp4g2MNBBBFsrSpKFNSbkG91M86ytbQ2fKoX1+mj+mpXf1JoOJkvutFrjZ+nsZf777ntwTBGGFfq9jbNkRrofBtnD/dbItwvULSIyLGiV071+9HsCDgp88RMJ5YEFQSwzRFBmWbSfsBCA+yHyOkG9wWyWBUqtKVrUtAG1ENw3eiAcMzgQNUqBxzLRvgSZpLRCHMnrBDQ5Fp1JmpDPs+965AnJy+2t5qyi/tZMUVhrAj7PG+A6mzb6qwZkWtqA7ho6rOz0qMc/7L3eunOkN6rE+UwUyzls6EW3td/vcP5C86lEib1eeuu9I0oc7e6XrG78+xYxJtoyXVuy0IFJneAm1H5BwEMsV53OwHJ/gxyT6E+PWUl1UNBu4PbXMAG3Rj5XK4XiINJPFBVGOg70eFE4DEJjWHioAvoZRujn4y/EJZ4p9M2fLUUeQ9pIYbWILFWgpwOJXjX5ROR50dEsaqPtoV67amDYbuAUakR580qwyRzv7WE/BpG9TcD3uq5aHYRY5KJxbl+Q05uYgy1quXP15UcllP06ZRZv3JHlVjsPdPT4ZKD3MxObs6dqQaiD+NlUyrbVVwyQIpHX7ElNtwTZ8nvcIfbpwapQlE3rScmjq1v8y0uHJi5TJEl3StP/bOu962ek+w08o6kDADbcky4a9NWm9m3dm59V/jNAjP9O9PPCUc71MPiyiaXUHeqQ/07Y4E1pmhI9UH4eCfYnwVuxbx5yp7U0oQaE2t6szA/MjXa07/WJgo6P48fl70sdmkiqPIzpgud15Df4jlti1YQ5c/yKNZQq39gUoRZAA2gzzbMNJqEvE9NLp2EyBLUA9qrUQf+2Jp1Q86PW+IecMGFBQhch1gX5HCcSpzc/+7Gd810NdGxXSL62SuOzqzR9qSkAgPDBsoPJqGo2OAKEUUpRKZS8YEFOo1OaV3yYMPo6qx/muPY+oytbPtSxMBuCz7CRdSAsUwpPCtEsZ1LjP4Hugjs8N9SgdoH5T+ebfCoaUPY6tF316UMdl34LlnIIXmHGM1rJa0bwoju5edGO4hG3qtw55fuERirBsh+IDlMaB0BRkwTmYqe65amdGS3Ypa7evS6YlT4jmlO+LHyw/DuSrRiwNeHW7ISCQBHQ1pJ9Wm+rGBA+WP6daE75sqA+deb79uXdVlk9CgjqUwfl61N/7MqWD+276mRelSVZ6E+iclNqoPq+s/fnnTNGDMnPSs3tuq/s4L5j3q0Vlruv7Kz2noaOMr3S/k+kt2115U2vtLs/nmEDcr2r7D+ssP8P+2V0H77S8DYAAAAASUVORK5CYII=" alt="" style="height:30px;width:auto;vertical-align:middle;margin-right:10px;position:relative;top:-2px">Palmarès &middot; the riders and their honours</h2>
     <p class="palmares-note">Personas shift with the standings: the leader takes a champion's name, the rest earn theirs by how they are riding now.</p>
     <div class="palmares" id="palmares"></div>
+    <div id="personaBank"></div>
     <div class="callouts" id="callouts"></div>
 
     <div class="info">
@@ -4326,21 +4345,35 @@ const PERSONA_BY = (function(){
   const prevBoard=new Set(Object.values(L.by||{}));
   const everWorn=new Set(prevBoard);
   Object.keys(L.seen||{}).forEach(q=>(((L.seen||{})[q])||[]).forEach(id=>everWorn.add(id)));
-  /* everWorn guards a REDRAW. It cannot undo a duplicate already sitting in `by`, and
-     with the order steady there are no movers, so nothing ever re-examines the board and
-     a hand-me-down stays forever. tonymartin sat on JJ exactly this way: JP wore it,
-     handed it back, and JJ drew it on the stage 6 rotation, which was before everWorn
-     shipped. The engine then held it in place on every later load because nothing had
-     moved.
-     A seat holding a name that is in ANOTHER seat's history is now forced to move. Only
-     when a fresh name of the right tier actually exists, so a depleted bank degrades to
-     holding rather than redrawing into another duplicate on every load, which would
-     write on every load and freeze the ledger. It converges: the redraw excludes
-     everything ever worn, so the replacement is unique and the next load repairs
-     nothing. */
+  /* THE USED LIST, and everWorn is it: every persona any seat has been assigned this
+     race, taken from `by` and `seen` together. Under Allen's rule of 2026-08-28 a name
+     in here is permanently unavailable to EVERYONE for the rest of the race, not merely
+     to the seat that wore it.
+     `seen` is therefore load-bearing rather than decorative. It is the only record of
+     who has worn what, so if the ledger write is ever denied again the list stops
+     growing and the guard quietly narrows to nothing. __personaDiag.everWornCount is
+     how that is checked, and it must grow after every rotation.
+     The list is scoped to THIS POOL, because the ledger lives on pools/{poolId}. Tour
+     history cannot constrain the Vuelta and the Vuelta cannot constrain the Giro. A new
+     race therefore starts with all 56 rows available, which is the reset, and it needs
+     no code and no migration. */
+  const byVals=Object.values(L.by||{});
+  const heldTwice=id=>!!id && byVals.filter(x=>x===id).length>1;
   const wornElsewhere=(seat,id)=>!!id && Object.keys(L.seen||{})
     .some(q=>q!==seat && (((L.seen||{})[q])||[]).indexOf(id)>=0);
-  const freshLeft=tier=>PERSONA_BANK.some(c=>c.tier===tier && !everWorn.has(c.id));
+  const usedByAnother=(seat,id)=>wornElsewhere(seat,id)||heldTwice(id);
+  /* RETIREMENT, and why it is DATA rather than a code flag. Clearing `by` on the ledger
+     forces every seat to move exactly once, because a seat with no previous persona has
+     nothing to hold, and the next write repopulates `by` so it cannot fire twice.
+     It deliberately costs no schema change. The published Firestore rule is
+     hasOnly(['order','by','seen']), so a generation counter or any other new field would
+     be DENIED and the denial is swallowed. The retirement would never record as done, it
+     would re-fire on every load, and it would strip the bank in an afternoon.
+     Nothing is lost by clearing `by`: the persistence block pushes every assigned id
+     into `seen` on each write, so `seen` is always a superset of `by` and the used list
+     survives the clear intact. */
+  const retiring = !Object.keys(L.by||{}).length && Object.keys(L.seen||{}).length>0;
+  const frozen={};
   const dupes=[];
   const movers=[];
   PL4.forEach(p=>{
@@ -4353,48 +4386,86 @@ const PERSONA_BY = (function(){
        sitting on it. This is a separate guard from the standings test: it can move one
        seat on its own when the order did not change at all. */
     const wantTier=(p===leader)?'winner':'style';
-    const dupe=wornElsewhere(p,prevId) && freshLeft(wantTier);
+    /* A stored board can be wrong in two ways and both force a move. everWorn guards a
+       REDRAW and cannot undo either on its own: with the order steady there are no
+       movers, so nothing re-examines `by` and a wrong board persists forever. That is
+       how tonymartin stayed on JJ after JP had worn it. */
+    const dupe=usedByAnother(p,prevId);
     if(dupe) dupes.push(p);
-    if(!orderChanged && prev && prev.tier===wantTier && !dupe){ assigned[p]=prev; used[prevId]=1; }
+    /* retiring is an operator action rather than a standings event: see RETIREMENT. */
+    const mustMove = retiring || orderChanged || dupe || !prev || prev.tier!==wantTier;
+    if(!mustMove){ assigned[p]=prev; used[prevId]=1; }
     else movers.push(p);
   });
-  /* NO SWAPS and NO HAND-ME-DOWNS are two different rules, and only the first was
-     ever enforced. prevBoard is the board a mover is leaving, so excluding it stops
-     a straight SWAP inside one rotation. It cannot stop a hand-me-down, because a
-     persona another seat gave up TWO rotations ago is not on the previous board and
-     nothing else remembered it.
-     That is exactly how JJ drew tonymartin on the Stage 6 rotation. JP wore it on
-     board 2, handed it back on board 3, and by board 4 the previous board held
-     renshaw, lemond, gilbert and purito while JJ's own history held cancellara,
-     vanimpe and gilbert. Both guards passed it and the name changed seats.
-     everWorn is the union of every persona every seat has ever been assigned, taken
-     from the ledger's own record, so a name that has been on this board once is
-     retired rather than recirculated. A seat's own history was already excluded
-     through seen; this extends the same rule to the other three seats. */
-  /* 3) each mover earns a NEW persona: leader from winners, everyone else from styles;
-        best fit for how they are riding now, excluding the previous board and their own history */
+  /* NO SWAPS and NO HAND-ME-DOWNS used to be two different rules with only the first
+     enforced, and the fix for that was a set of widening fallbacks. Both concerns are
+     now answered by ONE rule instead: a persona used by anyone this race is never used
+     again, so a swap and a hand-me-down are the same forbidden thing and neither needs
+     its own guard. prevBoard survives only as the seed for everWorn.
+     The history that produced this: JP wore tonymartin on board 2, handed it back on
+     board 3, and JJ drew it on the Stage 6 rotation because the previous board held
+     renshaw, lemond, gilbert and purito and JJ's own history held cancellara, vanimpe
+     and gilbert. Every guard that existed passed it honestly. They were too narrow. */
+  /* 3) each mover earns a NEW persona: leader from winners, everyone else from styles,
+        best fit for how they are riding now, and never a name anyone has already worn */
   movers.sort((a,b)=>curPos[a]-curPos[b]);
   movers.forEach(p=>{
     const tier=(p===leader)?'winner':'style';
-    const seen=new Set((L.seen&&L.seen[p])||[]);
-    const rank=list=>list.slice().sort((a,b)=>b.fit(PSTATS[p])-a.fit(PSTATS[p]));
-    /* A widening ladder. Rung 1 is the rule; the rest exist so a depleted bank
-       degrades instead of leaving a seat with no persona at all, and each rung gives
-       up exactly one guard. The bank holds 44 style rows and 12 winner rows against
-       three styles and at most one winner per rotation, so rung 1 carries a full
-       race on styles and can run short on winners late in a long one. Rung 2 is the
-       OLD rule, which is where it lands if that happens: never this seat's own name
-       and never a swap off the board it is leaving. */
-    let pool=rank(PERSONA_BANK.filter(c=>c.tier===tier && !used[c.id] && !everWorn.has(c.id)));
-    if(!pool.length) pool=rank(PERSONA_BANK.filter(c=>c.tier===tier && !used[c.id] && !prevBoard.has(c.id) && !seen.has(c.id)));
-    if(!pool.length) pool=rank(PERSONA_BANK.filter(c=>c.tier===tier && !used[c.id] && !prevBoard.has(c.id)));
-    if(!pool.length) pool=rank(PERSONA_BANK.filter(c=>c.tier===tier && !used[c.id]));
-    const pick=pool[0]; if(pick){ assigned[p]=pick; used[pick.id]=1; }
+    /* RUNG 1 IS THE ONLY RUNG. Allen, 2026-08-28: within a single race a persona may be
+       used ONCE. Not once per seat, once per RACE. Nobody gets a name anyone has already
+       worn in this Vuelta. Novelty is the entire point of the feature and recycling
+       defeats it.
+       The widening ladder that used to sit here gave that guard up in three steps, and
+       those fallbacks were the DEFECT rather than graceful degradation. They did not wait
+       for a depleted bank: they fired routinely, and the rotation before this change
+       replaced reused personas with even MORE frequently used ones, because each rung
+       ranks by fit and the well-fitting names are exactly the ones already spent.
+       When a tier runs dry the correct behavior is to KEEP the persona the seat already
+       wears, never to repeat one. Handled below, and surfaced on the card, because a
+       frozen persona and a broken engine look identical from the outside. */
+    const pool=PERSONA_BANK.filter(c=>c.tier===tier && !used[c.id] && !everWorn.has(c.id))
+      .sort((a,b)=>b.fit(PSTATS[p])-a.fit(PSTATS[p]));
+    const pick=pool[0];
+    if(pick){ assigned[p]=pick; used[pick.id]=1; return; }
+    /* Tier exhausted, so hold. Only if nobody else has taken this name in the same pass,
+       which can happen while a stored duplicate is being repaired. */
+    const keepId=(L.by||{})[p], keep=keepId?byId(keepId):null;
+    if(keep && !used[keepId]){ assigned[p]=keep; used[keepId]=1; frozen[p]='exhausted'; }
+    else { frozen[p]='none'; }
   });
-  /* 4) safety net: anyone still unassigned takes the best remaining of the right tier */
+  /* 4) safety net, which may NEVER hand out a repeat. It used to fall back to
+     `PERSONA_BANK.find(x=>!used[x.id])`: any tier, any history. That single line could
+     put a worn name back on the board without any rung of the ladder firing, so it was
+     the quietest way the never-repeat rule could be broken. A seat with no fresh name of
+     its tier is now left UNASSIGNED and frozen, and the card says so. An empty slot is
+     honest; a recycled name is not. */
   PL4.forEach(p=>{ if(assigned[p]) return; const tier=(p===leader)?'winner':'style';
-    const pool=PERSONA_BANK.filter(c=>c.tier===tier && !used[c.id]).sort((a,b)=>b.fit(PSTATS[p])-a.fit(PSTATS[p]));
-    const pick=pool[0]||PERSONA_BANK.find(x=>!used[x.id]); if(pick){ assigned[p]=pick; used[pick.id]=1; } });
+    const pool=PERSONA_BANK.filter(c=>c.tier===tier && !used[c.id] && !everWorn.has(c.id))
+      .sort((a,b)=>b.fit(PSTATS[p])-a.fit(PSTATS[p]));
+    const pick=pool[0];
+    if(pick){ assigned[p]=pick; used[pick.id]=1; } else { frozen[p]=frozen[p]||'none'; } });
+  /* How much bank is left, per tier. Read by the Persona bank panel under Palmares so a
+     narrowing bank is visible on the board before it becomes a bug report. */
+  const bankLeft=t=>PERSONA_BANK.filter(c=>c.tier===t && !everWorn.has(c.id)).length;
+  /* DRY RUN, and the reason it exists. Retiring the current board is a write to live
+     pool state, and Allen approves the four names BEFORE it happens. This computes what
+     a retirement would assign, under the same rules and against the same live fit data,
+     and writes nothing at all. Read it off window.__personaDiag.proposed. */
+  const proposed=(function(){ try{
+    const u={}, out={};
+    fanOrder.forEach(function(pp,ix){
+      const t=(ix===0)?'winner':'style';
+      const c=PERSONA_BANK.filter(x=>x.tier===t && !u[x.id] && !everWorn.has(x.id))
+        .sort((a,b)=>b.fit(PSTATS[pp])-a.fit(PSTATS[pp]))[0];
+      if(c){ u[c.id]=1; out[pp]={id:c.id, tier:c.tier, rider:c.rider, epithet:c.epithet}; }
+      else out[pp]=null;
+    });
+    return out;
+  }catch(e){ return null; } })();
+  /* frozen has to reach the Palmares card, which is a later top-level block and cannot
+     see inside this IIFE. A frozen persona and a broken engine look identical unless the
+     card says which one it is, which is the same lesson as the pin announcement. */
+  try{ window.__PERSONA_FROZEN=frozen; }catch(e){}
   /* The inputs that decide a draw, exposed rather than reasoned about. Opened 2026-08-25
      while `by` was reverting on load; that cause was found and was riderProfile pins
      bypassing the engine, and the pins are cleared. It is kept, and no longer marked
@@ -4412,6 +4483,13 @@ const PERSONA_BY = (function(){
     leader:leader,
     movers:movers.slice(),
     everWornCount:everWorn.size,
+    everWornIds:Array.from(everWorn).sort(),
+    bankLeft:{winner:bankLeft('winner'), style:bankLeft('style')},
+    bankTotal:{winner:PERSONA_BANK.filter(c=>c.tier==='winner').length,
+               style:PERSONA_BANK.filter(c=>c.tier==='style').length},
+    retiring:retiring,
+    frozen:JSON.parse(JSON.stringify(frozen)),
+    proposed:proposed,
     duplicatesRepaired:dupes.slice(),
     pinned:PL4.filter(p=>((rp[p]||{}).pin)),
     prevIdFound:PL4.reduce((o,p)=>(o[p]=!!(((L&&L.by)||{})[p] && byId(((L&&L.by)||{})[p])),o),{}),
@@ -4551,9 +4629,19 @@ const PERSONA_BY = (function(){
       : pinLive
         ? `<div class="pc-pinned" title="riderProfile.pin is set for this seat, so the rotation engine is bypassed">Persona pinned, rotation bypassed</div>`
         : `<div class="pc-pinned dead" title="riderProfile.pin is set but no persona in the bank carries this id, so the pin does nothing">Pin &ldquo;${esc(pinId)}&rdquo; not in the bank, ignored</div>`;
+    /* A frozen persona and a broken engine look identical from the outside, which is the
+       same lesson the pin announcement above came from. The bank can only run dry on the
+       winner tier in a long race, so say WHICH tier rather than just "no names left". */
+    const fz=(typeof window!=='undefined' && window.__PERSONA_FROZEN) ? window.__PERSONA_FROZEN[k] : null;
+    const fzTier=(fanOrder.indexOf(k)===0)?'champion':'style';
+    const frozenHtml = fz==='exhausted'
+      ? `<div class="pc-pinned dead" title="Every ${fzTier} name in the bank has already been worn this race, so this seat keeps the one it has rather than repeating a name">Persona held, no unworn ${fzTier} name left</div>`
+      : fz==='none'
+        ? `<div class="pc-pinned dead" title="No unworn ${fzTier} name remains and this seat had none to keep. A blank slot is deliberate; a repeated name is not">No unworn ${fzTier} name left</div>`
+        : '';
     const personaHtml = persona
-      ? `<div class="pc-persona">&ldquo;${persona.epithet}&rdquo;<span class="pc-rider">${persona.rider}</span></div>${pinHtml}`
-      : `<div class="pc-persona ph">persona to come</div>${pinHtml}`;
+      ? `<div class="pc-persona">&ldquo;${persona.epithet}&rdquo;<span class="pc-rider">${persona.rider}</span></div>${pinHtml}${frozenHtml}`
+      : `<div class="pc-persona ph">persona to come</div>${pinHtml}${frozenHtml}`;
     const story = persona ? `${persona.blurb} ${persona.why(PSTATS[k])}` : '';
     /* Two tiles by design, Fantasy Points then Rank. Placement is deliberately NOT on
        the card: it is the third view on this race and stays one scroll away behind the
@@ -4604,6 +4692,35 @@ const PERSONA_BY = (function(){
     </div>`;
   }).join('');
 })();
+
+/* ===== Persona bank panel =====
+   Added 2026-08-28. A persona may be used ONCE per race, so the bank NARROWS as the race
+   runs, and when a tier empties the engine holds a persona rather than repeating one.
+   That is correct behavior which looks exactly like a stuck engine, so the remaining
+   count is put on the board next to the copy that already explains how personas shift.
+   It reads window.__personaDiag, which PERSONA_BY has already populated by this point,
+   and it renders nothing at all if the diag is missing rather than throwing. */
+(function(){ try{
+  const el=document.getElementById('personaBank'); if(!el) return;
+  const D=(typeof window!=='undefined')?window.__personaDiag:null;
+  if(!D || !D.bankLeft || !D.bankTotal) return;
+  const worn=(D.everWornIds||[]).slice();
+  const nameOfId=id=>{ const c=PERSONA_BANK.find(x=>x.id===id); return c?c.epithet:id; };
+  const row=(lab,left,total)=>{
+    const used=total-left, pct=total?Math.round(used/total*100):0;
+    const low=left<=3;
+    return `<div class="pb-row${low?' low':''}"><span class="pb-lab">${lab}</span>`+
+      `<span class="pb-bar"><i style="width:${pct}%"></i></span>`+
+      `<span class="pb-ct">${left} of ${total} left</span></div>`;
+  };
+  const spent=worn.length ? worn.map(id=>`<span class="pb-chip">${esc(nameOfId(id))}</span>`).join('') : '<span class="pb-none">nothing spent yet</span>';
+  el.innerHTML=`<div class="pbank"><div class="pb-h">Persona bank</div>`+
+    `<div class="pb-sub">A persona is used once per race. Names already worn are retired for the rest of the Vuelta, so the bank only narrows. If a tier empties, a seat keeps the name it has rather than repeating one, and its card says so.</div>`+
+    row('Champions', D.bankLeft.winner, D.bankTotal.winner)+
+    row('Styles', D.bankLeft.style, D.bankTotal.style)+
+    `<details class="pb-d"><summary>Spent this race<span class="pb-ct2">${worn.length}</span><span class="jtog"></span></summary><div class="pb-chips">${spent}</div></details>`+
+    `</div>`;
+}catch(e){ console.error('persona bank panel',e); } })();
 
 /* bars (lower is better: leader = smallest value = shortest bar, gold) */
 
@@ -6380,3 +6497,4 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
+<!-- redeploy: personas never repeat within a race, 2026-08-28 -->
