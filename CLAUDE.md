@@ -597,6 +597,19 @@ a game the profile had been asking for all along. Check the FLAG, not the screen
 is the same class as the col-break Worker: the repo said a thing was happening and
 nobody had asked the provider.
 
+And the more useful half, stated as its own rule because it generalizes well past
+side games: A CONFIG FLAG WITH NO CONSUMER IS NOT CONFIGURATION. It is a comment that
+looks executable, which is worse than a comment, because a reader trusts it. Allen
+read `sideGames.merica:true` and concluded the flag was what put the card on the
+Vuelta board. It had never been read by anything, in either board, since the day it
+was written. Anyone reasoning from it would have reached the same wrong answer.
+
+So before treating any profile field as the cause of a behavior, GREP FOR ITS SECOND
+OCCURRENCE. One occurrence means the field is inert and the behavior is coming from
+somewhere else entirely. Either wire it to a real guard, as `sideGameOn()` now does,
+or delete it. A declaration that nothing enforces is how a board ends up telling its
+operator a lie about itself.
+
 ### Turning a game off must not erase history won elsewhere
 
 `JERSEY_ICONS.merica` STAYS on the Vuelta board even with the game off, because JP
@@ -685,7 +698,26 @@ arrays must be decoupled in the SAME commit or they stay shared by accident.
 `vuelta.src.html` was copied from `board.src.html` on 2026-08-08 and its `RIDERS`
 array stayed byte-identical to the Tour's until 2026-08-09, so the Vuelta board
 was serving the Tour startlist. Decouple at minimum: `RIDERS`, the team list, team
-colors and art maps, the race calendar, and `RACE_PROFILE`.
+colors and art maps, the race calendar, the nationality side game, and `RACE_PROFILE`.
+
+THE DATA IS THE HALF THAT FAILS SILENTLY. The code that comes across in a copy is
+fine, because it is the same code that works on the source race. What comes across
+with it is the source race's DATA, and data does not throw. Two instances of the
+identical failure in this one file:
+
+- `RIDERS` stayed byte-identical to the Tour's, 2026-08-08 to 2026-08-09. The board
+  rendered, searched and drafted perfectly, against the wrong 184 riders.
+- `USA_RIDERS` came across in the same copy and was never touched again. Found
+  2026-08-28: four of its six names were not in the 2026 Vuelta at all, and three
+  Americans who were in it were missing. The card offered riders who were not in the
+  race, so it was unwinnable for two thirds of its chips. It went twenty days
+  unnoticed only because the card never painted, which is luck, not a safeguard.
+  The measured numbers are under Curated rosters are a copy hazard, above.
+
+THE CHECK THAT CATCHES BOTH, and the only one that does: after copying a board, take
+every rider-name array in the new file and assert that each name resolves against the
+NEW race's `RIDERS`. Any name that does not resolve is the source race leaking
+through. Run it in the copy commit, not later.
 
 Do NOT carry a baked fallback calendar across at all. `SHARED_UPCOMING` and
 `RACE_BAKED` were exactly that and were deleted on 2026-08-23; the reasoning is in
@@ -1232,6 +1264,14 @@ leader chips, trend-line captions) has to follow that race's profile.
 
 ## Open items
 
+- `USA_RIDERS` on the VUELTA board still holds the Tour's list, four of six not in
+  this race. It is DORMANT, not live: `sideGameOn('merica')` is false, so nothing
+  reads it. Deliberately not hand-corrected on 2026-08-28, because the fix Allen
+  wants is the generalization, a computed roster from a `q` nationality field baked
+  into `RIDERS`, not a second curated list for a game this race does not play. It is
+  a landmine only if someone flips `sideGames.merica` true on this board without
+  reading this line. Close it by shipping the computed roster, or by deleting the
+  array outright if the generalization slips.
 - The Giro host `racecenter.giroditalia.it` in the Adding the Giro checklist is a
   GUESS and has never been checked. Verify it, and verify that the bind names
   match the ASO shape, before writing it into a profile. A wrong host is exactly
