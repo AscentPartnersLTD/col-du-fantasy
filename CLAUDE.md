@@ -1301,6 +1301,104 @@ The floor belongs in the WORKER, not the board, because the worker chooses the s
 Remember the worker does not deploy on push. `npx wrangler deploy` from the repo root,
 see Deploy.
 
+## The summary document is NOT the classification
+
+Added 2026-08-29, during the stage 8 close.
+
+`racecenter.lavuelta.es/api/rankingType-{year}-{stage}` is a SUMMARY. Its `ite` bind
+carries the TOP 10 plus the withdrawals and nothing else. That is its CONTRACT, not a
+partial state: it is byte-identical across repeated reads and it does not grow while you
+watch. On lavuelta.es it is what the "NEXT RANKINGS" button expands past.
+
+Every bind in it carries its own `_id`, and
+
+    rankingType-{year}-{stage}:{_id}
+
+is the FULL document, which is what that button fetches. Pick the `ite` bind with the
+most rows, take its `_id`, and make the second hop.
+
+Measured on stage 8: the summary held 10 finishers while the website showed 130 and the
+true complete field was 173. Same moment, same race, three different numbers.
+
+WHY THIS WAS NOT OBVIOUS, and it fooled two people for an hour. Every instinct said "the
+classification is still compiling", and the evidence fitted: the number was small, and it
+was not moving. Both were true and both were irrelevant. The summary was COMPLETE for
+what it is. The stage 7 document eventually shows 178 rows in the same bind, which is
+what made the truncation look like a lag rather than a contract.
+
+TELLS, worth recognising next time:
+
+- The document does not change between reads AND the site shows more. A compiling feed
+  moves; a summary does not.
+- `_key: "_id"` on a bind, and a sibling reference in the `resource:sha` form such as
+  `$cp: "checkpointList-2026-8:<sha>-40"`. That store is content-addressed, so a bind
+  with an `_id` is itself fetchable, and a truncated view implies a full one exists.
+
+`api/break.js` and `worker4.js` both still read the SUMMARY bind and inherit this. They
+were not changed, because the Cloudflare token lives on Gerald and this was fixed under
+race conditions on Dragon. `tools/close-stage.js` now reads the official feed directly,
+in two hops, and the worker is read only so its race label can be audited.
+
+STILL OPEN: `api/break.js` should make the same two hops. Until it does, the board's
+`finished` array is the top 10 until ASO's summary catches up, which on stage 8 took
+about an hour after the finish. The abandoned-rider greyout depends on it and therefore
+lags by that much. It is FAIL OPEN so it degrades to marking nobody out, which is the
+correct failure, but it is a real limitation and not a theoretical one.
+
+## An abandoned rider is not a missed pick
+
+Added 2026-08-29, on Pogacar crashing out of stage 8 while drafted by JP.
+
+A pick with no finish is a rider who was DRAFTED and ABANDONED. It is NEVER a missed
+pick, because the RESOLUTION gate stops the close before scoring if any pick fails to
+resolve to a bib, so a literal missed pick cannot reach the scoring line at all.
+
+RULING FROM ALLEN:
+
+| Board | Value |
+|---|---|
+| Fantasy Points | 0 |
+| Rank | last |
+| Placement | one behind the LAST CLASSIFIED FINISHER |
+
+Placement was the only one that needed deciding, and it needed deciding because ZERO IS
+NOT SAFE THERE. Placement is lowest-leads, so a literal zero makes abandoning the best
+possible day of the four and hands the stage to the seat that lost a rider. The two
+readings of "scores nothing" point in opposite directions on the two boards, which is
+exactly the direction trap recorded under Per-race scoring profiles.
+
+It is also NOT the old missed-pick value, one behind the worst pick ANYONE made that
+stage. That is far more lenient than it sounds: with every other pick inside the top 60
+it scores an abandon as 61st.
+
+`close-stage.js` writes the scored value into `f` so every existing consumer keeps
+working with no change. `FP_SCALE[174]` is undefined and every call site on the board is
+`FP_SCALE[f] || 0`, so Fantasy lands on 0 with no NaN, and 174 sorts last for Rank.
+
+The pick ALSO carries `dnf: true`, and that field is load-bearing rather than decorative:
+174 is a SCORE, not a finishing position, and without the flag the board prints "174th"
+for a rider who abandoned, which is precisely the invented finish position the writing
+conventions forbid. The flag is additive and older consumers ignore it. LABELLING it on
+the cards and in Hall of Shame is NOT done and is a separate commit.
+
+## Kasseistampers: the tiebreaker separates equals, it never promotes
+
+Added 2026-08-29, because the stage 8 result reads wrong at a glance and is right.
+
+Three seats named Meeus first and one seat took the cobble. Both halves of the rule were
+applied and they do different jobs:
+
+- NEVER PROMOTES. A tiebreaker cannot rescue a wrong first choice. JP named van Aert
+  first and Meeus second; Meeus was the top Belgian; JP scores nothing.
+- SEPARATES EQUALS. When more than one seat names the top Belgian, the tiebreaker's own
+  finish decides between them. That is what the second pick is FOR: it was added
+  mid-Vuelta precisely to stop all four seats auto-picking van Aert, which only works if
+  it breaks ties.
+
+Stage 8: AA, JJ and JB all named Meeus (P3). Tiebreakers were van Aert P22, Braet P11 and
+de Schuyteneer P106, so JJ took it. `correct: ["JJ"]`.
+
+
 ## A PARTIAL FEED IS NOT A FEED
 
 Added 2026-08-28, after the third instance of one class of bug.
