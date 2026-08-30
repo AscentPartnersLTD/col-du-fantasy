@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260830-173132Z -->
+<head><!-- build:20260830-173946Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -1965,19 +1965,35 @@ window.__phFall=function(el){
   if(nx){ el.removeAttribute('data-fb2'); el.src=nx; return; }
   el.remove();
 };
+/* The solid backing is applied ON LOAD, never up front, and this is load-bearing.
+   An avatar image is stacked OVER the initials circle, so painting its background at
+   render time hides the initials before there is anything to show instead. If the image
+   then never arrives, the seat gets a blank colored disc: no face, no letters, and no
+   error either, so the tier chain never advances and it cannot repair itself. That is
+   exactly what shipped for about ten minutes on 2026-08-30, and it is why these images
+   are NOT lazy: `loading="lazy"` did not fire for a card rendered after first paint, so
+   eight portraits sat unrequested behind eight blank discs.
+   Applied on load, the initials show until a real portrait replaces them, which is the
+   correct thing to look at in every intermediate state. */
+window.__phOk=function(el){
+  var b=el.getAttribute('data-bg');
+  if(b) el.style.background=b;
+};
 /* `cls` is whatever class the calling surface already styles its avatar image with, so
    this supplies a source and never a new visual language. Returns '' when there is no
    photo at any tier, which is the tier-3 case and is not an error.
-   `style` matters more than it looks: the ASO portraits are CUT OUT, with a genuinely
+   `bg` matters more than it looks: the ASO portraits are CUT OUT, with a genuinely
    transparent background over about half the frame. Dropped straight onto the initials
    circle, the letters read through the empty space around the rider's head. Every caller
-   that stacks the photo over an initials avatar passes a solid background here, so the
-   disc stays a disc and only its content changes. */
-function portraitImg(name,cls,style){
+   that stacks the photo over an initials avatar passes a solid backing here, so the disc
+   stays a disc and only its content changes. It is applied by __phOk ON LOAD rather than
+   written into the tag, for the reason spelled out there. */
+function portraitImg(name,cls,bg){
   var p=riderPhoto(name); if(!p) return '';
-  return '<img class="'+esc(cls)+'" src="'+esc(p.src)+'" alt="" loading="lazy" referrerpolicy="no-referrer"'
-    +(style?' style="'+esc(style)+'"':'')
-    +(p.fb?' data-fb2="'+esc(p.fb)+'"':'')+' onerror="__phFall(this)">';
+  return '<img class="'+esc(cls)+'" src="'+esc(p.src)+'" alt="" referrerpolicy="no-referrer"'
+    +(bg?' data-bg="'+esc(bg)+'"':'')
+    +(p.fb?' data-fb2="'+esc(p.fb)+'"':'')
+    +' onload="__phOk(this)" onerror="__phFall(this)">';
 }
 const $=id=>document.getElementById(id);
 
@@ -3149,7 +3165,7 @@ function highlightSeat(){ const clock=(draft&&draft.queue&&draft.queue[0])||null
 function head(sub,badge){ return `<div class="dh"><div class="dh-l"><div class="dh-ico"><svg viewBox="0 0 40 40" fill="none"><path d="M4 31 L15 13 L21 22 L27 9 L36 31 Z" fill="#c8102e"/><circle cx="27" cy="9" r="3.2" fill="#c8102e"/></svg></div><div><div class="dh-t">Stage ${esc(STAGE)} draft</div><div class="dh-s">${sub}</div></div></div>${badge||''}</div>`; }
 function riderAv(rider,pending,clock,player){ if(pending) return `<span class="tav pending ${clock?'clock':''}"><span class="fb" style="color:${PMETA[player].c}">${player}</span></span>`; const col=rider.c||'#888'; const fb=`<span class="fb" style="background:${col}">${init(rider.r)}</span>`; /* Tier 1 and 2 from the bib-keyed portrait map; rider.p is whatever the pick stored at
      draft time and stays as a last source so an older pick keeps what it was saved with. */
-  const img=portraitImg(rider.r,'ph','background:'+col)||(rider.p?`<img class="ph" src="${esc(rider.p)}" onerror="this.remove()">`:''); return `<span class="tav" style="box-shadow:0 0 0 2.5px ${col}">${fb}${img}</span>`; }
+  const img=portraitImg(rider.r,'ph',col)||(rider.p?`<img class="ph" src="${esc(rider.p)}" onerror="this.remove()">`:''); return `<span class="tav" style="box-shadow:0 0 0 2.5px ${col}">${fb}${img}</span>`; }
 function fmtDur(ms){ if(ms<0) ms=0; let s=Math.floor(ms/1000), m=Math.floor(s/60); s=s%60; return m+':'+(s<10?'0':'')+s; }
 function tickClock(){ const el=$('drClockTimer'); if(!el||!draft) return; const picks=draft.picks||[], queue=draft.queue||[]; if(draft.status==='complete'||!queue.length){ el.textContent=''; return; } const la=draft.lockAt||{}, start=la[String(picks.length)]; let ms=(start&&start.toMillis)?start.toMillis():null; if(ms==null){ Object.keys(la).forEach(k=>{ const v=la[k]; if(v&&v.toMillis){ const t=v.toMillis(); if(ms==null||t>ms) ms=t; } }); if(ms==null && draft.createdAt && draft.createdAt.toMillis) ms=draft.createdAt.toMillis(); } if(ms==null){ el.textContent=''; return; } el.textContent=' · '+fmtDur(Date.now()-ms); }
 setInterval(tickClock,1000);
