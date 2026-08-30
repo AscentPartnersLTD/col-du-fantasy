@@ -1058,6 +1058,63 @@ no rule change either. If the deadline should be enforced rather than merely obs
 the rule needs the stage read added; the exact text is in the 2026-08-25 session notes
 and was handed to Allen rather than published.
 
+## Rest days are DERIVED, never listed
+
+Added 2026-08-30. `boardConfig.race` carries a date per stage, and A GAP OF MORE THAN ONE
+DAY BETWEEN CONSECUTIVE STAGES IS A REST DAY. That is the entire definition. Do not add a
+rest-day list to the profile, the calendar or anywhere else: the Giro then gets its rest
+days with no code change, and there is no second list to drift out of step with the first.
+Same call as the calendar itself and as `FP_SCALE`.
+
+Computed for this Vuelta: Aug 31, between stage 9 on Aug 30 and stage 10 on Sep 1, and
+Sep 7, between stage 15 on Sep 6 and stage 16 on Sep 8. `computeRestDays()` returns
+`{d, label, after, before}` per rest day and `REST_DAYS` is the board-wide value. A
+three-day gap correctly yields TWO rest days.
+
+Three things that are load-bearing rather than tidy:
+
+- The dates read "Aug 22", month and day with NO YEAR, so the year comes from
+  `RACE_PROFILE.year` and rolls forward if the month ever goes backwards. A grand tour
+  will not cross New Year; a race-neutral rule costs one line and a wrong year would
+  silently mis-space every gap.
+- All arithmetic is UTC, so a gap is a whole number of days in every timezone and no
+  daylight-saving shift can turn 24 hours into 23.
+- It FAILS CLOSED. An undated or unparseable row breaks the chain on both sides instead of
+  being dropped. The first version filtered undated rows out, which made stage 1 and
+  stage 3 adjacent when stage 2 had a bad date and turned a five-day span into five
+  invented rest days. One `.filter()`, fail-open, exactly the shape recorded elsewhere in
+  this file. There is a test set for this; a gap over 14 days is also rejected as bad data
+  rather than read as a rest fortnight.
+
+### The rest day takes its slot in the Next Two card
+
+The card fills its two slots from a CHRONOLOGICAL timeline of what is coming, not from
+stage numbers. That distinction is the whole feature. On 2026-08-30 the last raced stage
+is 9 on Aug 30, the upcoming stage is 10 on Sep 1, and Aug 31 is a rest day, so the next
+thing on the calendar is the REST DAY and not stage 10. Filling by stage number would show
+stage 10 first and make it read as tomorrow, which is the failure this prevents.
+
+Verified across the whole race, every case: Aug 30 gives `REST Aug 31 | Stage 10`; Sep 1,
+once the rest day has passed, gives `Stage 10 | Stage 11`; Sep 5 gives
+`Stage 15 | REST Sep 7`, which is the stage-then-rest reading; stage 21 gives one slot.
+
+The clock is used for ONE decision only: whether a rest day sitting BEFORE the upcoming
+stage has already passed. A rest day after the upcoming stage is always still ahead and
+needs no clock, and everything else comes off the calendar.
+
+The rest slot is the same `.ns-block` shell as a stage, so it reads as part of the
+rotation rather than as an interruption, and carries the race mark from
+`RACE_PROFILE.logo`. THAT FIELD EXISTS SO NO RENDER SITE WRITES A VUELTA PATH; the Giro
+sets its own and this code does not change. The mark removes itself if the file is
+missing, leaving the words, which are the point.
+
+The heading flips to "Next two days" when a rest day is in view, because "Next two
+stages" over a rest-day card is a small lie.
+
+STILL TRUE, and unchanged by any of this: do NOT write `boardConfig.next2`. The rest day
+comes out of the same derivation that the next stage does, and a written `next2` kills
+both.
+
 ## NEVER write boardConfig.next2
 
 Added 2026-08-25 after writing it broke the Stats card in production.

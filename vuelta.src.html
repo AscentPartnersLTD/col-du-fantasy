@@ -71,6 +71,10 @@ const RACE_PROFILE = {
 
   poolId:'vuelta-2026',
   boardPath:'/vuelta.html',
+  /* The race mark, used where the board needs to stand in for a stage: the rest-day
+     slot in the Next Two card. A PATH, per race, never a hardcoded Vuelta file at
+     the render site. The Giro sets its own and nothing else changes. */
+  logo:'/vuelta-icon-192.png',
 
   /* The four ranking jerseys, in feed order. key is the slot the feed and the CSS
      use, and is race-neutral despite the Tour-flavored spelling: it means jersey 1
@@ -1341,6 +1345,20 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
         #nextStageBox .ns-order .ns-lab{font-family:'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:var(--mute);margin-right:7px}
         #nextStageBox .ns-order b{font-family:'Montserrat',sans-serif}
         #nextStageBox .ns-muted{color:var(--mute);font-size:12.5px}
+        /* Rest day slot. Deliberately the same .ns-block shell as a stage so it reads as
+           part of the rotation rather than as an interruption, with the race mark and the
+           words where the elevation profile would be. */
+        #nextStageBox .ns-rest{text-align:center}
+        #nextStageBox .ns-rest .ns-route{color:var(--mute);font-weight:700;font-size:13px}
+        #nextStageBox .ns-restlogo{margin:14px 0 10px}
+        #nextStageBox .ns-restlogo img{width:64px;height:64px;object-fit:contain;border-radius:14px;display:block;margin:0 auto;opacity:.92}
+        #nextStageBox .ns-restword{font-family:'Montserrat',sans-serif;font-weight:900;letter-spacing:.16em;font-size:15px;color:var(--ink);text-transform:uppercase}
+        #nextStageBox .ns-rest .ns-line{margin-top:10px}
+        @media(max-width:640px){
+          #nextStageBox .ns-restlogo{margin:11px 0 8px}
+          #nextStageBox .ns-restlogo img{width:54px;height:54px}
+          #nextStageBox .ns-restword{font-size:13.5px;letter-spacing:.13em}
+        }
         /* Desktop: the two stages sit side by side across the full width. Mobile: they stack (kept vertical). */
         #nextStageBox #nsBody{display:grid;grid-template-columns:1fr 1fr;gap:0 32px}
         #nextStageBox .ns-block{padding-top:0;margin-top:8px;border-top:none}
@@ -3317,6 +3335,70 @@ const OFFICIAL = CDF.official;
 /* No baked fallback. Every consumer below already guards on an empty RACE and simply
    renders nothing, which is what should happen if the calendar is ever missing. */
 const RACE = (CDF.boardConfig&&Array.isArray(CDF.boardConfig.race)&&CDF.boardConfig.race.length) ? CDF.boardConfig.race : [];
+
+/* ===== REST DAYS, DERIVED =====
+   Added 2026-08-30. Rest days are NOT listed anywhere and must never be. boardConfig.race
+   carries a date per stage, and a gap of more than one day between consecutive stages IS
+   a rest day. That is the whole definition, so the Giro gets its rest days with no code
+   change and no second list to drift from, which is the same call made on the calendar
+   itself and on FP_SCALE.
+
+   Computed on this Vuelta: Aug 31, between stage 9 on Aug 30 and stage 10 on Sep 1, and
+   Sep 7, between stage 15 on Sep 6 and stage 16 on Sep 8. A gap of three days would
+   yield two rest days and the loop below emits both.
+
+   The dates read "Aug 22", month abbreviation and day, with NO YEAR, so the year comes
+   from RACE_PROFILE.year and rolls forward if the month ever goes backwards. A grand
+   tour will not cross New Year, but a race-neutral rule costs one line and a wrong year
+   would silently mis-space every gap.
+
+   FAILS CLOSED. A row whose date cannot be parsed breaks the chain at that point rather
+   than guessing a gap: no date means no rest day, never an invented one. */
+const _MON3 = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+const _MONL = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function _raceDayParts(s){
+  const m = String(s == null ? '' : s).trim().match(/^([A-Za-z]{3})[A-Za-z]*\.?\s+(\d{1,2})$/);
+  if (!m) return null;
+  const mo = _MON3[m[1].toLowerCase()];
+  if (mo == null) return null;
+  return {mo: mo, day: Number(m[2])};
+}
+/* UTC throughout, so a gap is a whole number of days regardless of the viewer's zone
+   and no daylight-saving shift can turn 24 hours into 23. */
+function _raceDates(rows, year){
+  const out = [];
+  let y = Number(year) || new Date().getUTCFullYear(), prevMo = null;
+  rows.slice().sort((a, b) => Number(a.n) - Number(b.n)).forEach(function(r){
+    const p = _raceDayParts(r.date);
+    if (!p) { out.push({row: r, d: null}); prevMo = null; return; }
+    if (prevMo != null && p.mo < prevMo) y++;
+    prevMo = p.mo;
+    out.push({row: r, d: new Date(Date.UTC(y, p.mo, p.day))});
+  });
+  return out;
+}
+function restDayLabel(d){ return _MONL[d.getUTCMonth()] + ' ' + d.getUTCDate(); }
+function computeRestDays(rows, year){
+  /* Undated rows are KEPT in the sequence and skipped as pairs, never filtered out.
+     Filtering them made stage 1 and stage 3 adjacent when stage 2 had a bad date, and a
+     five-day span became five invented rest days: fail-open, from one .filter(). An
+     unparseable date breaks the chain on both sides, which is the only honest answer. */
+  const t = _raceDates(rows || [], year);
+  const out = [];
+  for (let i = 1; i < t.length; i++){
+    const a = t[i - 1], b = t[i];
+    if (!a.d || !b.d) continue;
+    const gap = Math.round((b.d - a.d) / 86400000);
+    if (gap < 2 || gap > 14) continue;            // a wild gap is bad data, not a rest week
+    for (let k = 1; k < gap; k++){
+      const d = new Date(a.d.getTime() + k * 86400000);
+      out.push({d: d, label: restDayLabel(d), after: Number(a.row.n), before: Number(b.row.n)});
+    }
+  }
+  return out;
+}
+const REST_DAYS = computeRestDays(RACE, (typeof RACE_PROFILE !== 'undefined' && RACE_PROFILE.year) || 0);
+try { window.__REST_DAYS = REST_DAYS; } catch(e){}
 
 /* The official top-5-per-stage table that used to live here held the 2026 TOUR: the
    Barcelona team time trial, then del Toro, Evenepoel, Vingegaard, Seixas, sourced in
@@ -6071,20 +6153,50 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 
 ;
 
-/* Next two stages card (Stats tab, column 2). Stage 1 = UPCOMING, stage 2 = NEXT2. */
+/* Next two stages card (Stats tab, column 2). Two slots, filled from a CHRONOLOGICAL
+   timeline of what is coming rather than from stage numbers, so a rest day takes its
+   place in the rotation instead of being skipped.
+
+   Why chronological and not "upcoming, then upcoming+1". On 2026-08-30 the last raced
+   stage is 9 (Aug 30), the upcoming stage is 10 (Sep 1), and Aug 31 is a rest day. The
+   next thing on the calendar is therefore the REST DAY, not stage 10. Filling the slots
+   by stage number would show stage 10 first and make it read as tomorrow, which is the
+   exact failure this exists to prevent.
+
+   The clock is used for ONE decision only: whether a rest day sitting before the
+   upcoming stage has already passed. Everything else comes off the calendar. A rest day
+   after the upcoming stage is always still ahead and needs no clock. */
 (function(){
   const el=document.getElementById('nsBody'); if(!el) return;
   const U=(typeof UPCOMING!=='undefined')?UPCOMING:null;
   if(!U){ el.innerHTML='<span class="ns-muted">No upcoming stage set.</span>'; return; }
+  const RD=(typeof REST_DAYS!=='undefined')?REST_DAYS:[];
+  const R=(typeof RACE!=='undefined'&&Array.isArray(RACE))?RACE:[];
+  const PROF=(typeof RACE_PROFILE!=='undefined')?RACE_PROFILE:{};
   // Stage after upcoming: an explicit boardConfig.next2 wins; otherwise derive it from
-  // the Vuelta calendar (RACE) so the card self-maintains as upcoming advances and the
+  // the calendar (RACE) so the card self-maintains as upcoming advances and the
   // stage-2 profile (/2.jpg) shows without any per-stage upkeep. Null past the final stage.
-  let N2=(typeof NEXT2!=='undefined')?NEXT2:null;
-  if(!N2 && typeof RACE!=='undefined' && Array.isArray(RACE)){
-    const nn=Number((U&&U.n)||0)+1;
-    const rr=RACE.find(r=>Number(r.n)===nn);
-    if(rr) N2={ n:nn, route:rr.route||'', type:rr.type||'', km:rr.km||0, profile:rr.profile||null,
-                line:rr.line||(rr.intel&&rr.intel.summary)||'' };
+  function stageAt(n){
+    if(!R.length) return null;
+    const rr=R.find(x=>Number(x.n)===n);
+    if(!rr) return null;
+    return { n:n, route:rr.route||'', type:rr.type||'', km:rr.km||0, profile:rr.profile||null,
+             date:rr.date||'', line:rr.line||(rr.intel&&rr.intel.summary)||'' };
+  }
+  const un=Number(U.n);
+  const todayUTC=(function(){ const n=new Date(); return Date.UTC(n.getFullYear(),n.getMonth(),n.getDate()); })();
+  /* Build the timeline: for each stage from upcoming onward, any rest day that falls
+     immediately BEFORE it goes in first. That ordering is what puts Aug 31 ahead of
+     stage 10 without comparing dates a second time. */
+  const items=[];
+  for(let n=un; n<=un+3 && items.length<4; n++){
+    RD.forEach(function(r){
+      if(r.before!==n) return;
+      if(n===un && r.d.getTime()<todayUTC) return;   // already passed, not ahead of anyone
+      items.push({rest:r});
+    });
+    const s=(n===un)?U:stageAt(n);
+    if(s) items.push({stage:s}); else break;
   }
   function orderFor(n){
     try{
@@ -6105,10 +6217,35 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
       +(order.length?`<div class="ns-order"><span class="ns-lab">Pick</span>${order.map(p=>`<b>${p}</b>`).join(' &gt; ')}</div>`:'')
       +`</div>`;
   }
+  /* The rest-day slot. The mark comes from RACE_PROFILE.logo, never a Vuelta path
+     written here, so the Giro shows its own with no edit at this site. It degrades to
+     nothing if the file is missing, which leaves the words, which are the point. */
+  function restBlock(r){
+    const nx=stageAt(r.before);
+    const logo=PROF.logo?`<div class="ns-restlogo"><img src="${esc(PROF.logo)}" alt="" onerror="this.closest('.ns-restlogo').remove()"></div>`:'';
+    const back=nx?`Racing resumes with Stage ${nx.n}${nx.route?', '+esc(nx.route)+',':''} on ${esc(nx.date||'the next stage date')}.`:'';
+    return `<div class="ns-block ns-rest"><div class="ns-num">Rest day</div>`
+      +`<div class="ns-route">${esc(r.label)}</div>`
+      +logo
+      +`<div class="ns-restword">REST DAY</div>`
+      +(back?`<div class="ns-line">${back}</div>`:'')
+      +`</div>`;
+  }
+  const show=items.slice(0,2);
   const uLine=(U.intel&&U.intel.summary)?(U.intel.summary.split('. ')[0].replace(/\.$/,'')+'.'):'';
-  let html=block(U,'up next',uLine);
-  if(N2) html+=block(N2,'',N2.line||'');
-  el.innerHTML=html;
+  let html='';
+  show.forEach(function(it,i){
+    if(it.rest) html+=restBlock(it.rest);
+    else html+=block(it.stage, (it.stage.n===un&&i===0)?'up next':(it.stage.n===un?'up next':''), it.stage.n===un?uLine:(it.stage.line||''));
+  });
+  el.innerHTML=html||'<span class="ns-muted">No upcoming stage set.</span>';
+  /* The heading says "stages", and a rest day is not one. Say what the card is actually
+     showing rather than leaving a small lie above it. */
+  try{
+    const box=document.getElementById('nextStageBox');
+    const mh=box&&box.querySelector('.mh');
+    if(mh) mh.textContent = show.some(x=>x.rest) ? 'Next two days' : 'Next two stages';
+  }catch(e){}
 })();
 
 ;
