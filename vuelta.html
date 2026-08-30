@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260830-181910Z -->
+<head><!-- build:20260830-182354Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -5745,7 +5745,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   const TEAM_IMG={"Alpecin-Premier Tech":"Alpecin.png","Bahrain Victorious":"Bahrain.png","Burgos-BH":"Burgos.png","Cofidis":"Cofidis.png","Decathlon CMA CGM Team":"Decathlon.png","EF Education-EasyPost":"EF.png","Equipo Kern Pharma":"Kern Pharma.png","Groupama-FDJ United":"Groupama.png","Lidl-Trek":"Lidl Trek.png","Lotto-Intermarché":"Lotto.png","Movistar Team":"Movistar.png","Netcompany INEOS":"Netcompany.png","NSN Cycling Team":"NSN.png","Pinarello Q36.5":"Pinarello.png","Red Bull-BORA-hansgrohe":"Red Bull Bora.png","Soudal Quick-Step":"Soudal Quickstep.png","Team Jayco AlUla":"Jayco.png","Team Picnic PostNL":"Pic Nic.png","Tudor Pro Cycling":"Tudor.png","UAE Team Emirates XRG":"UAE.png","Uno-X Mobility":"Uno.png","Visma-Lease a Bike":"Visma.png","XDS Astana Team":"XDS Astana.png"};
   const TEAM_ICON={"Alpecin-Premier Tech":"Alpecin Icon.png","Bahrain Victorious":"Bahrain Icon.png","Burgos-BH":"Burgos Icon.png","Cofidis":"Cofidis Icon.png","Decathlon CMA CGM Team":"Decathalon Icon.png","EF Education-EasyPost":"EF Icon.png","Equipo Kern Pharma":"Kern Pharma Icon.png","Groupama-FDJ United":"Groupama Icon.png","Lidl-Trek":"Lidl Trek Icon.png","Lotto-Intermarché":"Lotto Icon.png","Movistar Team":"Movistar Icon.png","NSN Cycling Team":"NSN Icon.png","Pinarello Q36.5":"Pinarello Icon.png","Red Bull-BORA-hansgrohe":"Red Bull Bora Icon.png","Soudal Quick-Step":"Soudal Quickstep Icon.png","Team Jayco AlUla":"Jayco Icon.png","Team Picnic PostNL":"Pic Nic Icon.png","Tudor Pro Cycling":"Tudor Icon.png","UAE Team Emirates XRG":"UAE Icon.png","Uno-X Mobility":"Uno Icon.png","Visma-Lease a Bike":"Visma Icon.png","XDS Astana Team":"XDS Astana Icon.png"};
   (function(){ const g=document.getElementById('teamJerseys'); if(!g) return;
-    g.innerHTML=TEAMS23.slice().sort().map(t=>{ const f=TEAM_IMG[t]; return `<div class="jcell" data-team="${esc(t)}">${f?`<img src="${encodeURI(f)}" alt="${t} jersey" loading="lazy">`:''}<div class="jn">${t}</div></div>`; }).join('');
+    g.innerHTML=TEAMS23.slice().sort().map(t=>{ const f=TEAM_IMG[t]; return `<div class="jcell" data-team="${esc(t)}">${f?`<img src="${encodeURI(f)}" alt="${t} jersey">`:''}<div class="jn">${t}</div></div>`; }).join('');
   })();
   const PL=(CDF.seats||CDF.order).slice();
   function teamOf(n){ if(!n) return null; if(TEAM_ALIAS[n]) return TEAM_ALIAS[n]; if(TEAMS23.indexOf(n)>=0) return n; if(RIDER_TEAM[n]) return RIDER_TEAM[n]; return null; }

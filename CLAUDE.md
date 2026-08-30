@@ -854,8 +854,16 @@ from JavaScript so both are common:
 - re-injected into a card that has already painted. `_rosterRepaint` re-renders the
   Kasseistampers card when the roster lands, which is after first paint, every load.
 
-Verified still loading and therefore LEFT lazy: `.jcell img`, 23 of 23 on tab open,
-because that grid is visible when it is injected; `.ahead-profile`, 12 of 12.
+Verified still loading and therefore LEFT lazy: `.ahead-profile`, 11 of 12 on a
+cache-busted load, the twelfth correctly still deferred below the fold, and
+`.ns-profile img`.
+
+`.jcell img` WAS left lazy on a first pass and that was WRONG, which is worth keeping
+because it is this section's own trap. It measured 23 of 23 on a warm cache and was
+recorded as fine. On a cache-busted load it measures 0 of 23, at 96x80, visible, in the
+viewport, with no hidden ancestor: the grid lives inside a `<details class="team-kits">`
+that starts closed, so it is the reveal case after all. Lazy is off it now. Do not
+validate any of this against a browser that has already loaded the board once.
 
 WHY IT WAS INVISIBLE. The URLs are stable, so the second visit serves them from cache and
 everything looks right. Only a cold cache shows the fault, which is why it reads as
@@ -871,13 +879,14 @@ Lazy REMOVED, because they are icon or avatar sized and lazy bought nothing:
   measured 0 of 4.
 - `.teamjersey`, 22px, the case measured above.
 - `.mini-prof img`, the 104x32 stage thumbnail in a ledger row.
+- `.jcell img`, the 23 team kits, 96x80, inside a `<details>` that starts closed.
 - `.mt-jfront` / `.mt-jback` and `.g-jfront` / `.g-jback`, the two prize-jersey pairs.
   These carry an `onerror` that hides the block, and an onerror that never fires leaves a
   GAP rather than a clean hide, which is worse than either outcome on its own.
 
 Lazy KEPT, because they are genuinely large, genuinely below the fold, and verified
 loading: `.ahead-profile` at both sites, full width, up to 21 of them in the ledger;
-`.ns-profile img`, full width; `.jcell img`, 80px but 23 of them and visible on injection.
+`.ns-profile img`, full width.
 
 ### The second half of the bug, which is the more dangerous one
 
