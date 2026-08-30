@@ -602,6 +602,19 @@ a game the profile had been asking for all along. Check the FLAG, not the screen
 is the same class as the col-break Worker: the repo said a thing was happening and
 nobody had asked the provider.
 
+And the more useful half, stated as its own rule because it generalizes well past
+side games: A CONFIG FLAG WITH NO CONSUMER IS NOT CONFIGURATION. It is a comment that
+looks executable, which is worse than a comment, because a reader trusts it. Allen
+read `sideGames.merica:true` and concluded the flag was what put the card on the
+Vuelta board. It had never been read by anything, in either board, since the day it
+was written. Anyone reasoning from it would have reached the same wrong answer.
+
+So before treating any profile field as the cause of a behavior, GREP FOR ITS SECOND
+OCCURRENCE. One occurrence means the field is inert and the behavior is coming from
+somewhere else entirely. Either wire it to a real guard, as `sideGameOn()` now does,
+or delete it. A declaration that nothing enforces is how a board ends up telling its
+operator a lie about itself.
+
 ### Turning a game off must not erase history won elsewhere
 
 `JERSEY_ICONS.merica` STAYS on the Vuelta board even with the game off, because JP
@@ -619,8 +632,12 @@ offering four riders who were not in the race. `BELGIAN_RIDERS` matches the feed
 exactly, 18 of 18, which is luck of maintenance rather than a different mechanism.
 
 The feed carries `nationality` on every rider and matched all 184 startlist bibs with
-zero misses, so this list should be computed rather than typed. See the generalization
-report in the session notes.
+zero misses, so this list should be computed rather than typed. The generalization
+report is `NATIONALITY-SIDE-GAME.md` in this repo, committed 2026-08-28 so it survives
+the conversation it was written in. It carries the profile block, the build-time vs
+runtime decision and why, the measured country menu for this Vuelta, and the two
+decisions Allen made that day: bios degrade to initials and never gate the feature, and
+eligibility is judged once at race start and never recomputed.
 
 ### The country is fixed for a whole race
 
@@ -871,7 +888,26 @@ arrays must be decoupled in the SAME commit or they stay shared by accident.
 `vuelta.src.html` was copied from `board.src.html` on 2026-08-08 and its `RIDERS`
 array stayed byte-identical to the Tour's until 2026-08-09, so the Vuelta board
 was serving the Tour startlist. Decouple at minimum: `RIDERS`, the team list, team
-colors and art maps, the race calendar, and `RACE_PROFILE`.
+colors and art maps, the race calendar, the nationality side game, and `RACE_PROFILE`.
+
+THE DATA IS THE HALF THAT FAILS SILENTLY. The code that comes across in a copy is
+fine, because it is the same code that works on the source race. What comes across
+with it is the source race's DATA, and data does not throw. Two instances of the
+identical failure in this one file:
+
+- `RIDERS` stayed byte-identical to the Tour's, 2026-08-08 to 2026-08-09. The board
+  rendered, searched and drafted perfectly, against the wrong 184 riders.
+- `USA_RIDERS` came across in the same copy and was never touched again. Found
+  2026-08-28: four of its six names were not in the 2026 Vuelta at all, and three
+  Americans who were in it were missing. The card offered riders who were not in the
+  race, so it was unwinnable for two thirds of its chips. It went twenty days
+  unnoticed only because the card never painted, which is luck, not a safeguard.
+  The measured numbers are under Curated rosters are a copy hazard, above.
+
+THE CHECK THAT CATCHES BOTH, and the only one that does: after copying a board, take
+every rider-name array in the new file and assert that each name resolves against the
+NEW race's `RIDERS`. Any name that does not resolve is the source race leaking
+through. Run it in the copy commit, not later.
 
 Do NOT carry a baked fallback calendar across at all. `SHARED_UPCOMING` and
 `RACE_BAKED` were exactly that and were deleted on 2026-08-23; the reasoning is in
@@ -1065,18 +1101,11 @@ built from `by` and `seen` together, and a mover is now drawn from names nobody 
 worn. A seat's own history was already excluded through `seen`; this extends the same
 rule to the other three seats.
 
-The draw is a widening ladder, each rung giving up exactly one guard, so a depleted
-bank degrades instead of leaving a seat with no persona:
-
-1. never worn by anyone
-2. not this seat's own and not on the previous board, which is the OLD rule
-3. not on the previous board
-4. anything free of the right tier
-
-The bank holds 44 style rows and 12 winner rows against three styles and at most one
-winner per rotation, so rung 1 carries a full race on styles and can run short on
-winners late in a long one. Verified: with all 12 winners already worn and the order
-changed, the leader still draws a winner and still does not redraw its own.
+The draw WAS a widening ladder, each rung giving up one guard. SUPERSEDED 2026-08-28,
+see "Personas never repeat within a race" below. The fallbacks turned out to be the
+defect rather than graceful degradation: they fired routinely instead of at the end of a
+depleted bank, and because every rung ranks by fit, the names they reached for were the
+well-fitting ones, which are exactly the ones already spent. Rung 1 is now the only rung.
 
 This makes `seen` LOAD-BEARING rather than decorative. It is the only record of who has
 worn what. If the ledger write stays denied and `seen` stops growing, the guard silently
@@ -1089,6 +1118,94 @@ shipped block on live pool state: the ledger order matches the Fantasy Points or
 are no pins, so there are no movers and the ladder is never reached. AA badger,
 JP professor, JJ tonymartin, JB eternalsecond stands as the engine wrote it. Simulating
 JJ overtaking JP re-draws all four and reuses nothing from the ledger.
+
+## Personas never repeat within a race
+
+Added 2026-08-28. This supersedes the widening ladder above.
+
+ALLEN'S RULE. Within a single race a persona may be used ONCE. Not once per seat, once
+per RACE. Nobody gets a name anyone has already worn in this Vuelta, and every rotation
+puts a NEW name in front of people. Novelty is the entire point of the feature and
+recycling defeats it.
+
+THE USED LIST is `everWorn`, the union of `by` and `seen` from the ledger. A name in it
+is unavailable to EVERYONE for the rest of the race. It is scoped to the pool, because
+the ledger lives on `pools/{poolId}`, so Tour history cannot constrain the Vuelta and the
+Vuelta cannot constrain the Giro. A new race starts with all 56 rows free. That is the
+reset, and it needs no code and no migration.
+
+### The two defects this closed
+
+ONE, the fallbacks. Rungs 2 to 4 of the old ladder each surrendered a guard, and they
+were not a last resort. They fired routinely, and the rotation before this change
+replaced reused personas with even MORE frequently used ones. Rung 1 is now the only
+rung. The worst offender was not even in the ladder: step 4, the safety net, fell back to
+`PERSONA_BANK.find(x => !used[x.id])`, any tier and any history, which could put a worn
+name on the board without any rung firing at all.
+
+TWO, and this one matters more: `everWorn` guards a REDRAW, not the STORED board. With
+the order steady there are no movers, so nothing re-examined `by`, and a duplicate made
+before the rule existed stayed forever. That is why JJ went on wearing tonymartin after
+JP had worn it. A guard on future draws does not clean up a board that is already wrong.
+There is now a repair pass: a seat holding a name another seat has worn, or a name held
+twice on the same board, is forced to move even when nothing in the standings changed.
+
+### When a tier runs dry, HOLD, never repeat
+
+If no unworn name of the right tier remains, the seat KEEPS the persona it is wearing.
+It never repeats one, and it is never left silently blank. The card prints "Persona
+held, no unworn champion name left", or "No unworn style name left" if the seat had
+nothing to keep.
+
+That announcement is not decoration. A frozen persona and a broken engine look identical
+from the outside, which is the same lesson that produced the pin announcement two
+sections up. A silent hold is indistinguishable from a rotation that stopped working.
+
+### Retirement is DATA, and it is a cleared `by`
+
+To retire the whole board at once, clear `personaLedger.by`. A seat with no previous
+persona has nothing to hold, so all four move, and the next write repopulates `by` so it
+cannot fire twice.
+
+It is deliberately NOT a generation counter or any other new field. The published
+Firestore rule is `hasOnly(['order','by','seen'])`, so a new key would be DENIED and the
+denial is swallowed. The retirement would never record as done, it would re-fire on every
+single load, and it would strip the bank in an afternoon. Nothing is lost by clearing
+`by`, because the persistence block pushes every assigned id into `seen` on each write,
+so `seen` is always a superset of `by`.
+
+    db.doc('pools/vuelta-2026').update({'personaLedger.by': {}})
+
+### CAPACITY, and winner tier is the binding constraint
+
+The bank is 12 winner rows and 44 style rows. A rotation burns one winner and three
+styles, so the bank is worth roughly 12 winner-tier rotations and 14 style-tier ones.
+Winners bind first, and not by much.
+
+Measured by simulation against the real bank, 2026-08-28, from a used list of 16: the
+winner tier empties on the eighth further rotation and the style tier on the tenth. Four
+rotations had fired in the first seven stages, so at that rate the fourteen remaining
+stages want about eight more. The budget is real but it has NO margin.
+
+Three options if it binds, none of them chosen yet:
+
+- grow the winner bank, which is the blocked `persona-bank-additions.js` work, and every
+  row needs its `/* src: */` citation fetched and checked
+- let the leader draw from the style tier once winners are spent, which is cheap and
+  gives up the champion signal
+- let the leader HOLD its champion unless the LEADERSHIP changes, rather than redrawing
+  on every order change. This cuts winner burn hardest, since leadership changes far less
+  often than the order does, and it does not touch the bank at all
+
+### Verified, by simulation rather than by reading
+
+`scratchpad/sim.js` runs the real 56-row bank through the shipped rules. Twelve
+consecutive rotations with the leadership moving between all four seats: zero repeats,
+zero names on two seats at once, the used list growing 16 to 56 and both tiers reaching
+exactly full. With all 12 winners worn, the leader holds its champion and is flagged
+`exhausted` rather than repeating. A stored hand-me-down is detected and moved with the
+order completely steady. A cleared `by` moves all four to unworn names and the load after
+it is stable, which is what stops the ledger writing forever.
 
 ## The persona ledger rule, PUBLISHED 2026-08-27
 
@@ -1217,6 +1334,307 @@ Surfaces checked and left alone, because they are already unambiguous:
 
 Fixed alongside the badge: two persona lines emitted a bare ordinal off the Placement
 board and now say "3rd on Placement".
+
+## The abandoned-rider greyout: OFF, then REBUILT on a different source
+
+Turned OFF mid-race on 2026-08-28 during an open stage 8 draft, then rebuilt the same day
+on scored-stage FINISHER lists instead of a ranking. `window.__ROSTER_ENABLED` is `true`
+again. Read this whole section before touching it: it shipped three times on the wrong
+source and never once worked.
+
+### The source is `finished`, and /roster must NEVER be used for this
+
+`/api/break?stage=N` returns `finished`, the complete classification of a SCORED stage,
+one row per rider with bib, pos and name. THE RULE: a rider who appears in an earlier
+scored stage and is ABSENT from the most recent scored stage has left the race. Nothing
+else counts. Do not infer from rankings, from the general classification, or from the
+stage currently being raced.
+
+`/roster` derives from `itg` and for an unraced stage answers with a GC TOP 50. That is a
+RANKING, not a field. It is ordered by GC, so the rows present are the leaders: of 18
+Belgians only van Aert, Debruyne and Widar appeared and the other fourteen were marked
+ABANDONED for being domestiques. Its `out` array is a set difference against that
+partial, so it NAMES live riders as abandoned. The full probe is below.
+
+MEASURED CONTRACT of `finished`, 2026-08-28, every stage state:
+
+| Stage | finished | State |
+|---|---|---|
+| 1 | 184 | scored |
+| 2 | 183 | scored |
+| 3 | 0 | VOID, correctly empty |
+| 4 | 182 | scored |
+| 5 | 180 | scored |
+| 6 | 178 | scored |
+| 7 | 178 | scored |
+| 8 | 0 | UNRACED, correctly empty, `live:false` |
+
+A clean monotonic decline from the 184-rider startlist, which is what a real field looks
+like. Void and unraced stages return an EMPTY list rather than a partial one, so they are
+caught by the floor and need no special case.
+
+### The ground truth any implementation must reproduce
+
+Computed from those lists, twice and independently, before the code was written. SIX
+riders out of 184: Uijtdebroeks 28, Tarling 67, Kirsch 143, Beloki 163, Chumil 194, van
+Sintmaartensdijk 208. Exactly ONE is Belgian, C. Uijtdebroeks, who finished stages 1, 2
+and 4 and is absent from 5, 6 and 7. SEVENTEEN Belgians selectable.
+
+If a change to this code produces any other answer, it is wrong. Stop rather than ship.
+
+### The guards
+
+- FLOOR: refuse any classification below 90 percent of `RIDERS.length`, expressed as a
+  fraction so it travels to the Giro and the Tour. The GC top 50 scores 27 percent and is
+  rejected instantly; an empty void or unraced stage is rejected by the same test.
+- NEVER the current or an in-progress stage. The loader is handed `COMPLETED`, the stages
+  the POOL has scored, which already excludes void stages and the stage being drafted. It
+  walks BACK through that list and never invents a stage number.
+- RACE AUDIT: the reply must name the race the board asked for. A feed answering for
+  another race is valid JSON about a real race.
+- FAIL OPEN: if the roster cannot be resolved, `__ACTIVE` is null, nobody is marked out,
+  and any `out` flag left on a roster row from an earlier render is CLEARED rather than
+  left behind. The draft search AND the Kasseistampers card both say so, with the reason.
+
+### Verified
+
+`tools-roster-verify.js` lifts the roster block VERBATIM out of the built `vuelta.html`
+and runs it against the real `/api/break` payloads in `tools-roster-fixtures/`. It is the
+shipped code under test, not a transcription of it. Run `node tools-roster-verify.js`.
+
+It asserts the ground truth above, and separately that the void stage, the unraced stage,
+a 50-row GC snapshot and a reply for the wrong race are all REFUSED with nobody marked
+out, that the walk-back lands on stage 6 when stage 7 comes back short, and that the
+disabled switch marks nobody out. Per the standard below, this is what was checked and
+with what evidence; confirmation on the live board during an open draft is separate and
+belongs to Allen.
+
+### What /roster actually returns, probed across every stage state
+
+Measured 2026-08-28 against the live worker. This is the contract; it was never
+established before the feature was built, three times.
+
+| Asked | Reports | Count | Delta | State |
+|---|---|---|---|---|
+| 1 | 1 | 184 | | scored |
+| 2 | 2 | 183 | -1 | scored |
+| 3 | 3 | 182 | -1 | VOID, and it still answers |
+| 4 | 4 | 182 | 0 | scored |
+| 5 | 5 | 180 | -2 | scored |
+| 6 | 6 | 178 | -2 | scored, correct |
+| 7 | 7 | 139 | -39 | in progress, INCOMPLETE |
+| 8, 9, 10 | 7 | 139 | | unraced, walks back to 7 |
+
+Everything is derived from `itg`, the general classification, via `rankingType-{year}-{s}`
+in `worker4.js handleRoster`. `itg` lists who REMAINS in the race, so when it is COMPLETE
+it is the right source and the design reasoning below still holds.
+
+THE PROBLEM IS THAT NOTHING SAYS WHETHER IT IS COMPLETE. Four findings, each independent:
+
+1. The worker's walk-back accepts ANY non-empty classification:
+   `if (g && (g.rankings || []).length) { useStage = s; break; }`. A 29-row
+   mid-compile `itg` satisfies that as well as a 178-row final one. This is the same
+   non-empty-only guard as the board's, one layer down, so a client-side fix alone
+   would have been fighting a wrong answer chosen upstream.
+2. A partial classification is INDISTINGUISHABLE IN SHAPE from a complete one. It is
+   the same JSON with fewer rows. There is no `final` flag, no expected count, nothing.
+3. It is ORDERED BY GC, so the rows that arrive first are the leaders. On stage 8 only
+   van Aert, Debruyne and Widar of 18 Belgians were present, because they are the only
+   three high on GC. Every domestique was reported abandoned for being a domestique.
+4. `out` is a pure set difference between that partial and the previous stage's cached
+   set, so it NAMES riders as abandoned with full confidence. Measured on stage 8, `out`
+   named Meeus, de Vylder, Sentjens, van Tricht, de Schuyteneer and van Boven, all six
+   of them still racing.
+
+IT MUTATES WHILE YOU WATCH. The same stage 7 request returned 29 rows on the live board,
+50 when Allen probed it, 139 on the first probe here and 146 two minutes later. There is
+no moment at which a single reading can be trusted on its own.
+
+SO: CAN THE ENDPOINT DISTINGUISH "STILL RACING" FROM "ABANDONED"? Not from any field, no.
+Not for an unraced or in-progress stage. It can only be distinguished by COMPARISON, and
+the comparison that works is the delta: real attrition ran -1, -1, 0, -2, -2 across
+stages 2 to 6. A drop of 39 in one stage is not attrition, it is a half-written file.
+
+Two smaller contract notes:
+
+- The VOID stage 3 answers with its own classification, count 182, one fewer than stage 2
+  (Kirsch). The claim below that stage 3 "has no itg at all and is skipped for free" is
+  WRONG. It is not skipped, it answers, and it happens to answer correctly.
+- The worker CACHES whatever it resolved into KV as `roster:active:{stage}`, so a partial
+  reading is written under the stage number and becomes the baseline for the next diff.
+  It self-heals as the classification fills, but the poisoned window is real.
+
+### The fix, PROPOSED and not built
+
+Not written yet, deliberately. Two diagnoses of this feature have already been wrong,
+including a completeness floor and a last-scored-stage walk-back that were built and
+reverted unbuilt, and both would have made a wrong answer harder to see rather than
+correct.
+
+The floor belongs in the WORKER, not the board, because the worker chooses the stage:
+
+1. `handleRoster` refuses a classification whose row count is materially below the most
+   recent stored roster and keeps walking back. Plausible attrition is a handful per
+   stage; the observed maximum is 2. A drop past a small threshold means mid-compile.
+2. It returns what it did: the stage used, the count, and whether anything was refused,
+   so the board can tell "178 from stage 6" apart from "we gave up".
+3. `out` is only ever computed between two roster sets that both passed. A diff against
+   a partial is never emitted, because that diff is what names live riders as abandoned.
+4. The board asks only for stages the POOL has scored, and treats anything other than an
+   explicit pass as UNKNOWN.
+5. UNKNOWN marks nobody out and SAYS SO on the card and in the draft search.
+
+Remember the worker does not deploy on push. `npx wrangler deploy` from the repo root,
+see Deploy.
+
+## The summary document is NOT the classification
+
+Added 2026-08-29, during the stage 8 close.
+
+`racecenter.lavuelta.es/api/rankingType-{year}-{stage}` is a SUMMARY. Its `ite` bind
+carries the TOP 10 plus the withdrawals and nothing else. That is its CONTRACT, not a
+partial state: it is byte-identical across repeated reads and it does not grow while you
+watch. On lavuelta.es it is what the "NEXT RANKINGS" button expands past.
+
+Every bind in it carries its own `_id`, and
+
+    rankingType-{year}-{stage}:{_id}
+
+is the FULL document, which is what that button fetches. Pick the `ite` bind with the
+most rows, take its `_id`, and make the second hop.
+
+Measured on stage 8: the summary held 10 finishers while the website showed 130 and the
+true complete field was 173. Same moment, same race, three different numbers.
+
+WHY THIS WAS NOT OBVIOUS, and it fooled two people for an hour. Every instinct said "the
+classification is still compiling", and the evidence fitted: the number was small, and it
+was not moving. Both were true and both were irrelevant. The summary was COMPLETE for
+what it is. The stage 7 document eventually shows 178 rows in the same bind, which is
+what made the truncation look like a lag rather than a contract.
+
+TELLS, worth recognising next time:
+
+- The document does not change between reads AND the site shows more. A compiling feed
+  moves; a summary does not.
+- `_key: "_id"` on a bind, and a sibling reference in the `resource:sha` form such as
+  `$cp: "checkpointList-2026-8:<sha>-40"`. That store is content-addressed, so a bind
+  with an `_id` is itself fetchable, and a truncated view implies a full one exists.
+
+`api/break.js` and `worker4.js` both still read the SUMMARY bind and inherit this. They
+were not changed, because the Cloudflare token lives on Gerald and this was fixed under
+race conditions on Dragon. `tools/close-stage.js` now reads the official feed directly,
+in two hops, and the worker is read only so its race label can be audited.
+
+STILL OPEN: `api/break.js` should make the same two hops. Until it does, the board's
+`finished` array is the top 10 until ASO's summary catches up, which on stage 8 took
+about an hour after the finish. The abandoned-rider greyout depends on it and therefore
+lags by that much. It is FAIL OPEN so it degrades to marking nobody out, which is the
+correct failure, but it is a real limitation and not a theoretical one.
+
+## An abandoned rider is not a missed pick
+
+Added 2026-08-29, on Pogacar crashing out of stage 8 while drafted by JP.
+
+A pick with no finish is a rider who was DRAFTED and ABANDONED. It is NEVER a missed
+pick, because the RESOLUTION gate stops the close before scoring if any pick fails to
+resolve to a bib, so a literal missed pick cannot reach the scoring line at all.
+
+RULING FROM ALLEN:
+
+| Board | Value |
+|---|---|
+| Fantasy Points | 0 |
+| Rank | last |
+| Placement | one behind the LAST CLASSIFIED FINISHER |
+
+Placement was the only one that needed deciding, and it needed deciding because ZERO IS
+NOT SAFE THERE. Placement is lowest-leads, so a literal zero makes abandoning the best
+possible day of the four and hands the stage to the seat that lost a rider. The two
+readings of "scores nothing" point in opposite directions on the two boards, which is
+exactly the direction trap recorded under Per-race scoring profiles.
+
+It is also NOT the old missed-pick value, one behind the worst pick ANYONE made that
+stage. That is far more lenient than it sounds: with every other pick inside the top 60
+it scores an abandon as 61st.
+
+`close-stage.js` writes the scored value into `f` so every existing consumer keeps
+working with no change. `FP_SCALE[174]` is undefined and every call site on the board is
+`FP_SCALE[f] || 0`, so Fantasy lands on 0 with no NaN, and 174 sorts last for Rank.
+
+The pick ALSO carries `dnf: true`, and that field is load-bearing rather than decorative:
+174 is a SCORE, not a finishing position, and without the flag the board prints "174th"
+for a rider who abandoned, which is precisely the invented finish position the writing
+conventions forbid. The flag is additive and older consumers ignore it. LABELLING it on
+the cards and in Hall of Shame is NOT done and is a separate commit.
+
+## Kasseistampers: the tiebreaker separates equals, it never promotes
+
+Added 2026-08-29, because the stage 8 result reads wrong at a glance and is right.
+
+Three seats named Meeus first and one seat took the cobble. Both halves of the rule were
+applied and they do different jobs:
+
+- NEVER PROMOTES. A tiebreaker cannot rescue a wrong first choice. JP named van Aert
+  first and Meeus second; Meeus was the top Belgian; JP scores nothing.
+- SEPARATES EQUALS. When more than one seat names the top Belgian, the tiebreaker's own
+  finish decides between them. That is what the second pick is FOR: it was added
+  mid-Vuelta precisely to stop all four seats auto-picking van Aert, which only works if
+  it breaks ties.
+
+Stage 8: AA, JJ and JB all named Meeus (P3). Tiebreakers were van Aert P22, Braet P11 and
+de Schuyteneer P106, so JJ took it. `correct: ["JJ"]`.
+
+
+## A PARTIAL FEED IS NOT A FEED
+
+Added 2026-08-28, after the third instance of one class of bug.
+
+THE RULE, in Allen's words: ANY feed result whose row count is materially below the
+startlist is incomplete and must be REFUSED rather than used. It goes in the Phase 4
+monitors and in the close-stage gates.
+
+A non-empty check does not implement this. Every one of these failures produced valid,
+well formed, non-empty JSON. The bug is never a malformed response, it is a response
+that is honestly reporting a partial state which the caller reads as final.
+
+Three instances, all the same shape:
+
+1. The 44-of-184 finisher snapshot, which would have recorded two real picks as
+   fabricated missed picks.
+2. Stale group data that showed finished riders still racing.
+3. This one: a 29, then 50, then 139-row general classification read as the active
+   field, which marked 15 of 17 Belgians abandoned during an open draft, including
+   van Aert on a day he finished third.
+
+The test is a COUNT against a known denominator. The startlist size is known, 184, and
+`RIDERS.length` carries it. State the expected count, compare, and refuse below it.
+Express any threshold as a FRACTION of the startlist rather than a typed number, the
+same rule the archetype shape ladder follows, so it travels to the Giro and the Tour.
+
+Where a previous reading exists, the DELTA is a sharper test than the fraction: rosters
+shrink slowly and monotonically, so an implausible one-stage drop is conclusive where an
+absolute floor is a guess.
+
+## How a feature is verified from now on
+
+Added 2026-08-28, set by Allen after the greyout shipped three times without ever
+working. This applies to everything, not only the roster.
+
+1. A feature is NOT DONE until it has been exercised in the LIVE STATE IT SERVES. For
+   anything touching a draft that means DURING AN OPEN DRAFT ON AN UNRACED STAGE, not
+   after a close. Structural checks pass on broken features, and a stage that happens to
+   work is not evidence: every one of the three greyout builds passed its checks.
+2. Any external data source is PROBED ACROSS EVERY STATE IT WILL MEET before it is
+   trusted: unraced, in progress, scored, void. Write the contract down. The table above
+   is what that looks like, and none of it was known before the feature was built three
+   times.
+3. Player-facing exclusions FAIL OPEN. Showing a live rider as abandoned is worse than
+   showing an abandoned rider as available. The first silently deletes a choice the seat
+   can never know it lost; the second costs a visible, changeable pick.
+4. WHOEVER WROTE THE CODE DOES NOT GET TO BE THE ONLY ONE WHO VERIFIED IT. State
+   explicitly what was checked, in what state, and with what evidence, so somebody else
+   can reproduce it. "Verified" without those three is not a claim, it is a feeling.
+
 
 ## Abandoned riders, and the roster that drives them
 
@@ -1422,6 +1840,14 @@ leader chips, trend-line captions) has to follow that race's profile.
 
 ## Open items
 
+- `USA_RIDERS` on the VUELTA board still holds the Tour's list, four of six not in
+  this race. It is DORMANT, not live: `sideGameOn('merica')` is false, so nothing
+  reads it. Deliberately not hand-corrected on 2026-08-28, because the fix Allen
+  wants is the generalization, a computed roster from a `q` nationality field baked
+  into `RIDERS`, not a second curated list for a game this race does not play. It is
+  a landmine only if someone flips `sideGames.merica` true on this board without
+  reading this line. Close it by shipping the computed roster, or by deleting the
+  array outright if the generalization slips.
 - The Giro host `racecenter.giroditalia.it` in the Adding the Giro checklist is a
   GUESS and has never been checked. Verify it, and verify that the bind names
   match the ASO shape, before writing it into a profile. A wrong host is exactly
