@@ -299,6 +299,9 @@ half-wired in a way that is not obvious until someone hits it:
    that race, including `teamResultStages` set from its actual route.
 8. The race added to the `RACES` registry in all three feed layers: `api/break.js`
    in the coldufantasy-login repo, and `worker3.js` and `worker4.js` here.
+9. Rider portraits harvested for the new race, both tiers, and the contact sheets
+   READ. See Rider portraits, three tiers. The ASO bucket differs per race, so the
+   harvest is per race and a Tour or Giro URL cannot be derived from a Vuelta one.
 
 ## Adding the Giro, end to end
 
@@ -316,6 +319,8 @@ again and that is the bug, not the checklist.
    and repaints the eyebrow. Recoloring ALONE is not enough: the card carries its
    race in text, so a recolored Vuelta card still reads VUELTA A ESPANA.
 6. Stage profile art, and the scoring row in the table above.
+7. `ASO_PORTRAIT` and `LOCAL_PORTRAIT` for the Giro startlist, harvested and looked
+   at, per Rider portraits, three tiers. Neither map carries over from another race.
 
 Nothing else. No host, jersey color, or scale is written anywhere but the profile.
 
@@ -651,6 +656,13 @@ intel lives in `sharedUpcoming`.
 
 ## ASO rider images
 
+STOP if bibs 103 and 104 look swapped in `ASO_PORTRAIT`. THEY ARE CORRECT. The URL for
+bib 103 contains `/104/` and the URL for bib 104 contains `/103/`, on purpose, and
+"correcting" it puts de Vylder's face on Debruyne and Debruyne's on de Vylder. This is
+the one thing in this section that looks like the 2026-08-27 bib swap and is not it. Full
+detail in "The bib is NOT always the first path segment" below. Read that before touching
+either row.
+
 The photo URLs are signed over the whole transform path. The trailing hex is a
 signature, not an id. They cannot be resized, recropped, or synthesized: editing
 any part of the path returns HTTP 401. Harvest them exactly as ASO emits them, or
@@ -661,6 +673,180 @@ do not use them.
 is keyed by editorial slug, not by bib, so a tdf URL cannot be mechanically
 translated into a vue one. Hotlinking either bucket from coldufantasy.com is
 outside any ASO terms and breaks all at once if signatures rotate.
+
+### The hotlink is now ON for the Vuelta, decided 2026-08-30
+
+The warning above STANDS and is not softened. Allen has read it and accepted the risk
+knowingly, for a private four-person board, on 2026-08-30. Do not revert this as a
+regression; if it needs reversing, that is a decision, not a cleanup.
+
+What makes it acceptable is the fallback chain, not a change in the risk. If the
+signatures rotate, every tier-1 URL 401s at once and the board silently drops to a
+Wikimedia photo, then to the initials circle. Nothing blanks and nothing errors. See
+"Rider portraits, three tiers" below.
+
+The URLs are HARVESTED, never guessed. `harvest_aso_portraits.py` reads the og:image off
+each of the 184 rider pages under `https://www.lavuelta.es/en/riders` and bakes the exact
+strings into `vuelta.src.html` between the `ASO_PORTRAIT` markers. The board therefore
+makes NO runtime call to lavuelta.es; it requests only the image. Verified 2026-08-30:
+all 184 resolved, all 184 return HTTP 200, all 184 are distinct images, sizes 25 to 38 KB.
+
+The images are 300x300 PNGs with a REAL ALPHA CHANNEL, cut out, about half the frame
+transparent. Dropped straight onto the initials avatar the letters read through the gap
+around the rider's head, so every caller that stacks a photo over an initials circle
+passes a solid background to `portraitImg`.
+
+### The bib is NOT always the first path segment, and 103/104 is the case
+
+READ THIS BEFORE "FIXING" ANYTHING ABOUT BIBS 103 AND 104. Anyone who swaps them back
+breaks two portraits, and the swap will look to them like the obvious repair of a known
+bug. It is not. The rows as harvested are:
+
+    bib 103  R. Debruyne   ->  .../img-cycling-vue-png/104/28443/...
+    bib 104  L. de Vylder  ->  .../img-cycling-vue-png/103/28448/...
+
+That is CORRECT. Leave it alone.
+
+The segment after `img-cycling-vue-png/` equals the bib for 182 of 184. The only two that
+do not are 103 and 104, and they are crossed. Given that this repo really did ship 103
+and 104 swapped in `RIDERS` until 2026-08-27, this reads exactly like that bug returning.
+It is a different thing entirely.
+
+WHY IT IS CORRECT, checked rather than assumed, 2026-08-30. The authoritative
+`racecenter.lavuelta.es/api/allCompetitors-2026` record for bib 103, lastname DEBRUYNE,
+carries the `/104/`-pathed image as its own `profile`, and the bib 104 DE VYLDER record
+carries the `/103/` one. So ASO's rider RECORD and ASO's rider PAGE agree with each other
+about which photo belongs to which rider; the two disagree only with the path segment,
+which is stale metadata sealed inside a signed blob and is not a claim about identity.
+Two further checks agree: the birthdates match the faces, de Vylder being a 1995 birthdate
+and visibly the older of the two, and every other Alpecin bib in the harvest is
+self-consistent.
+
+WHAT BREAKS IF YOU SWAP THEM. Nothing errors, nothing logs, no gate fails. The board
+shows Debruyne's card with de Vylder's face and de Vylder's with Debruyne's, forever, with
+full confidence. It is the visible cousin of the scoring failure described in "The
+startlist is scored by BIB, so a wrong bib is silent and total", and it lands on the same
+two riders that failure nearly decided a Kasseistampers call on.
+
+If a future harvest makes the segments agree with the bibs, that is ASO correcting its
+own filing. It is not this repo having been wrong, and it needs no action beyond
+re-running `harvest_aso_portraits.py`, which takes whatever the pages emit.
+
+## Rider portraits, three tiers
+
+Added 2026-08-30. One resolver, `riderPhoto(name)`, sits in the FIRST board script block
+just after `esc`, above every consumer. Three tiers, degrading SILENTLY at each step:
+
+1. The ASO hotlink, `ASO_PORTRAIT[bib]`. 184 of 184.
+2. A Wikimedia Commons photo in the repo, `LOCAL_PORTRAIT[bib]` to `rider-<bib>.jpg`.
+   145 of 184.
+3. The initials circle that is already in the markup underneath. Always available.
+
+BOTH MAPS ARE KEYED BY BIB, never by name, for the same reason the startlist is: this
+field carries three riders surnamed Rodriguez. A wrong bib here does not error and does
+not look wrong, it just shows one rider another rider's face. That is the visible cousin
+of the scoring bug in "The startlist is scored by BIB".
+
+The hop between tiers is ONE attribute and one helper, so no render site knows about
+tiers. `portraitImg(name, cls, style)` emits an `<img>` carrying `data-fb2` when a tier 2
+exists; `window.__phFall` swaps to it once on error and then removes the element, which
+uncovers tier 3. `portraitImg` returns an EMPTY STRING when no tier has a photo, which is
+the tier-3 case and is not an error.
+
+Wired into three surfaces, all through the same helper: the live draft ticker, the locked
+draft strip, and the rider search rows, whose `.ac-av` slot had existed and been empty
+since `RIDERS` never carried the `r.p` it read.
+
+Regenerating: `py -3 harvest_aso_portraits.py` and `py -3 harvest_commons_portraits.py`.
+Both write between markers in `vuelta.src.html`, so re-running is idempotent. Run the
+Vuelta build afterwards.
+
+### The Commons harvest identifies riders through Wikidata, not a text search
+
+A Commons text search is how you end up with a photo of traffic cones, which this repo
+has actually shipped. The route is Wikidata: search the name, keep only entities that are
+human (P31=Q5) AND a racing cyclist (P106=Q2309784), and take that entity's image (P18).
+P18 is the picture Wikidata asserts IS this person, so the subject is established before
+the file is ever fetched. Licences accepted: CC0, public domain, CC BY, CC BY-SA. As
+harvested: 87 CC BY-SA 4.0, 18 CC BY-SA 3.0, 18 CC0, 13 CC BY 2.0, 8 CC BY-SA 2.0, and 1
+public domain.
+
+THAT IS STILL NOT PROOF, and the contact sheet is not optional. `make_portrait_sheets.py`
+tiles every harvested file; all 145 were read before shipping. Bib 215 Martinez was
+rejected on sight, a rider alone on a road at middle distance, which is precisely the
+failure case recorded below.
+
+Crops are centered on a DETECTED FACE, using OpenCV's YuNet, and the detection doubles as
+the quality screen. Three drop rules, 17 riders dropped, every one reported by name: a
+face under 60px in the 900px fetch, a face under 20 percent of the finished crop, and no
+face at all. A dropped rider falls to the initials circle, which is the correct outcome
+and costs nothing.
+
+Four traps, all of them hit once:
+
+- opencv-python 5.0 ships NO Haar cascade XML and removed `cv2.CascadeClassifier`. The
+  first run reported "no face detected" for all 162 photos, which is indistinguishable
+  from 162 faceless photos: the detector was never running. `_DET_STATE` is printed every
+  run and the report says so explicitly if detection is down. Same fail-open shape as the
+  roster and the persona ledger.
+- Wikimedia THROTTLES. Four threads with no pacing got the run refused after about fifty
+  riders and it read as "no wikidata match" for Eddie Dunbar and Milan Vader, who are both
+  on Wikidata with photos. Refusals now raise and are reported separately from absence.
+  The harvest is serial and paced on purpose.
+- `wbsearchentities` results often have NO English label. Requiring one rejected
+  Skjelmose, Govekar and Paret-Peintre. The name check now reads every label and alias in
+  every language, and matches a surname TOKEN, since Wikidata records Dversnes Lavik as
+  Dversnes.
+- Commons `Artist` fields carry a HIDDEN duplicate for machine readers, for example
+  `Unknown author` followed by the same text inside a `display: none` span. A naive tag
+  strip ships the name twice into the credit line.
+
+The lookup is cached outside the repo, in TEMP. It holds the OUTPUT of `commons_meta`, so
+a change to how artist or licence is parsed is INVISIBLE until the cache is deleted.
+Change `commons_meta`, delete the cache. `--credits-only` rebuilds the credit lines from
+the cache without re-downloading 145 images.
+
+### Attribution
+
+`RIDER_PHOTO_CREDITS` is generated alongside the map and rendered as a collapsed
+`<details>` in the footer, reusing the Kasseistampers `.kas-cred` and `.kas-cr` markup.
+It is ALWAYS present, not conditional on a tier-1 failure, because the photos are in the
+repo and are therefore distributed on every load whichever tier happens to render. The
+footer is dark, so those classes have their colors restated under `.foot`; without that
+the list is `var(--mute)` grey on near black.
+
+## The locked draft strip stays EXPANDED
+
+Changed 2026-08-30, at Allen's request. It used to compress to one row of overlapping
+initials circles, which is the least useful state of the most-read card on the board:
+between the lock and the result the locked picks are what everyone comes back to.
+
+`renderMini()` now draws the SAME node the live ticker draws, `.tnode` with `.tav`,
+`.tcap` and `.tname`, plus one `.tteam` line, inside `.ticker.locked`. The only
+difference is layout: a grid of one column per seat rather than a single flex row, so
+each snake round lands on its own row and eight picks fit at 375px with no ellipsis. That
+is also why there is no `.tgap` divider in the locked state; the row break between round
+one and round two says what the vertical rule said.
+
+Two things that are load-bearing rather than cosmetic:
+
+- `.tname` RESERVES two lines. A long name wrapping in one cell would otherwise drop that
+  cell's team line below its neighbours' and the row would read as ragged.
+- The out-of-race flag goes LAST in the locked cell and FIRST in the live one. On a grid
+  an element added at the top of one cell shifts everything below it out of line with the
+  rest of the row.
+
+`--lk-cols` is set inline from `ORDER.length` rather than hardcoded to 4, so the rounds
+stay aligned if the pool is ever a different size.
+
+The old `.minibar` and `.mb-*` CSS is now UNUSED and was deliberately left in place; the
+push-bell host at `#draftMount .dh` still falls back to `.minibar` and finds `.dh` first.
+Deleting the dead rules is its own commit, same rule as the `gcPlace` and `.dns-stamp`
+renames.
+
+Vuelta only so far, like the Double Goose. Carrying it to the Tour is copying
+`renderMini`, the `.ticker.locked` rules and the two mobile overrides; the portrait tiers
+would need their own Tour harvest, since `img-cycling-tdf-png` is a different bucket.
 
 ## Harvesting images, two rules learned the hard way
 
@@ -1108,6 +1294,10 @@ of them at once and none of them complains.
 WHAT WAS WRONG. Vuelta 2026 bibs 103 and 104 were swapped. Ours had 103 L. de Vylder
 and 104 R. Debruyne; the official list has 103 R. Debruyne and 104 L. de Vylder. Every
 other Alpecin bib matched, so the error was ours, not the feed's. Fixed 2026-08-27.
+
+NOT THE SAME THING as the crossed image paths in `ASO_PORTRAIT`, where bib 103 legitimately
+carries a `/104/`-pathed portrait URL. That one is correct and must not be "fixed". See
+"The bib is NOT always the first path segment" under ASO rider images.
 
 The full 184 were then audited by bib against
 `https://racecenter.lavuelta.es/api/allCompetitors-2026`, comparing surname tokens and
