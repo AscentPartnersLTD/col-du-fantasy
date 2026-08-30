@@ -496,7 +496,9 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
      file degrades instead of leaving a hole. */
   .mer-avwrap{position:relative;display:inline-block;flex:none}
   .mer-ini{display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;letter-spacing:.04em;color:var(--paper);background:var(--vred)}
-  .mer-avwrap .mer-photo{position:absolute;left:0;top:0}
+  /* transparent until it loads, so the initials under it are what shows while the
+     photo is in flight. __phOk paints the backing back on once it has arrived. */
+  .mer-avwrap .mer-photo{position:absolute;left:0;top:0;background:transparent}
   /* Anthem player. Palette and summary styling are the board's existing ones. */
   .kas-anthem{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
   .kas-play{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-family:'Montserrat',sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--paper);background:var(--vred);border:0;border-radius:999px;padding:8px 14px}
@@ -3050,14 +3052,26 @@ function renderKassei(){
   const featured=window.__kasOpen||null;
   const shield='<img class="kas-emb" src="/emblem-belgium.png" alt="Belgium">';
   /* Locally hosted photo over an initials avatar. onerror strips the image and the
-     initials underneath show through, so a missing file never leaves a hole. */
+     initials underneath show through, so a missing file never leaves a hole.
+     TWO THINGS HERE ARE DELIBERATE, both fixed 2026-08-30 after the same pair of faults
+     was found on the draft portraits.
+     The backing is applied ON LOAD by __phOk, never written into the tag. `.mer-av` sets
+     background:#efece3 and this img carries that class while sitting ON TOP of the
+     initials, so painting it up front hides the letters before there is anything to show
+     instead. An unloaded photo then reads as a featureless beige disc, which is exactly
+     what the comment above promises will never happen.
+     And it is NOT lazy. Measured on the live board: an image injected after first paint,
+     or revealed after being injected inside a display:none section, does not load at all
+     under loading="lazy", in the viewport, across a scroll, indefinitely. This card is
+     re-injected by _rosterRepaint on every load, so it is squarely in that case. These
+     are 54px avatars; lazy was buying nothing and costing the fallback. */
   const avOf=u=>{
     const parts=String(u.r||'').split('. ');
     const fi=(parts[0]||'?').trim().charAt(0).toUpperCase();
     const sn=(parts.length>1?parts[1]:String(u.r||'')).trim().split(/\s+/).pop()||'';
     const ini=esc(fi+(sn.charAt(0)||'').toUpperCase());
     return '<span class="mer-avwrap"><span class="mer-av mer-ini">'+ini+'</span>'
-      +(u.photo?'<img class="mer-av mer-photo" src="'+esc(u.photo)+'" alt="" loading="lazy" onerror="this.remove()">':'')
+      +(u.photo?'<img class="mer-av mer-photo" src="'+esc(u.photo)+'" alt="" data-bg="#efece3" onload="__phOk(this)" onerror="this.remove()">':'')
       +'</span>';
   };
   // Once the stage's draft is locked, the card collapses to a thin bar under the
@@ -4866,10 +4880,10 @@ const PERSONA_BY = (function(){
      player carries from race to race. clip/pattern ids repeat across cards but point to the
      identical jersey shape, so duplicates are harmless. */
   const JERSEY_ICONS={
-    yellow:'<img class="jsy" src="/jersey-yellow.jpg" alt="Yellow jersey" loading="lazy">',
-    merica:'<img class="jsy" src="/jersey-merica.jpg" alt="Captain Merica jersey" loading="lazy">',
-    arlequin:'<img class="jsy" src="/jersey-arlequin.jpg" alt="Arlequin jersey" loading="lazy">',
-    kassei:'<img class="jsy" src="/jersey-kasseistampers-front.jpg" alt="Kasseistampers jersey" loading="lazy">'
+    yellow:'<img class="jsy" src="/jersey-yellow.jpg" alt="Yellow jersey">',
+    merica:'<img class="jsy" src="/jersey-merica.jpg" alt="Captain Merica jersey">',
+    arlequin:'<img class="jsy" src="/jersey-arlequin.jpg" alt="Arlequin jersey">',
+    kassei:'<img class="jsy" src="/jersey-kasseistampers-front.jpg" alt="Kasseistampers jersey">'
   };
   const rp=(typeof RIDER_PROFILE!=='undefined')?RIDER_PROFILE:{};
   /* Cards run in system-of-record order so the row reads the same way as the callout
@@ -5281,7 +5295,7 @@ document.getElementById('stages').insertAdjacentHTML('afterbegin',
     <div class="stage-head" onclick="this.parentElement.classList.toggle('open')">
       <div class="stnum g">ST ${r.n}<small>${r.km?esc(String(r.km))+' KM':''}</small></div>
       <div class="stinfo"><div class="route">${esc(r.route||'')}</div><div class="sub"><span class="type">${esc(r.type||'')}</span>${r.date?'<span>&middot;</span><span>'+esc(r.date)+'</span>':''}</div></div>
-      ${r.profile?`<span class="mini-prof"><img src="${r.profile}" alt="" loading="lazy"></span>`:profileSVG(r.type||'')}
+      ${r.profile?`<span class="mini-prof"><img src="${r.profile}" alt=""></span>`:profileSVG(r.type||'')}
       <div class="st-right">Status<br><b>Upcoming</b></div>
     </div>
     <div class="stage-body">${r.extra?`<p class="ahead-note">${esc(r.extra)}</p>`:''}${r.profile?`<img class="ahead-profile" src="${r.profile}" alt="Stage ${r.n} elevation profile" loading="lazy">`:`<p class="ahead-note dim">Stylized profile by stage type. The official elevation profile and full climb list fill in as the race nears.</p>`}<div class="stage-links"><a href="https://www.lavuelta.es/en/stage-${r.n}" target="_blank" rel="noopener">Full stage on lavuelta.es &rsaquo;</a></div></div>
@@ -5822,7 +5836,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   const colTot=PL.map((p,i)=>rows.reduce((s,r)=>s+r.cells[i],0));
   const grand=colTot.reduce((a,b)=>a+b,0);
   let html=`<table class="teamgrid"><thead><tr><th>Team</th>${PL.map(p=>`<th>${p}</th>`).join('')}<th>Total</th></tr></thead><tbody>`;
-  rows.forEach(r=>{ const ic=TEAM_ICON[r.t]; const mark=ic?`<img class="teamjersey" src="${encodeURI(ic)}" alt="" loading="lazy">`:`<span class="teamdot" style="background:${TEAM_COLOR[r.t]||'#ccc'}"></span>`; html+=`<tr><td>${mark}${r.t}</td>${r.cells.map(c=>`<td class="n${c?'':' z'}">${c||'0'}</td>`).join('')}<td class="n${r.tot?'':' z'}">${r.tot||'0'}</td></tr>`; });
+  rows.forEach(r=>{ const ic=TEAM_ICON[r.t]; const mark=ic?`<img class="teamjersey" src="${encodeURI(ic)}" alt="">`:`<span class="teamdot" style="background:${TEAM_COLOR[r.t]||'#ccc'}"></span>`; html+=`<tr><td>${mark}${r.t}</td>${r.cells.map(c=>`<td class="n${c?'':' z'}">${c||'0'}</td>`).join('')}<td class="n${r.tot?'':' z'}">${r.tot||'0'}</td></tr>`; });
   html+=`<tr class="tot"><td>Player total</td>${colTot.map(c=>`<td class="n">${c}</td>`).join('')}<td class="n">${grand}</td></tr></tbody></table>`;
   const wrap=document.getElementById('teamTableWrap'); if(wrap) wrap.innerHTML=html;
   const btn=document.getElementById('seeTableBtn');
@@ -5872,7 +5886,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 /* Kasseistampers season tracker: shield tally + stage-by-stage American watch, from STAGES.kassei. */
 (function(){ try{
   const el=document.getElementById('kasseiTracker'); if(!el) return;
-  const PRIZE='<div class="mt-prize"><div class="mt-jerseys"><img class="mt-jfront" src="/jersey-kasseistampers-front.jpg" alt="Koning der Kasseistampers jersey, front" loading="lazy" onerror="this.closest(\'.mt-prize\').style.display=\'none\'"><img class="mt-jback" src="/jersey-kasseistampers-back.jpg" alt="Koning der Kasseistampers jersey, back" loading="lazy" onerror="this.style.display=\'none\'"></div><div class="mt-prizecap"><b>The season prize</b>Koning der Kasseistampers jersey - most cobbles wins it</div></div>';
+  const PRIZE='<div class="mt-prize"><div class="mt-jerseys"><img class="mt-jfront" src="/jersey-kasseistampers-front.jpg" alt="Koning der Kasseistampers jersey, front" onerror="this.closest(\'.mt-prize\').style.display=\'none\'"><img class="mt-jback" src="/jersey-kasseistampers-back.jpg" alt="Koning der Kasseistampers jersey, back" onerror="this.style.display=\'none\'"></div><div class="mt-prizecap"><b>The season prize</b>Koning der Kasseistampers jersey - most cobbles wins it</div></div>';
   const S=(typeof STAGES!=='undefined')?STAGES:[]; if(!S.length){ el.innerHTML='<div class="mt-top">'+PRIZE+'<div class="mt-tally"><div class="mt-hold"><span class="mt-holdlab">Current holder</span><span class="mt-holdnm">Up for grabs</span></div><div class="msub" style="margin-top:10px">The tracker fills in as stages are scored.</div></div></div>'; return; }
   const PL=(CDF.seats||CDF.order).slice();
   const COL=(function(){var _p=['#c9971a','#26347e','#2f8f52','#cf2530'],_s=CDF.order.slice().sort(),o={};_s.forEach(function(c,i){o[c]=_p[i%_p.length];});return o;})();
@@ -5913,7 +5927,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   }).join('');
   const listStages=a=>a.length===1?('Stage '+a[0]):('Stages '+a.slice(0,-1).join(', ')+' and '+a[a.length-1]);
   const when=board.filter(b=>b.n>0).map(b=>nameOf(b.p)+' on '+listStages(GEESE.stages[b.p])).join('. ');
-  const prize='<div class="g-emblem"><img class="g-jfront" src="/jersey-goose-front.jpg" alt="Double Goose jersey, front" loading="lazy" onerror="this.closest(\'.g-emblem\').style.display=\'none\'"><img class="g-jback" src="/jersey-goose-back.jpg" alt="Double Goose jersey, back" loading="lazy" onerror="this.style.display=\'none\'"></div>';
+  const prize='<div class="g-emblem"><img class="g-jfront" src="/jersey-goose-front.jpg" alt="Double Goose jersey, front" onerror="this.closest(\'.g-emblem\').style.display=\'none\'"><img class="g-jback" src="/jersey-goose-back.jpg" alt="Double Goose jersey, back" onerror="this.style.display=\'none\'"></div>';
   el.innerHTML=prize+`<div class="g-body"><div class="g-h">The Double Goose</div><div class="g-tag">Most zero-point stages</div><div class="g-sub">A goose egg is a zero, and a double goose is both of them at once: neither pick inside the top ${GEESE.scaleN} on a scored stage. It is worn with rueful pride, the way the Lanterne Rouge is, and most of them at season's end takes the jersey. A tie shares it. A cancelled stage scores nothing, so it can never produce one.</div><div class="g-hold">${holder}</div><div class="g-rows">${rows}</div>${when?`<div class="g-when">${when}.</div>`:''}</div>`;
 }catch(e){ console.error('goose board',e); } })();
 

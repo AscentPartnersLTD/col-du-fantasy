@@ -832,6 +832,69 @@ repo and are therefore distributed on every load whichever tier happens to rende
 footer is dark, so those classes have their colors restated under `.foot`; without that
 the list is `var(--mute)` grey on near black.
 
+## loading="lazy" and this board, measured 2026-08-30
+
+Do NOT add `loading="lazy"` to a small image on this board, and do not "tidy up" by
+putting it back on one where it has been removed. The rule below was measured on the
+live board, not reasoned about.
+
+WHAT WAS MEASURED. Four cache-busted images injected after first paint, in the viewport,
+scrolled into view, left for several seconds, in normal document flow and again in a
+fixed-position container: `loading="lazy"` loaded 0 of 4, plain `<img>` loaded 4 of 4.
+Repeated with the same result both times.
+
+THE MODEL THAT FITS EVERY CASE ON THE BOARD. Lazy works for an image that is laid out
+and near the viewport AT THE MOMENT IT IS INJECTED. It does not recover for an image
+that is revealed later. Two ways to be in the second group, and this whole board renders
+from JavaScript so both are common:
+
+- injected into a container that is `display:none` at the time, then revealed. Measured:
+  the 22 `.teamjersey` icons in the Allegiances table sit inside `#teamTableWrap`, which
+  starts collapsed. Revealing it and waiting loads 0 of 22, laid out at 22px.
+- re-injected into a card that has already painted. `_rosterRepaint` re-renders the
+  Kasseistampers card when the roster lands, which is after first paint, every load.
+
+Verified still loading and therefore LEFT lazy: `.jcell img`, 23 of 23 on tab open,
+because that grid is visible when it is injected; `.ahead-profile`, 12 of 12.
+
+WHY IT WAS INVISIBLE. The URLs are stable, so the second visit serves them from cache and
+everything looks right. Only a cold cache shows the fault, which is why it reads as
+intermittent and why it was found by cache-busting rather than by looking.
+
+### Which images are lazy now, and why
+
+Lazy REMOVED, because they are icon or avatar sized and lazy bought nothing:
+
+- `.mer-photo`, the Kasseistampers rider photos, 54px and 76px featured.
+- `.jsy`, the four JERSEY_ICONS in the palmares trophy case, 60px tall. They are injected
+  into a tab that is `display:none` at render, which is the failing case exactly; they
+  measured 0 of 4.
+- `.teamjersey`, 22px, the case measured above.
+- `.mini-prof img`, the 104x32 stage thumbnail in a ledger row.
+- `.mt-jfront` / `.mt-jback` and `.g-jfront` / `.g-jback`, the two prize-jersey pairs.
+  These carry an `onerror` that hides the block, and an onerror that never fires leaves a
+  GAP rather than a clean hide, which is worse than either outcome on its own.
+
+Lazy KEPT, because they are genuinely large, genuinely below the fold, and verified
+loading: `.ahead-profile` at both sites, full width, up to 21 of them in the ledger;
+`.ns-profile img`, full width; `.jcell img`, 80px but 23 of them and visible on injection.
+
+### The second half of the bug, which is the more dangerous one
+
+An avatar photo on this board is stacked OVER an initials circle so a missing file
+degrades to initials. `.mer-photo` carries the `.mer-av` class, which sets
+`background:#efece3`. That backing was painted at render time, so it hid the initials
+before there was anything to show instead. An image that never loads then reads as a
+featureless beige disc: no photo, no initials, and no `onerror` either, so nothing
+retries and nothing degrades. The card's own comment promised "a missing file never
+leaves a hole", and the backing was quietly defeating it.
+
+The backing is now applied by `window.__phOk` ON LOAD, and `.mer-avwrap .mer-photo` is
+`background:transparent` until then. Same fix, same helper, as the draft portraits.
+
+THE GENERAL RULE. Never paint an opaque background onto an image that is stacked over a
+fallback. Paint it on load. A fallback you cannot see is not a fallback.
+
 ## The locked draft strip stays EXPANDED
 
 Changed 2026-08-30, at Allen's request. It used to compress to one row of overlapping
