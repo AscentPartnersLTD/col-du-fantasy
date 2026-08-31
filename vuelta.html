@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260831-003523Z -->
+<head><!-- build:20260831-003847Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -6598,7 +6598,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
     if (!st) return;
     var day = [];
     SEATS.forEach(function(c){
-      (st.picks[c] || []).forEach(function(pk){
+      picksOf(st, c).forEach(function(pk){
         var f = pk.f;
         fp[c] += P(f);
         day.push({c: c, f: (typeof f === 'number') ? f : null});
@@ -6637,7 +6637,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
     var st = STAGES.filter(function(s){ return s.n === n; })[0];
     if (!st || !st.win) return;
     var had = SEATS.filter(function(c){
-      return (st.picks[c] || []).some(function(pk){ return pk.r === st.win; });
+      return picksOf(st, c).some(function(pk){ return pk.r === st.win; });
     });
     if (had.length) { wins++; had.forEach(function(c){ winBy[c] = (winBy[c] || 0) + 1; }); }
   });
@@ -6671,7 +6671,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
     var st = STAGES.filter(function(s){ return s.n === n; })[0];
     if (!st) return;
     SEATS.forEach(function(c){
-      var pk = st.picks[c] || [];
+      var pk = picksOf(st, c);
       var real = pk.filter(function(x){ return x.r && !/no pick/i.test(x.r); });
       if (!real.length) return;                       // a seat that missed entirely takes no goose
       var got = pk.reduce(function(a, x){ return a + P(x.f); }, 0);
@@ -6685,7 +6685,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
     var seen = {}; SEATS.forEach(function(c){ seen[c] = {}; });
     STAGES.forEach(function(st){
       SEATS.forEach(function(c){
-        (st.picks[c] || []).forEach(function(pk){
+        picksOf(st, c).forEach(function(pk){
           var t = (typeof riderRow === 'function' && riderRow(pk.r)) ? riderRow(pk.r).t : null;
           if (t) seen[c][t] = true;
         });
