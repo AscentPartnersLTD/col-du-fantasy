@@ -1115,6 +1115,91 @@ STILL TRUE, and unchanged by any of this: do NOT write `boardConfig.next2`. The 
 comes out of the same derivation that the next stage does, and a written `next2` kills
 both.
 
+## Stage facts: ONE test set, two surfaces
+
+Added 2026-08-30. The per-stage fun fact on a stage card and the observations in the
+rest-day summary ARE THE SAME TESTS. `StageFacts.build()` is the engine, `FACTS` is the
+single instance. Do not write a second set and do not re-derive a test at a render site:
+that is the `FP_SCALE` mistake, which was written out five times and diverged, and the
+copy that drifts is always the one nobody is looking at.
+
+FOUR RULES, enforced in the engine rather than trusted to callers:
+
+1. Every fact is COMPUTED and true. A test that does not fire returns null and the
+   surface shows NOTHING. An empty slot beats a filler line.
+2. A superlative is TESTED against every scored stage, never asserted. "Stage 9 had the
+   narrowest spread of the race" was stated by hand and was WRONG: it tied stage 7 at 34
+   exactly. Superlatives are recomputed over COMPLETED at render time, so a stage card
+   cannot keep claiming a record a later stage has equalled.
+3. A tie is REPORTED as a tie, by name. Stage 7 reads "tied with stage 9".
+4. When several tests fire the RAREST wins, never the first in the list. Rarity is
+   MEASURED: the number of scored stages that same test fires on. `rank` breaks rarity
+   ties only and never overrides rarity; without it an alphabetical accident picked the
+   dullest of the three equally rare facts on stage 9.
+
+Thirteen tests, eleven per stage and three race-scope. Live on the eight scored stages,
+every stage produces a different one: stage 1 every seat in the top 13, stage 2 the
+winner drafted, stage 4 the widest swing, stage 5 the biggest comeback, stage 6 a
+zero day with its Placement, stage 7 the tightest day tied with stage 9, stage 8 a lead
+change, stage 9 four seats holding the first four riders home.
+
+### Two claims that were checked and did not hold
+
+Worth keeping, because both were offered as facts and both are the exact thing rule 2
+exists to catch.
+
+- "van Aert has been taken by every seat." He has not. Counted across all nine drafted
+  stages including the void one, he has been drafted 7 times by THREE seats: AA, JB and
+  JP. JJ has never taken him. The panel says "3 of the 4 seats".
+- "The biggest single stage swing, JJ closed from 92 back to 22 on stage 5." That is the
+  biggest COMEBACK. The biggest swing in either direction is stage 4, where JB went from
+  28 back to 114, a move of 86. They are different questions and are now different tests,
+  so stage 4 and stage 5 each get their own fact instead of competing for one.
+
+### What is NOT claimed
+
+No summit-finish count, anywhere. The calendar's `type` vocabulary is Flat, Hilly, Medium
+mountains, Mountain, Uphill finish and Individual time trial, and "Mountain" does not say
+whether the stage FINISHES on the climb. Adding a `summit:true` field was considered and
+REJECTED by Allen on 2026-08-30: it is hand-maintained, which is the class of thing this
+repo has been removing. The panel says stages left by type and names the next time trial,
+both of which are honestly derivable.
+
+## The rest-day summary
+
+Appears ONLY on a rest day and removes itself when racing resumes. No flag is written and
+nothing is stored: it reads the same derived `REST_DAYS` the Next Two card reads, so the
+two cannot disagree and the Giro gets it with no code change.
+
+Three columns, stacked below 760px: where it stands (Fantasy Points with gaps, Placement
+and Rank secondary, stage winners drafted, any void stage), side games (cobbles, Arlequin
+teams, Double Geese, each with leader and margin), and what is coming (stages left, by
+type, next time trial, then the observations).
+
+It is deliberately a RE-PRESENTATION of cards already on the board, gathered into one read
+for the day nobody is drafting. That is the value, and it is the reason to hold it to
+about a third of a page. Allen, 2026-08-30: if it starts growing, CUT rather than expand.
+
+### The rest day belongs to the race, not the reader
+
+`RACE_PROFILE.timezone` decides which day it is, through one shared `raceTodayUTC()` that
+both surfaces call. Without it the summary arrives late for a reader west of Spain and
+vanishes while the peloton is still resting. Falls back to the viewer's own date if the
+zone is missing or Intl refuses, which is a late panel rather than a broken one.
+
+## CDF.stages normalises picks; the raw Firestore docs do not
+
+`CDF.stages` gives each stage's picks as `[rider, finish]` PAIRS. The Firestore document
+stores `{r, f}` OBJECTS. Anything reading stage picks must handle the shape it is actually
+given, and both the fact engine and the summary accept either.
+
+This matters because reading the wrong one is SILENT and fails in the direction that looks
+like working software. On its first live load the summary rendered a complete, tidy,
+well-formatted panel in which every seat had 0 Fantasy Points, six drafted stage winners
+counted as zero, and two observations announced a 0-point spread "tied across all eight
+stages". Nothing threw. If you are testing a widget against a raw stage doc, it is not the
+same data the board will hand it.
+
 ## NEVER write boardConfig.next2
 
 Added 2026-08-25 after writing it broke the Stats card in production.
