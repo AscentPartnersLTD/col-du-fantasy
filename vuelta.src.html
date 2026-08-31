@@ -75,6 +75,11 @@ const RACE_PROFILE = {
      slot in the Next Two card. A PATH, per race, never a hardcoded Vuelta file at
      the render site. The Giro sets its own and nothing else changes. */
   logo:'/vuelta-icon-192.png',
+  /* Which day it is FOR THE RACE. A rest day is a fact about the race, not about where
+     the reader is sitting, and a US reader is several hours behind the peloton. Without
+     this the summary would appear late for anyone west of Spain and vanish while the
+     riders were still resting. The Giro sets Europe/Rome. */
+  timezone:'Europe/Madrid',
 
   /* The four ranking jerseys, in feed order. key is the slot the feed and the CSS
      use, and is race-neutral despite the Tour-flavored spelling: it means jersey 1
@@ -1055,6 +1060,38 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
       #draftMount .minibar .mb-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
       #draftMount .minibar .mb-more{font-size:11.5px;color:var(--mute);margin-left:9px;font-family:'Montserrat',sans-serif;font-weight:700}
       #draftMount .seedbar{font-size:10.5px;color:var(--mute);text-align:center;margin-top:8px}
+      /* Rest day summary. Three columns on desktop, stacked on a phone, and kept to
+         about a third of a page on purpose: it is a re-presentation of cards already on
+         the board, so if it starts growing the answer is to cut, not to widen. */
+      .factnote .lab{color:var(--gold-d)}
+      #restSummary{margin:0 0 20px}
+      #restSummary .rs-box{padding:16px 18px}
+      #restSummary .rs-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px}
+      #restSummary .rs-badge{font-family:'Montserrat',sans-serif;font-weight:800;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;background:var(--vred2,#d81830);color:#fff;border-radius:999px;padding:5px 11px;white-space:nowrap;flex:none;margin-top:2px}
+      #restSummary .rs-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 26px}
+      #restSummary .rs-col+.rs-col{border-left:1px solid var(--line);padding-left:26px}
+      #restSummary .rs-ch{font-family:'Montserrat',sans-serif;font-weight:800;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--gold-d);margin-bottom:7px}
+      #restSummary .rs-ch2{margin-top:12px}
+      #restSummary .rs-note{font-size:11px;color:var(--mute);margin-bottom:6px}
+      #restSummary .rs-row{display:flex;align-items:baseline;gap:8px;padding:3px 0;font-size:13px}
+      #restSummary .rs-pos{font-family:'Montserrat',sans-serif;font-weight:800;font-size:10px;color:var(--mute);width:12px;flex:none}
+      #restSummary .rs-seat{font-family:'Montserrat',sans-serif;font-weight:800;width:26px;flex:none}
+      #restSummary .rs-val{font-variant-numeric:tabular-nums;font-weight:700}
+      #restSummary .rs-gap{margin-left:auto;font-size:11.5px;color:var(--mute);font-variant-numeric:tabular-nums}
+      #restSummary .rs-sub{font-size:11.5px;color:var(--mute);margin-top:6px;line-height:1.5}
+      #restSummary .rs-win{color:var(--ink2)}
+      #restSummary .rs-game{display:flex;align-items:baseline;gap:8px;font-size:13px;padding:3px 0}
+      #restSummary .rs-gl{color:var(--ink2)}
+      #restSummary .rs-gv{margin-left:auto;font-family:'Montserrat',sans-serif;font-weight:800}
+      #restSummary .rs-gm{font-size:11px;color:var(--mute);width:34px;text-align:right;flex:none}
+      #restSummary .rs-ghint{font-size:11px;color:var(--mute);margin:-2px 0 4px}
+      #restSummary .rs-big{font-family:'Montserrat',sans-serif;font-weight:900;font-size:30px;line-height:1;color:var(--ink)}
+      #restSummary .rs-facts{margin:5px 0 0;padding-left:16px}
+      #restSummary .rs-facts li{font-size:11.5px;color:var(--ink2);line-height:1.5;margin-bottom:5px}
+      @media(max-width:760px){
+        #restSummary .rs-grid{grid-template-columns:1fr;gap:0}
+        #restSummary .rs-col+.rs-col{border-left:none;padding-left:0;border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+      }
       /* Locked draft, expanded. Same .tnode the live ticker draws, laid out on a grid of
          one column per seat so each snake round is a row and eight picks fit at 375px.
          --lk-cols is set inline from ORDER.length rather than hardcoded to 4, so the
@@ -1115,6 +1152,7 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
       <span class="tm-txt"><b>Listen to The Move</b><span>The stage recap podcast, after the racing</span></span>
       <span class="tm-arrow">&gt;</span>
     </a>
+    <div id="restSummary"></div>
     <div id="draftMount"></div>
     <div class="break-card" id="breakWidget" style="display:none">
       <style>
@@ -3378,6 +3416,21 @@ function _raceDates(rows, year){
   return out;
 }
 function restDayLabel(d){ return _MONL[d.getUTCMonth()] + ' ' + d.getUTCDate(); }
+/* Today, in the RACE's timezone, as a UTC midnight so it compares directly with the rest
+   day dates above. Falls back to the viewer's own date if the zone is missing or Intl
+   refuses, which is a late-or-early panel rather than a broken one. */
+function raceTodayUTC(){
+  var tz = (typeof RACE_PROFILE !== 'undefined' && RACE_PROFILE.timezone) || null;
+  var now = new Date();
+  if (tz && typeof Intl !== 'undefined') {
+    try {
+      var p = new Intl.DateTimeFormat('en-CA', {timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit'})
+                .format(now).split('-');
+      if (p.length === 3) return Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    } catch (e) {}
+  }
+  return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+}
 function computeRestDays(rows, year){
   /* Undated rows are KEPT in the sequence and skipped as pairs, never filtered out.
      Filtering them made stage 1 and stage 3 adjacent when stage 2 had a bad date, and a
@@ -3482,6 +3535,352 @@ const COMPLETED = STAGES.filter(s=>!s.voidStage && s.days).map(s=>s.n).sort((a,b
    scale moved from top-15 to top-30 two of those copies were missed, so Hits and
    Misses and the What-if panel scored a top-30 race on the Tour's curve. */
 const FP_SCALE=RACE_PROFILE.scoring.fantasyScale;
+/* ===== STAGE FACTS: ONE set of tests, used by two surfaces =====
+   Added 2026-08-30. The per-stage fun fact on a stage card and the observations in the
+   rest-day summary are THE SAME TESTS. Two implementations would drift, and the one that
+   drifts is the one nobody is looking at.
+
+   FOUR RULES, enforced here rather than trusted to the caller:
+
+   1. Every fact is COMPUTED and true. A test that does not fire returns null, and a
+      surface with no fact shows NOTHING. An empty slot beats a filler line.
+   2. A superlative is TESTED against every scored stage, never asserted. "Stage 9 had
+      the narrowest spread of the race" was said by hand and was wrong: it TIED stage 7
+      exactly. Every superlative here is computed over COMPLETED at render time, so it
+      cannot go stale as later stages land.
+   3. A tie is REPORTED as a tie, by name. Never silently pick a winner.
+   4. When several tests fire, the RAREST wins, never the first in the list. Rarity is
+      measured, not ranked by opinion: it is the number of scored stages on which that
+      same test fires. A thing that has happened once beats a thing that has happened six
+      times. `rank` breaks RARITY TIES ONLY, never overrides rarity: on stage 9 five
+      tests fire and three are equally rare, so something has to choose, and an
+      alphabetical accident chose the dullest of them.
+
+   Everything reads STAGES and COMPLETED, so a rescored stage corrects itself and a void
+   stage is already excluded (COMPLETED filters !voidStage && days). Nothing is stored. */
+(function(global){
+  'use strict';
+
+  function build(cfg){
+    var SEATS = cfg.seats;          // ['AA','JB','JJ','JP'] style, any order
+    var STAGES = cfg.stages;        // [{n, picks:{seat:[{r,f}..]}, days, win, kassei, voidStage}]
+    var SCALE = cfg.scale;          // FP_SCALE
+    var NAME = cfg.name || function(c){ return c; };
+
+    function pts(f){ return (typeof f === 'number' && SCALE[f]) ? SCALE[f] : 0; }
+    var scored = STAGES.filter(function(s){ return !s.voidStage && s.days; })
+                       .sort(function(a,b){ return Number(a.n) - Number(b.n); });
+    var NS = scored.map(function(s){ return Number(s.n); });
+    function byN(n){ return scored.filter(function(s){ return Number(s.n) === Number(n); })[0] || null; }
+    function picksOf(s, c){ return (s.picks && s.picks[c]) || []; }
+    /* A seat's Fantasy Points for one stage. */
+    function card(s, c){ return picksOf(s, c).reduce(function(a, x){ return a + pts(x.f); }, 0); }
+    function cards(s){ var o = {}; SEATS.forEach(function(c){ o[c] = card(s, c); }); return o; }
+    function vals(s){ return SEATS.map(function(c){ return card(s, c); }); }
+    function spread(s){ var v = vals(s); return Math.max.apply(null, v) - Math.min.apply(null, v); }
+    function floor(s){ return Math.min.apply(null, vals(s)); }
+    function seatsWithin(s, place){
+      return SEATS.filter(function(c){
+        return picksOf(s, c).some(function(x){ return typeof x.f === 'number' && x.f <= place; });
+      });
+    }
+    /* Cumulative Fantasy Points after each scored stage, in stage order. */
+    var CUM = (function(){
+      var run = {}, out = [];
+      SEATS.forEach(function(c){ run[c] = 0; });
+      scored.forEach(function(s){
+        SEATS.forEach(function(c){ run[c] += card(s, c); });
+        var snap = {}; SEATS.forEach(function(c){ snap[c] = run[c]; });
+        out.push({n: Number(s.n), tot: snap});
+      });
+      return out;
+    })();
+    function cumAt(n){ var r = CUM.filter(function(x){ return x.n === Number(n); })[0]; return r ? r.tot : null; }
+    function leadersOf(tot){
+      if (!tot) return [];
+      var best = Math.max.apply(null, SEATS.map(function(c){ return tot[c]; }));
+      return SEATS.filter(function(c){ return tot[c] === best; });
+    }
+    function listNames(cs){
+      var a = cs.map(NAME);
+      if (a.length <= 1) return a[0] || '';
+      if (a.length === 2) return a[0] + ' and ' + a[1];
+      return a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
+    }
+    /* "tied with stage 7", "tied with stages 4 and 6", or '' when it stands alone. */
+    function tieNote(n, others){
+      var o = others.filter(function(m){ return Number(m) !== Number(n); });
+      if (!o.length) return '';
+      if (o.length === 1) return ', tied with stage ' + o[0];
+      return ', tied with stages ' + o.slice(0, -1).join(', ') + ' and ' + o[o.length - 1];
+    }
+    function extremeStages(fn, dir){
+      if (!scored.length) return [];
+      var v = scored.map(fn);
+      var best = dir === 'max' ? Math.max.apply(null, v) : Math.min.apply(null, v);
+      return NS.filter(function(n, i){ return v[i] === best; });
+    }
+
+    /* ---- how many times each rider has been drafted, and by whom ----
+       Counts EVERY stage the pool drafted, void ones included, for the same reason
+       Allegiances does: a cancelled stage wipes the result, not the drafting. */
+    var DRAFTED = (function(){
+      var o = {};
+      STAGES.forEach(function(s){
+        SEATS.forEach(function(c){
+          picksOf(s, c).forEach(function(x){
+            var r = x.r;
+            if (!r || /no pick/i.test(r)) return;
+            o[r] = o[r] || {n: 0, seats: {}};
+            o[r].n++; o[r].seats[c] = true;
+          });
+        });
+      });
+      return o;
+    })();
+
+    /* ================= THE TESTS =================
+       Each returns a sentence or null. `scope:'stage'` runs per stage; `scope:'race'`
+       describes the race so far and is offered only to the summary panel. */
+    var TESTS = [
+      { key:'tightest', scope:'stage', rank:7, test:function(n){
+          var s = byN(n); if (!s || scored.length < 2) return null;
+          var best = extremeStages(spread, 'min');
+          if (best.indexOf(Number(n)) < 0) return null;
+          return 'The tightest day of the race' + tieNote(n, best) + ': ' + spread(s)
+               + ' Fantasy Points covered the whole pool.';
+        }},
+      { key:'widest', scope:'stage', rank:6, test:function(n){
+          var s = byN(n); if (!s || scored.length < 2) return null;
+          var best = extremeStages(spread, 'max');
+          if (best.indexOf(Number(n)) < 0) return null;
+          return 'The widest day of the race' + tieNote(n, best) + ': ' + spread(s)
+               + ' Fantasy Points between the best and worst seats.';
+        }},
+      { key:'highestFloor', scope:'stage', rank:2, test:function(n){
+          var s = byN(n); if (!s || scored.length < 2) return null;
+          var best = extremeStages(floor, 'max');
+          if (best.indexOf(Number(n)) < 0 || floor(s) <= 0) return null;
+          return 'The highest floor of the race' + tieNote(n, best) + ': every seat scored at least '
+               + floor(s) + '.';
+        }},
+      { key:'allFourTop13', scope:'stage', rank:8, test:function(n){
+          var s = byN(n); if (!s) return null;
+          if (seatsWithin(s, 13).length !== SEATS.length) return null;
+          /* Top 10 implies top 13. Saying both is one fact twice. */
+          if (seatsWithin(s, 10).length === SEATS.length) return null;
+          return 'Every seat landed a rider in the top 13.';
+        }},
+      { key:'allFourTop10', scope:'stage', rank:5, test:function(n){
+          var s = byN(n); if (!s) return null;
+          if (seatsWithin(s, 10).length !== SEATS.length) return null;
+          return 'Every seat landed a rider in the top 10.';
+        }},
+      { key:'topFourSplit', scope:'stage', rank:1, test:function(n){
+          var s = byN(n); if (!s) return null;
+          var places = SEATS.map(function(_, i){ return i + 1; });   // as many places as seats
+          var holders = places.map(function(place){
+            var who = SEATS.filter(function(c){
+              return picksOf(s, c).some(function(x){ return x.f === place; });
+            });
+            return who.length === 1 ? who[0] : null;
+          });
+          if (holders.some(function(h){ return !h; })) return null;
+          if (new Set(holders).size !== SEATS.length) return null;
+          return 'Four different seats held the first four riders home: '
+               + holders.map(function(h, i){ return NAME(h) + ' ' + (i + 1) + (['st','nd','rd','th'][i]); }).join(', ') + '.';
+        }},
+      { key:'zeroDay', scope:'stage', rank:11, test:function(n){
+          var s = byN(n); if (!s || !s.days) return null;
+          var z = SEATS.filter(function(c){ return card(s, c) === 0 && picksOf(s, c).length; });
+          if (!z.length) return null;
+          var parts = z.map(function(c){
+            var pl = s.days[c];
+            return NAME(c) + (pl != null ? ' (' + pl + ' on Placement)' : '');
+          });
+          return (z.length === 1 ? parts[0] : listNames(z)) + ' scored nothing, and the top-'
+               + Object.keys(SCALE).length + ' scale caps the damage however far back the riders finished.';
+        }},
+      { key:'winnerMissed', scope:'stage', rank:10, test:function(n){
+          var s = byN(n); if (!s || !s.win) return null;
+          var had = SEATS.filter(function(c){
+            return picksOf(s, c).some(function(x){ return x.r === s.win; });
+          });
+          if (had.length) return null;
+          return 'Nobody drafted the stage winner, ' + s.win + '.';
+        }},
+      { key:'winnerDrafted', scope:'stage', rank:12, test:function(n){
+          var s = byN(n); if (!s || !s.win) return null;
+          var had = SEATS.filter(function(c){
+            return picksOf(s, c).some(function(x){ return x.r === s.win; });
+          });
+          if (!had.length) return null;
+          return listNames(had) + ' drafted the stage winner, ' + s.win + '.';
+        }},
+      { key:'leadChange', scope:'stage', rank:9, test:function(n){
+          var i = NS.indexOf(Number(n)); if (i < 1) return null;
+          var before = leadersOf(cumAt(NS[i - 1])), after = leadersOf(cumAt(n));
+          if (before.join('|') === after.join('|')) return null;
+          return listNames(after) + ' took the Fantasy Points lead from ' + listNames(before) + '.';
+        }},
+      { key:'biggestSwing', scope:'stage', rank:4, test:function(n){
+          var i = NS.indexOf(Number(n)); if (i < 1) return null;
+          function gapsAt(m){
+            var t = cumAt(m), lead = Math.max.apply(null, SEATS.map(function(c){ return t[c]; })), o = {};
+            SEATS.forEach(function(c){ o[c] = lead - t[c]; });
+            return o;
+          }
+          function swingOn(m){
+            var j = NS.indexOf(Number(m)); if (j < 1) return -1;
+            var a = gapsAt(NS[j - 1]), b = gapsAt(m);
+            return Math.max.apply(null, SEATS.map(function(c){ return Math.abs(b[c] - a[c]); }));
+          }
+          var mine = swingOn(n);
+          if (mine <= 0) return null;
+          var best = Math.max.apply(null, NS.slice(1).map(swingOn));
+          if (mine !== best) return null;
+          var a = gapsAt(NS[i - 1]), b = gapsAt(n);
+          var who = SEATS.filter(function(c){ return Math.abs(b[c] - a[c]) === mine; });
+          var c0 = who[0], closed = b[c0] < a[c0];
+          var ties = NS.slice(1).filter(function(m){ return swingOn(m) === best; });
+          return 'The biggest swing of the race' + tieNote(n, ties) + ': ' + listNames(who) + ' '
+               + (closed ? 'closed from ' + a[c0] + ' back to ' + b[c0] : 'went from ' + a[c0] + ' back to ' + b[c0])
+               + '.';
+        }},
+      { key:'biggestComeback', scope:'stage', rank:3, test:function(n){
+          var i = NS.indexOf(Number(n)); if (i < 1) return null;
+          function gapsAt(m){
+            var t = cumAt(m), lead = Math.max.apply(null, SEATS.map(function(c){ return t[c]; })), o = {};
+            SEATS.forEach(function(c){ o[c] = lead - t[c]; });
+            return o;
+          }
+          /* Ground GAINED on the leader only. The biggest swing on stage 4 is a seat
+             LOSING 86, which is a different story from a seat closing 70. */
+          function gainOn(m){
+            var j = NS.indexOf(Number(m)); if (j < 1) return -1;
+            var a = gapsAt(NS[j - 1]), b = gapsAt(m);
+            return Math.max.apply(null, SEATS.map(function(c){ return a[c] - b[c]; }));
+          }
+          var mine = gainOn(n); if (mine <= 0) return null;
+          var best = Math.max.apply(null, NS.slice(1).map(gainOn));
+          if (mine !== best) return null;
+          var a = gapsAt(NS[i - 1]), b = gapsAt(n);
+          var who = SEATS.filter(function(c){ return a[c] - b[c] === mine; });
+          var ties = NS.slice(1).filter(function(m){ return gainOn(m) === best; });
+          return 'The biggest comeback of the race' + tieNote(n, ties) + ': ' + listNames(who)
+               + ' closed from ' + a[who[0]] + ' back to ' + b[who[0]] + '.';
+        }},
+      /* ---- race scope: offered to the summary panel only ---- */
+      { key:'mostSharedRider', scope:'race', rank:2, test:function(){
+          var best = null;
+          Object.keys(DRAFTED).forEach(function(r){
+            var k = Object.keys(DRAFTED[r].seats).length;
+            if (!best || k > best.k || (k === best.k && DRAFTED[r].n > best.n)) best = {r: r, k: k, n: DRAFTED[r].n};
+          });
+          if (!best || best.k < 3) return null;
+          return best.r + ' has been drafted by ' + best.k + ' of the ' + SEATS.length
+               + ' seats, ' + best.n + ' times in all'
+               + (best.k === SEATS.length ? ', the only rider every seat has taken.' : '.');
+        }},
+      { key:'biggestCard', scope:'race', rank:4, test:function(){
+          var best = null;
+          scored.forEach(function(s){
+            SEATS.forEach(function(c){
+              var v = card(s, c);
+              if (!best || v > best.v) best = {v: v, c: c, n: Number(s.n)};
+            });
+          });
+          if (!best || !best.v) return null;
+          var ties = [];
+          scored.forEach(function(s){ SEATS.forEach(function(c){ if (card(s, c) === best.v) ties.push(NAME(c) + ' on stage ' + s.n); }); });
+          return 'The biggest single day of the race is ' + best.v + ' Fantasy Points'
+               + (ties.length > 1 ? ', shared by ' + listNames(ties) : ', by ' + NAME(best.c) + ' on stage ' + best.n) + '.';
+        }},
+      { key:'leadChangeCount', scope:'race', rank:9, test:function(){
+          var changes = 0, prev = null;
+          CUM.forEach(function(x){
+            var L = leadersOf(x.tot).join('|');
+            if (prev !== null && L !== prev) changes++;
+            prev = L;
+          });
+          if (!changes) return null;
+          return 'The Fantasy Points lead has changed hands ' + changes + (changes === 1 ? ' time.' : ' times.');
+        }}
+    ];
+
+    /* Rarity: how many scored stages this same test fires on. Measured, not ranked by
+       opinion, and it is what rule 4 selects on. A race-scope test fires once by
+       definition, so it is given rarity 1 and competes on equal terms. */
+    var RARITY = {};
+    TESTS.forEach(function(t){
+      RARITY[t.key] = t.scope === 'race'
+        ? (t.test() ? 1 : 0)
+        : NS.filter(function(n){ return !!t.test(n); }).length;
+    });
+
+    function factsForStage(n){
+      var out = [];
+      TESTS.forEach(function(t){
+        if (t.scope !== 'stage') return;
+        var text = t.test(n);
+        if (text) out.push({key: t.key, text: text, rarity: RARITY[t.key], rank: t.rank || 99});
+      });
+      out.sort(function(a, b){ return a.rarity - b.rarity || a.rank - b.rank; });
+      return out;
+    }
+    /* The single fact for a stage card: the rarest that fired, or null. */
+    function factForStage(n){ var f = factsForStage(n); return f.length ? f[0] : null; }
+
+    /* The summary panel: the rarest facts of the race so far, at most `limit`, one per
+       test so three variations of the same idea cannot fill the panel. */
+    function raceFacts(limit){
+      var pool = [], usedKey = {};
+      TESTS.forEach(function(t){
+        if (t.scope !== 'race') return;
+        var text = t.test();
+        if (text) pool.push({key: t.key, text: text, rarity: RARITY[t.key], rank: t.rank || 99, stage: null});
+      });
+      NS.forEach(function(n){
+        factsForStage(n).forEach(function(f){ pool.push({key: f.key, text: f.text, rarity: f.rarity, rank: f.rank, stage: n}); });
+      });
+      pool.sort(function(a, b){ return a.rarity - b.rarity || a.rank - b.rank || (a.stage || 0) - (b.stage || 0); });
+      /* One fact per test AND one per stage. Without the second rule stage 9 filled two
+         of the three slots on its own, which reads as a panel about stage 9 rather than
+         about the race. */
+      var out = [], usedStage = {};
+      pool.forEach(function(f){
+        if (out.length >= (limit || 3)) return;
+        if (usedKey[f.key]) return;
+        if (f.stage && usedStage[f.stage]) return;
+        usedKey[f.key] = true;
+        if (f.stage) usedStage[f.stage] = true;
+        out.push({key: f.key, rarity: f.rarity, stage: f.stage,
+                  text: (f.stage ? 'Stage ' + f.stage + ': ' : '') + f.text});
+      });
+      return out;
+    }
+
+    return {
+      scoredStages: NS,
+      cards: cards, spread: spread, floor: floor, cumAt: cumAt,
+      factsForStage: factsForStage, factForStage: factForStage, raceFacts: raceFacts,
+      rarity: RARITY, drafted: DRAFTED
+    };
+  }
+
+  global.StageFacts = {build: build};
+})(window);
+
+/* ONE instance, built from the board's own data, read by BOTH surfaces: the per-stage
+   fun fact on a stage card and the observations in the rest-day summary. Do not build a
+   second one and do not re-derive any of these tests at a render site; that is the
+   FP_SCALE mistake, which was written out five times and diverged. */
+const FACTS = StageFacts.build({
+  seats: PL4, stages: STAGES, scale: FP_SCALE
+  /* No `name` mapper: the board writes seats as their codes, AA and JB and so on,
+     everywhere else a fact would sit beside. */
+});
+try{ window.__FACTS = FACTS; }catch(e){}
 
 /* Who is still in the race, resolved from the LAST SCORED stage. COMPLETED already
    filters !voidStage && days, so stage 3 is excluded here rather than relied on the
@@ -5184,7 +5583,18 @@ function stageCard(st){
           :`<div class="pending-line">Finishes pending: ${st.verify}</div>`):''}
        ${awardsRow(st)}
        ${st.kassei?`<div class="mer-line"><img src="/emblem-belgium.png" alt="" style="width:22px;height:22px;object-fit:contain;flex:none"><span><b>Kasseistampers:</b> ${st.kassei.top} (${ordinal(st.kassei.f)})${st.kassei.correct&&st.kassei.correct.length?' - called by '+st.kassei.correct.join(', '):' - nobody called it'}</span></div>`:''}
-       <div class="note"><span class="lab">The read</span>${st.reads?codes.filter(k=>st.reads[k]).map(k=>`<div class="readrow"><b>${k}</b> ${st.reads[k]}</div>`).join(''):st.note}</div>`;
+       <div class="note"><span class="lab">The read</span>${st.reads?codes.filter(k=>st.reads[k]).map(k=>`<div class="readrow"><b>${k}</b> ${st.reads[k]}</div>`).join(''):st.note}</div>`
+       /* The stage fun fact, from the SAME test set the rest-day summary reads. If no
+          test fires this appends nothing at all: an empty slot beats a filler line, and
+          that is rule 1 rather than a style preference. Superlatives inside it are
+          recomputed over every scored stage at render time, so a card cannot keep
+          claiming "tightest of the race" after a later stage ties it. */
+       + (function(){
+           try{
+             var f = (typeof FACTS!=='undefined') ? FACTS.factForStage(st.n) : null;
+             return f ? `<div class="note factnote"><span class="lab">Worth noting</span>${esc(f.text)}</div>` : '';
+           }catch(e){ return ''; }
+         })();
   }
   /* The void stamp is DATA, not a constant. `voidLabel` on the stage doc says what KIND
      of void this was: "DNS" only when no draft was taken (Tour 2026 stage 9), "CANCELLED"
@@ -6153,6 +6563,182 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 
 ;
 
+/* ===== REST DAY SUMMARY =====
+   Added 2026-08-30 at Allen's request. Appears ONLY on a rest day and removes itself the
+   moment racing resumes. Nothing is stored and no flag is written: it reads the same
+   derived REST_DAYS the Next Two card uses, so it cannot drift out of step with the
+   calendar and the Giro gets it for free.
+
+   It is deliberately a RE-PRESENTATION of cards already on the board, gathered into one
+   read for the one day nobody is drafting. That is the whole value, and it is also the
+   reason to keep it to about a third of a page: if it starts growing, cut rather than
+   expand.
+
+   The observations come from FACTS, the same test set the per-stage fun fact uses. There
+   is no second implementation and there must not be: a fact that is true here and stale
+   on a stage card is worse than no fact at all. */
+(function(){
+  var mount = document.getElementById('restSummary');
+  if (!mount) return;
+  var RD = (typeof REST_DAYS !== 'undefined') ? REST_DAYS : [];
+  if (!RD.length) return;
+  var todayUTC = raceTodayUTC();
+  var today = RD.filter(function(r){ return r.d.getTime() === todayUTC; })[0];
+  if (!today) return;                       // not a rest day: the panel does not exist
+
+  var SEATS = PL4.slice();
+  var P = function(f){ return (typeof f === 'number' && FP_SCALE[f]) ? FP_SCALE[f] : 0; };
+  function esc2(x){ return esc(x); }
+
+  /* ---- column 1: where it stands ---- */
+  var fp = {}, place = {}, rank = {};
+  SEATS.forEach(function(c){ fp[c] = 0; place[c] = 0; rank[c] = 0; });
+  COMPLETED.forEach(function(n){
+    var st = STAGES.filter(function(s){ return s.n === n; })[0];
+    if (!st) return;
+    var day = [];
+    SEATS.forEach(function(c){
+      (st.picks[c] || []).forEach(function(pk){
+        var f = pk.f;
+        fp[c] += P(f);
+        day.push({c: c, f: (typeof f === 'number') ? f : null});
+      });
+      if (st.days && st.days[c] != null) place[c] += st.days[c];
+    });
+    /* Rank: all eight picks ranked 1..8 by finish, a seat's day is its two ranks summed.
+       Exactly 36 per stage, which is asserted rather than assumed. */
+    var ranked = day.slice().sort(function(a, b){
+      if (a.f == null && b.f == null) return 0;
+      if (a.f == null) return 1;
+      if (b.f == null) return -1;
+      return a.f - b.f;
+    });
+    ranked.forEach(function(x, i){ rank[x.c] += (i + 1); });
+  });
+  function ordered(obj, dir){
+    return SEATS.slice().sort(function(a, b){ return dir === 'high' ? obj[b] - obj[a] : obj[a] - obj[b]; });
+  }
+  var fpOrder = ordered(fp, 'high');
+  var lead = fp[fpOrder[0]];
+  var standRows = fpOrder.map(function(c, i){
+    var gap = lead - fp[c];
+    return '<div class="rs-row"><span class="rs-pos">' + (i + 1) + '</span>'
+         + '<span class="rs-seat">' + esc2(c) + '</span>'
+         + '<span class="rs-val">' + fp[c] + '</span>'
+         + '<span class="rs-gap">' + (i === 0 ? 'leads' : '-' + gap) + '</span></div>';
+  }).join('');
+  var plOrder = ordered(place, 'low'), rkOrder = ordered(rank, 'low');
+  var secondary = '<div class="rs-sub">Placement ' + plOrder.map(function(c){ return esc2(c) + ' ' + place[c]; }).join(', ')
+                + '</div><div class="rs-sub">Rank ' + rkOrder.map(function(c){ return esc2(c) + ' ' + rank[c]; }).join(', ') + '</div>';
+
+  /* Stage winners drafted, counted rather than asserted. */
+  var wins = 0, winBy = {};
+  COMPLETED.forEach(function(n){
+    var st = STAGES.filter(function(s){ return s.n === n; })[0];
+    if (!st || !st.win) return;
+    var had = SEATS.filter(function(c){
+      return (st.picks[c] || []).some(function(pk){ return pk.r === st.win; });
+    });
+    if (had.length) { wins++; had.forEach(function(c){ winBy[c] = (winBy[c] || 0) + 1; }); }
+  });
+  var voided = (typeof RACE !== 'undefined' ? RACE : []).filter(function(r){
+    var st = STAGES.filter(function(s){ return Number(s.n) === Number(r.n); })[0];
+    return st && st.voidStage;
+  }).map(function(r){ return r.n; });
+
+  /* ---- column 2: the side games, each with its leader and margin ---- */
+  function tallyLine(label, tally, hint){
+    var ks = Object.keys(tally).filter(function(k){ return SEATS.indexOf(k) >= 0; });
+    if (!ks.length) return '';
+    var ord = ks.sort(function(a, b){ return tally[b] - tally[a]; });
+    var top = tally[ord[0]];
+    if (!top) return '';
+    var leaders = ord.filter(function(k){ return tally[k] === top; });
+    var second = ord.filter(function(k){ return tally[k] < top; })[0];
+    var margin = (leaders.length > 1) ? 'tied'
+               : (second != null ? '+' + (top - tally[second]) : 'clear');
+    return '<div class="rs-game"><span class="rs-gl">' + esc2(label) + '</span>'
+         + '<span class="rs-gv">' + leaders.map(esc2).join(' & ') + ' ' + top + '</span>'
+         + '<span class="rs-gm">' + margin + '</span></div>'
+         + (hint ? '<div class="rs-ghint">' + esc2(hint) + '</div>' : '');
+  }
+  var cobbles = {}, geese = {}, teams = {};
+  SEATS.forEach(function(c){ cobbles[c] = 0; geese[c] = 0; });
+  STAGES.forEach(function(st){
+    if (st.kassei && st.kassei.correct) st.kassei.correct.forEach(function(c){ if (cobbles[c] != null) cobbles[c]++; });
+  });
+  COMPLETED.forEach(function(n){
+    var st = STAGES.filter(function(s){ return s.n === n; })[0];
+    if (!st) return;
+    SEATS.forEach(function(c){
+      var pk = st.picks[c] || [];
+      var real = pk.filter(function(x){ return x.r && !/no pick/i.test(x.r); });
+      if (!real.length) return;                       // a seat that missed entirely takes no goose
+      var got = pk.reduce(function(a, x){ return a + P(x.f); }, 0);
+      if (got === 0) geese[c]++;
+    });
+  });
+  /* Teams collected: counts EVERY drafted stage, void ones included, exactly as
+     Allegiances does. A cancelled stage wipes the result, not the drafting. */
+  SEATS.forEach(function(c){ teams[c] = 0; });
+  (function(){
+    var seen = {}; SEATS.forEach(function(c){ seen[c] = {}; });
+    STAGES.forEach(function(st){
+      SEATS.forEach(function(c){
+        (st.picks[c] || []).forEach(function(pk){
+          var t = (typeof riderRow === 'function' && riderRow(pk.r)) ? riderRow(pk.r).t : null;
+          if (t) seen[c][t] = true;
+        });
+      });
+    });
+    SEATS.forEach(function(c){ teams[c] = Object.keys(seen[c]).length; });
+  })();
+  var games = tallyLine('Cobbles', cobbles) + tallyLine('Teams (Arlequin)', teams) + tallyLine('Double Geese', geese);
+
+  /* ---- column 3: what is coming ---- */
+  var ahead = (typeof RACE !== 'undefined' ? RACE : []).filter(function(r){
+    return COMPLETED.indexOf(Number(r.n)) < 0 && !(STAGES.filter(function(s){ return Number(s.n) === Number(r.n); })[0] || {}).voidStage;
+  });
+  var byType = {};
+  ahead.forEach(function(r){ var t = r.type || 'Unclassified'; byType[t] = (byType[t] || 0) + 1; });
+  var typeLine = Object.keys(byType).sort(function(a, b){ return byType[b] - byType[a]; })
+    .map(function(t){ return byType[t] + ' ' + t.toLowerCase(); }).join(', ');
+  var nextTT = ahead.filter(function(r){ return /time trial/i.test(r.type || ''); })[0];
+  /* NOTE: the calendar has no summit-finish flag and one is NOT invented here. "Mountain"
+     does not say whether the stage finishes on the climb, so the count is never claimed.
+     Adding a hand-maintained summit flag was considered and rejected. */
+
+  var facts = FACTS.raceFacts(3);
+  var factHtml = facts.length
+    ? facts.map(function(f){ return '<li>' + esc2(f.text) + '</li>'; }).join('')
+    : '';
+
+  mount.innerHTML =
+    '<div class="metricbox rs-box">'
+    + '<div class="rs-head"><span class="rs-badge">Rest day</span>'
+    + '<div><div class="mh">' + esc2(today.label) + ', the race so far</div>'
+    + '<div class="msub">No racing today. Everything below is computed from the ' + COMPLETED.length + ' scored stages.</div></div></div>'
+    + '<div class="rs-grid">'
+      + '<div class="rs-col"><div class="rs-ch">Where it stands</div>'
+        + '<div class="rs-note">Fantasy Points, the system of record</div>'
+        + standRows + secondary
+        + '<div class="rs-sub rs-win">Stage winners drafted ' + wins + ' of ' + COMPLETED.length
+        + (Object.keys(winBy).length ? ' (' + Object.keys(winBy).sort(function(a,b){return winBy[b]-winBy[a];}).map(function(c){ return esc2(c) + ' ' + winBy[c]; }).join(', ') + ')' : '')
+        + '</div>'
+        + (voided.length ? '<div class="rs-sub">Stage ' + voided.join(', ') + ' cancelled, drafted but never scored</div>' : '')
+      + '</div>'
+      + '<div class="rs-col"><div class="rs-ch">Side games</div>' + (games || '<div class="rs-note">Nothing decided yet.</div>') + '</div>'
+      + '<div class="rs-col"><div class="rs-ch">What is coming</div>'
+        + '<div class="rs-big">' + ahead.length + '</div><div class="rs-note">stages left</div>'
+        + (typeLine ? '<div class="rs-sub">' + esc2(typeLine) + '</div>' : '')
+        + (nextTT ? '<div class="rs-sub">Next time trial is stage ' + nextTT.n + '</div>' : '<div class="rs-sub">No time trial left</div>')
+        + (factHtml ? '<div class="rs-ch rs-ch2">Worth noting</div><ul class="rs-facts">' + factHtml + '</ul>' : '')
+      + '</div>'
+    + '</div></div>';
+})();
+
+;
+
 /* Next two stages card (Stats tab, column 2). Two slots, filled from a CHRONOLOGICAL
    timeline of what is coming rather than from stage numbers, so a rest day takes its
    place in the rotation instead of being skipped.
@@ -6184,7 +6770,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
              date:rr.date||'', line:rr.line||(rr.intel&&rr.intel.summary)||'' };
   }
   const un=Number(U.n);
-  const todayUTC=(function(){ const n=new Date(); return Date.UTC(n.getFullYear(),n.getMonth(),n.getDate()); })();
+  const todayUTC=raceTodayUTC();
   /* Build the timeline: for each stage from upcoming onward, any rest day that falls
      immediately BEFORE it goes in first. That ordering is what puts Aug 31 ahead of
      stage 10 without comparing dates a second time. */
