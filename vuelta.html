@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260831-003847Z -->
+<head><!-- build:20260831-004218Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -3572,7 +3572,15 @@ const FP_SCALE=RACE_PROFILE.scoring.fantasyScale;
                        .sort(function(a,b){ return Number(a.n) - Number(b.n); });
     var NS = scored.map(function(s){ return Number(s.n); });
     function byN(n){ return scored.filter(function(s){ return Number(s.n) === Number(n); })[0] || null; }
-    function picksOf(s, c){ return (s.picks && s.picks[c]) || []; }
+    /* CDF.stages normalises a stage's picks to [rider, finish] PAIRS, while the raw
+       Firestore doc stores {r, f} objects. Both shapes are accepted, because this engine
+       is tested against the raw docs and runs against the normalised ones, and reading
+       the wrong one is SILENT: every finish comes back undefined, every card scores
+       zero, and the surface renders a tidy table of nothing. That is what it did on its
+       first live load, with two fact lines claiming a 0-point spread tied across all
+       eight stages. */
+    function onePick(x){ return Array.isArray(x) ? {r: x[0], f: x[1]} : (x || {}); }
+    function picksOf(s, c){ return (((s.picks && s.picks[c]) || [])).map(onePick); }
     /* A seat's Fantasy Points for one stage. */
     function card(s, c){ return picksOf(s, c).reduce(function(a, x){ return a + pts(x.f); }, 0); }
     function cards(s){ var o = {}; SEATS.forEach(function(c){ o[c] = card(s, c); }); return o; }
@@ -6588,6 +6596,9 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 
   var SEATS = PL4.slice();
   var P = function(f){ return (typeof f === 'number' && FP_SCALE[f]) ? FP_SCALE[f] : 0; };
+  /* Same two pick shapes as the engine, same silent failure if the wrong one is read. */
+  var pk1 = function(x){ return Array.isArray(x) ? {r: x[0], f: x[1]} : (x || {}); };
+  var picksOf = function(st, c){ return (((st.picks && st.picks[c]) || [])).map(pk1); };
   function esc2(x){ return esc(x); }
 
   /* ---- column 1: where it stands ---- */
