@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260831-004218Z -->
+<head><!-- build:20260901-223201Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -1795,10 +1795,38 @@ window.__ROSTER_WHY = ''; window.__ROSTER_COUNT = 0; window.__ROSTER_REFUSED = [
    6 and 7. Seventeen Belgians selectable. Any other answer is wrong. */
 window.__ROSTER_ENABLED = true;
 /* The floor, as a FRACTION of the startlist so it travels to the Giro and the Tour with
-   no edit. Real attrition over a whole grand tour runs well under 10 percent, and the
-   observed decline here is 184 to 178 across seven stages. The GC top 50 that caused all
-   of this scores 27 percent and is rejected instantly; so is any empty list. */
-window.__ROSTER_MIN_FRACTION = 0.9;
+   no edit.
+
+   IT IS A BACKSTOP AGAINST A STRUCTURALLY WRONG DOCUMENT, NOT AN ATTRITION MODEL. That
+   distinction is the whole reason this number moved. It is here to reject a GC top 50
+   read as a field (27 percent of the startlist) and an empty void or unraced stage (0
+   percent). It is NOT trying to predict how many riders finish a grand tour, and
+   calibrating it as though it were is what nearly broke it.
+
+   IT WAS 0.9 AND THAT WAS A LIVE FAULT, fixed 2026-09-01. The note here used to claim
+   that real attrition over a whole grand tour runs well under 10 percent, reasoning from
+   the only data it had, the 184 to 178 decline across the first seven stages. That is
+   EARLY-RACE attrition and it does not generalize: a grand tour routinely finishes near
+   150 of 184, about 81 percent, so 0.9 was guaranteed to begin refusing valid
+   classifications before Madrid.
+
+   MEASURED after stage 10: 167 of 184 classified, against a floor of ceil(184 * 0.9) =
+   166. ONE rider of margin. The next abandon would have put every classification below
+   the floor, and because this path FAILS OPEN the greyout would have quietly marked
+   nobody out for the rest of the race. Nothing would have thrown and nothing would have
+   logged. That is the same silent-fail shape as the temporal dead zone bug and the
+   persona ledger, and it was fixed before it fired rather than after.
+
+   0.75 puts the floor at 138, comfortably below any plausible finishing field and still
+   far above both of the things this guard actually exists to catch.
+
+   THE SHARPER TEST IS THE DELTA, AND IT IS DELIBERATELY NOT THIS CONSTANT. Rosters
+   shrink slowly and monotonically, so an implausible ONE-STAGE drop against the previous
+   SCORED stage is conclusive where an absolute floor is a guess. Compare against the
+   CURRENT field, never a remembered one: 167 measured against stage 7 raised a false
+   alarm on a complete stage, because stages 8 and 9 had happened in between and
+   cumulative attrition is not evidence of a partial feed. */
+window.__ROSTER_MIN_FRACTION = 0.75;
 var _BIBMAP = (function () { var o = {}; (typeof RIDERS !== 'undefined' ? RIDERS : []).forEach(function (r) { if (r && r.b != null && r.r) o[_nrm(r.r)] = r.b; }); return o; })();
 function _bibOf(name) { var m = _BIBMAP[_nrm(name)]; return m == null ? null : m; }
 function riderIsOut(name) {

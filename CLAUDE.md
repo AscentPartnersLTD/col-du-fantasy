@@ -1745,6 +1745,83 @@ about an hour after the finish. The abandoned-rider greyout depends on it and th
 lags by that much. It is FAIL OPEN so it degrades to marking nobody out, which is the
 correct failure, but it is a real limitation and not a theoretical one.
 
+### `ite` carries non-finishers INLINE, with negative positions
+
+Measured 2026-09-01 on stage 10. `ite.rankings.length` is the number of STARTERS, not of
+finishers. A rider who did not finish STAYS IN THE ARRAY with a NEGATIVE `position`,
+which is a status code and not a placing. Stage 10 held 170 rows: 167 classified 1 to 167,
+plus bibs 112, 217 and 68 at positions -4, -4 and -1.
+
+The finisher count is `filter(r => r.position > 0)`. `worker4.js` already applies exactly
+that where it builds `finished`, with its own note that an unfiltered -1 sorts ahead of
+the winner, so `/api/break` and the official feed agree to the row. It is the RAW ROW
+COUNT that misleads, and it misleads HIGH: 170 against 167 reads as a mismatch between the
+board and ASO when there is none.
+
+THIS IS A DIFFERENT TRAP FROM THE SUMMARY DOCUMENT ABOVE, and they pull in OPPOSITE
+directions. That one is truncation, a document holding FEWER rows than the real
+classification. This one is padding, a COMPLETE document holding MORE rows than the
+finishing field. A count checked against either trap alone can still be wrong in the other
+direction.
+
+The chain is self-consistent, and that is the check worth repeating: each stage row count
+equals the previous stage classified count.
+
+| Stage | ite rows | Abandons | Classified | GC |
+|---|---|---|---|---|
+| 8 | 178 | 5 | 173 | 173 |
+| 9 | 173 | 3 | 170 | 170 |
+| 10 | 170 | 3 | 167 | 167 |
+
+Stage 8 abandons include bib 11, Pogacar, which is the abandonment already recorded below
+under An abandoned rider is not a missed pick. That is what independently confirms the
+reading rather than assuming it.
+
+### `live` from /api/break is NOT a race-state flag
+
+`live` is `false` ONLY when no group snapshot exists at all, `worker4.js` returning
+`{live:false, groups:[]}` when `snaps.length` is zero. Any stage that ever had group data
+answers `live:true` forever. It therefore CANNOT go false for a raced stage and is not
+evidence that riders are still on the road.
+
+`updatedAt` is `cur._updatedAt`, the timestamp of the newest GROUP snapshot, NOT of the
+classification. Live coverage stops at the front of the race, so it freezes near the
+winner: on stage 10 it froze at 15:06:22Z, 24 seconds after the winner crossed, while the
+classification went on being written and was finalized at 15:38:38Z. The payload therefore
+reads as hours stale while `finished` is complete and correct, and the stale groups still
+list the whole field as though it were racing.
+
+To ask whether a stage is done, read the CLASSIFICATION and not those two fields:
+
+- `kmToGo` on every group, which is 0 once the race is off the road.
+- the `ite` bind own `_updatedAt` from `rankingType-{year}-{stage}`.
+- `rankingType-{year}-{stage+1}` returning `[]`, meaning nothing has raced since.
+
+## tools/close-stage.js DOES NOT EXIST, and every stage since 5 was closed by hand
+
+Recorded 2026-09-01. This file is described throughout CLAUDE.md as the thing that
+resolves picks to bibs, applies the missed-pick and DNF rules and writes the scored stage
+doc. IT HAS NEVER EXISTED IN THIS REPO. There is no file and there is no git history for
+the path, and `bibByName` and `posByBib`, the two identifiers the sections above quote
+from it, appear nowhere in the repo. `operator.html` is a members and judge console, not
+a stage closer.
+
+EVERY STAGE SINCE 5 HAS BEEN CLOSED BY HAND, from a signed-in browser console. That is
+the real operating procedure, and it is why a lost browser session has blocked the board
+TWICE. The scoring rules are written down here in full; the thing that applies them is
+not, so the only executable copy of the close procedure is whatever is in the operator
+head at the time.
+
+Until it is built, treat the surrounding sections as a SPEC rather than as a description
+of running code. Anything above that says close-stage.js "now" does something is stating
+an intention, which is the same failure as a config flag with no consumer: it reads as
+executable and a reader trusts it.
+
+`tools-claudemd-paths.js` is the gate that keeps this honest. It fails while the path is
+still named and absent, which is deliberate and is not a broken test. Do not silence it
+by adding close-stage.js to its EXTERNAL map; that map is for files that legitimately
+live elsewhere, and this one does not live anywhere.
+
 ## An abandoned rider is not a missed pick
 
 Added 2026-08-29, on Pogacar crashing out of stage 8 while drafted by JP.
@@ -1828,6 +1905,30 @@ same rule the archetype shape ladder follows, so it travels to the Giro and the 
 Where a previous reading exists, the DELTA is a sharper test than the fraction: rosters
 shrink slowly and monotonically, so an implausible one-stage drop is conclusive where an
 absolute floor is a guess.
+
+### The floor is a BACKSTOP, and the baseline is the PREVIOUS SCORED STAGE
+
+Two corrections, both made 2026-09-01 after a COMPLETE stage 10 was nearly held back.
+
+THE BASELINE MUST BE THE CURRENT FIELD, NEVER A REMEMBERED ONE. 167 classified was
+compared against 178, which was stage 7, and read as eleven riders lost in one stage.
+Stages 8 and 9 had happened in between, at 5 and 3 abandons, so stage 10 lost 3 and was
+entirely unremarkable. CUMULATIVE ATTRITION ACROSS SEVERAL STAGES IS NOT EVIDENCE OF AN
+INCOMPLETE FEED. The baseline for a delta is the immediately preceding SCORED stage and
+its classified count, which is the same list `__loadRoster` already walks back through.
+
+This is the MIRROR of the stage 8 failure and it costs the same. Holding a finished stage
+is not the cautious direction, it is a second way to be wrong, and the rule exists to
+catch a partial feed rather than to distrust every number that looks surprising.
+
+THE FRACTION IS A BACKSTOP, NOT AN ATTRITION MODEL. `__ROSTER_MIN_FRACTION` was 0.9,
+calibrated on the 184 to 178 decline across the first seven stages, which is early-race
+attrition and does not generalize; a grand tour routinely finishes near 150 of 184. At
+stage 10 the floor was ceil(184 * 0.9) = 166 against 167 classified, ONE rider of margin.
+The next abandon would have refused every classification and failed the greyout OPEN for
+the rest of the Vuelta, with nothing thrown and nothing logged. It is now 0.75, a floor of
+138, which still rejects the GC top 50 at 27 percent and any empty list, which are the two
+things this guard is actually for. Full reasoning sits in the source at the constant.
 
 ## How a feature is verified from now on
 

@@ -59,7 +59,10 @@ let fail = 0;
 const check = (c, m) => { if (!c) { console.log('  FAIL: ' + m); fail = 1; } };
 
 (async function () {
-  console.log('startlist ' + RIDERS.length + ', floor ' + window.__rosterFloor() + ' (90 percent)');
+  /* Read the fraction from the board rather than printing a literal: the constant
+     moved from 0.9 to 0.75 and a hardcoded label would have gone on claiming 90. */
+  console.log('startlist ' + RIDERS.length + ', floor ' + window.__rosterFloor()
+    + ' (' + Math.round(window.__ROSTER_MIN_FRACTION * 100) + ' percent)');
 
   console.log('');
   console.log('=== THE REAL CASE: pool has scored 1,2,4,5,6,7 (stage 3 void, 8 in draft) ===');
