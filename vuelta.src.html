@@ -327,6 +327,9 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
   .picks th.r,.picks td.r{text-align:right}
   .picks td{padding:10px 8px;border-top:1px solid var(--line);font-size:14px}
   .picks .plr{font-family:'Montserrat',sans-serif;text-transform:uppercase;font-weight:800;font-size:15px}
+  /* Names what the rows are ordered by. Sits above the header band, left aligned
+     with the th text, muted so it reads as a label and not as data. */
+  .picks caption.sc-ord{caption-side:top;text-align:left;font-family:'Montserrat',sans-serif;font-weight:700;font-size:10.5px;color:var(--mute);padding:0 8px 5px}
   .picks .rid{color:var(--ink)}
   .picks .pl{font-family:'Montserrat',sans-serif;color:var(--mute);font-weight:600}
   .picks .pl b{color:var(--ink)}
@@ -335,6 +338,13 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
   .note .lab{font-family:'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:1.5px;font-size:10px;color:var(--gold-d);font-weight:800;display:block;margin-bottom:3px}
   .note .readrow{margin-top:6px;line-height:1.5}
   .note .readrow:first-of-type{margin-top:2px}
+  /* The read rows follow whichever score table is showing. `gap` replaces the margins
+     because :first-of-type is a SOURCE-order selector and would put the 2px top margin on
+     whichever row happens to be written first, not on the one the reader sees first. */
+  .note.readnote{display:flex;flex-direction:column;gap:6px}
+  .note.readnote .lab{margin-bottom:0;order:-1}
+  .note.readnote .readrow{margin-top:0;order:var(--ro-p,0)}
+  .stage-scoring[data-view="place"] ~ .note.readnote .readrow{order:var(--ro-l,0)}
   .note .readrow b{font-family:'Montserrat',sans-serif;font-weight:800;margin-right:5px}
   .note .isum{margin-bottom:6px;line-height:1.5}
   .note .ifacts{margin:4px 0 0;padding-left:18px;font-size:12.5px;line-height:1.5}
@@ -5577,6 +5587,12 @@ function stageCard(st){
     // one table per view: 'points' = top-30 Fantasy Points (high wins, the system of
     // record and the default), 'place' = sum of finishes (low wins, the explore view).
     // Both totals are computed the same way as before; only which one leads changed.
+    /* The seat order each table ends up rendering, recorded as the table is built so the
+       read rows below it can follow the SAME order rather than deriving it a second time.
+       Deriving it twice is the FP_SCALE mistake in miniature: the copy that drifts is
+       always the one nobody is looking at, and here a drift would show one card asserting
+       two different orders with nothing saying either was a sort. */
+    const SC_SEAT_ORDER={};
     function scoreTable(mode){
       const rowsData=codes.map(k=>{
         const picks = st.picks[k];
@@ -5601,25 +5617,58 @@ function stageCard(st){
         if(a.total===null) return 1; if(b.total===null) return -1;
         return mode==='points' ? b.total-a.total : a.total-b.total;
       });
+      SC_SEAT_ORDER[mode]=rowsData.map(r=>r.k);
       const rows=rowsData.map(r=>`<tr>
           <td class="plr">${r.k}${GEESE.on(st.n,r.k)?`<span class="goose-stamp" title="Double Goose: both picks finished outside the top ${GEESE.scaleN}">${GOOSE_IC}<i>Goose</i></span>`:''}</td>
           <td>${r.detail}</td>
           <td class="r sum">${r.total!==null?r.total:'-'}</td></tr>`).join('');
       const lab = mode==='points' ? 'Fantasy pts' : 'Day total';
       const col = mode==='points' ? 'fantasy' : 'finish';
-      return `<table class="picks"><thead><tr><th>Rider</th><th>Picks (${col})</th><th class="r">${lab}</th></tr></thead><tbody>${rows}</tbody></table>`;
+      /* THE ROWS ARE SORTED BY SCORE, NOT BY PICK ORDER, and nothing used to say so.
+         Read as a draft order it asserts something false: stage 10 drafted JP, JB, AA, JJ
+         and this card shows JJ, AA, JP, JB, which is the Fantasy Points order. That is the
+         same failure as a bare ordinal, and the same rule fixes it, so the ordering NAMES
+         its board here rather than leaving the reader to infer it.
+         The first column is the SEAT code and never a rider, which was the other half of
+         the ambiguity: the header read "Rider" over cells holding JJ and AA. */
+      const ord = mode==='points' ? 'Best card first, by Fantasy Points' : 'Best card first, by Placement';
+      return `<table class="picks"><caption class="sc-ord">${ord}</caption><thead><tr><th>Seat</th><th>Picks (${col})</th><th class="r">${lab}</th></tr></thead><tbody>${rows}</tbody></table>`;
     }
+    /* Built BEFORE the template rather than inside it, because the read rows below read
+       SC_SEAT_ORDER and a template literal's left-to-right evaluation is not a dependency
+       anyone can see. Someone reordering the markup would silently empty the read order. */
+    const tblPlace=scoreTable('place'), tblPoints=scoreTable('points');
+    /* THE READ ROWS FOLLOW THE SCORE TABLE, and they follow it through the toggle.
+       They used to render in seat order while the table above them rendered in score
+       order, so one card asserted two different orders and neither said it was a sort.
+       Source order is the Fantasy Points order, which is the default view and the system
+       of record, so the card is correct even with no CSS at all. The Placement order is
+       carried alongside it as a custom property and applied by a sibling rule off the
+       same data-view attribute the tables use, so flipping the toggle reorders the reads
+       with them. No duplicated read text, and no second sort to drift. */
+    const readRows=(function(){
+      if(!st.reads) return null;
+      const P=SC_SEAT_ORDER.points||codes, L=SC_SEAT_ORDER.place||codes;
+      /* A seat with a read but no row in the table sorts to the end rather than to the
+         front, which is where a bare -1 from indexOf would put it. */
+      const at=(arr,k)=>{ const i=arr.indexOf(k); return i<0?arr.length:i; };
+      return codes.filter(k=>st.reads[k])
+        .map(k=>({k,p:at(P,k),l:at(L,k)}))
+        .sort((a,b)=>a.p-b.p)
+        .map(r=>`<div class="readrow" style="--ro-p:${r.p};--ro-l:${r.l}"><b>${r.k}</b> ${st.reads[r.k]}</div>`)
+        .join('');
+    })();
     body = `<div class="stage-scoring" data-view="points">
         <div class="sc-head"><button type="button" class="pt-btn sc-toggle on">See Placement</button></div>
-        <div class="sc-view sc-place">${scoreTable('place')}</div>
-        <div class="sc-view sc-points">${scoreTable('points')}</div>
+        <div class="sc-view sc-place">${tblPlace}</div>
+        <div class="sc-view sc-points">${tblPoints}</div>
       </div>
        ${st.verify?(st.critical
           ?`<div class="verify-line"><span class="vflag">NEEDS VERIFY</span> ${st.verify}</div>`
           :`<div class="pending-line">Finishes pending: ${st.verify}</div>`):''}
        ${awardsRow(st)}
        ${st.kassei?`<div class="mer-line"><img src="/emblem-belgium.png" alt="" style="width:22px;height:22px;object-fit:contain;flex:none"><span><b>Kasseistampers:</b> ${st.kassei.top} (${ordinal(st.kassei.f)})${st.kassei.correct&&st.kassei.correct.length?' - called by '+st.kassei.correct.join(', '):' - nobody called it'}</span></div>`:''}
-       <div class="note"><span class="lab">The read</span>${st.reads?codes.filter(k=>st.reads[k]).map(k=>`<div class="readrow"><b>${k}</b> ${st.reads[k]}</div>`).join(''):st.note}</div>`
+       <div class="note${readRows?' readnote':''}"><span class="lab">The read</span>${readRows!==null?readRows:st.note}</div>`
        /* The stage fun fact, from the SAME test set the rest-day summary reads. If no
           test fires this appends nothing at all: an empty slot beats a filler line, and
           that is rule 1 rather than a style preference. Superlatives inside it are
@@ -5781,15 +5830,28 @@ document.getElementById('stages').addEventListener('click',e=>{
 
 const up=UPCOMING;
 const upHasPicks=Object.values(up.picks).some(v=>(Array.isArray(v)?v:[v]).length>0);
-const upRows=upHasPicks?Object.entries(up.picks).map(([k,v])=>{
-  const arr=Array.isArray(v)?v:[v];
+/* DRAFT ORDER, stated rather than inherited. This used to be Object.entries(up.picks),
+   which relies on the insertion order of an object literal built somewhere else to be the
+   order the reader is shown. That happens to hold today and is not a display order anyone
+   declared: the same card's read rows and the Today's Order strip above it both order by
+   up.order explicitly, so the table is now built off the same list they are. Any seat the
+   picks map carries that the order does not is appended rather than dropped. */
+const upSeats=(function(){
+  const o=(up.order&&up.order.length?up.order:Object.keys(up.picks)).slice();
+  Object.keys(up.picks).forEach(k=>{ if(o.indexOf(k)<0) o.push(k); });
+  return o;
+})();
+const upRows=upHasPicks?upSeats.map(k=>{
+  const v=up.picks[k], arr=(v==null?[]:(Array.isArray(v)?v:[v]));
   return `<tr><td class="plr">${k}</td><td>${arr.map(x=>`<span class="rid">${x}</span>`).join(' &nbsp;/&nbsp; ')}${arr.length<2?' <span class="pl">(+1 pending)</span>':''}</td><td class="r sum">-</td></tr>`;
 }).join(''):`<tr><td colspan="3" class="pl" style="font-style:italic;padding:12px 8px">Picks not called yet.</td></tr>`;
 const upIntel=up.intel
   ?`<div class="note"><span class="lab">Course intel</span>${up.intel.summary?`<div class="isum">${up.intel.summary}</div>`:''}${up.intel.facts?`<ul class="ifacts">${up.intel.facts.map(f=>`<li>${f}</li>`).join('')}</ul>`:''}</div>`
   :'';
 const upRead=up.reads
-  ?`<div class="note"><span class="lab">The read</span>${(up.order||['AA','JP','JB','JJ']).filter(k=>up.reads[k]).map(k=>`<div class="readrow"><b>${k}</b> ${up.reads[k]}</div>`).join('')}</div>`
+  /* Same list as the picks table above it, so the two cannot disagree. It used to fall
+     back to a hardcoded four-seat list, which is a curated roster in a copy-hazard file. */
+  ?`<div class="note"><span class="lab">The read</span>${upSeats.filter(k=>up.reads[k]).map(k=>`<div class="readrow"><b>${k}</b> ${up.reads[k]}</div>`).join('')}</div>`
   :`<div class="note"><span class="lab">The read</span><span class="pl" style="font-style:italic">Posts once the day's picks are called.</span></div>`;
 document.getElementById('stages').insertAdjacentHTML('afterbegin',
   `<div class="stage live open">
@@ -5804,7 +5866,7 @@ document.getElementById('stages').insertAdjacentHTML('afterbegin',
       ${upIntel}
       ${up.profile?`<img class="ahead-profile" src="${up.profile}" alt="Stage ${up.n} elevation profile" loading="lazy">`:''}
       <div class="stage-links"><a href="${RACE_PROFILE.stageUrl(up.n)}" target="_blank" rel="noopener">Full stage on lavuelta.es &rsaquo;</a></div>
-      <table class="picks"><thead><tr><th>Rider</th><th>Picks</th><th class="r">Placement</th></tr></thead><tbody>${upRows}</tbody></table>
+      <table class="picks"><caption class="sc-ord">Draft order</caption><thead><tr><th>Seat</th><th>Picks</th><th class="r">Placement</th></tr></thead><tbody>${upRows}</tbody></table>
       ${upRead}
     </div></div>`);
 

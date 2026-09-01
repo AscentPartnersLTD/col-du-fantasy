@@ -832,6 +832,45 @@ repo and are therefore distributed on every load whichever tier happens to rende
 footer is dark, so those classes have their colors restated under `.foot`; without that
 the list is `var(--mute)` grey on near black.
 
+## A computed display of block on a flex child is EXPECTED, not a bug
+
+Recorded 2026-09-01, after a diagnosis that was measured correctly and read wrongly.
+
+FLEX ITEMS BLOCKIFY. A `<span>` that is a direct child of a `display:flex` parent has a
+computed display of `block`, always, whatever the stylesheet says. That is the CSS
+Display spec, not a missing rule and not a stray override. Three consequences:
+
+- `display:inline-block` on a flex item is DISCARDED and blockifies to `block` too, so
+  adding it as a fix changes literally nothing.
+- `vertical-align` is IGNORED on a flex item. `align-items` on the parent is what
+  positions it on the cross axis.
+- A flex item DOES NOT STRETCH on the main axis. It is shrink-to-fit unless something
+  sets `flex-grow`, so a pill in a flex row hugs its text no matter what its display
+  computes to.
+
+THE TELL THAT DISTINGUISHES THE TWO CASES, and it is worth knowing because it inverts
+the intuition: in a plain BLOCK parent a `<span>` computes to `inline`, not `block`.
+So a span reading `block` is EVIDENCE THAT THE PARENT IS FLEX, which is precisely the
+context where it cannot stretch. Reading `block` and concluding "it must be stretching"
+gets it exactly backwards.
+
+HOW TO TELL A REAL STRETCH FROM A BLOCKIFIED INLINE. Do not read computed display.
+MEASURE THE ELEMENT AGAINST ITS TEXT: take `getBoundingClientRect().width` and subtract
+a Range over the element contents plus its horizontal padding. A pill that is correct
+leaves a slack of about 0 to 2px. Measured on `#draftMount .dh-badge` at both 1423 and
+375: 103.8px box, 80px text, 22px padding, 1.8px slack, identical at both widths.
+
+Every pill-radius element on the board was swept the same way, collapsed `<details>` and
+hidden panes force-opened to reach the ones that start hidden. All of them measure about
+2px of slack. The only three wider than their text are `.pb-bar` and
+`#clockAwardBox .ca-bar`, which are progress BARS carrying no text, and
+`.see-table-btn`, which is a deliberately full-width button. A blanket
+`display:inline-block` sweep across the 999px-radius rules would have broken the two
+bars, so "border-radius 999px with no display rule" is NOT by itself a defect signature.
+
+Also worth knowing: `<button>` shrink-to-fit even at `display:block`, so the button
+pills were never at risk either.
+
 ## loading="lazy" and this board, measured 2026-08-30
 
 Do NOT add `loading="lazy"` to a small image on this board, and do not "tidy up" by
@@ -1549,6 +1588,56 @@ Surfaces checked and left alone, because they are already unambiguous:
 Fixed alongside the badge: two persona lines emitted a bare ordinal off the Placement
 board and now say "3rd on Placement".
 
+## ONE CARD, ONE ORDER
+
+Added 2026-09-01. This is the sibling of "Every ordinal names its board" above and comes
+out of the same day: a reader who designed the board misread his own card.
+
+THE RULE. A card that shows the same four seats in more than one place shows them in ONE
+order, and that order is NAMED. Two lists of the same seats in two different orders, with
+nothing saying either was sorted, is the ambiguity. It costs nothing to state and it is
+invisible until someone reads a sorted table as a draft order.
+
+THREE THINGS WERE WRONG ON THE SCORED STAGE CARD, and they compounded:
+
+- The scoring table sorts BY SCORE, best card first, and said so nowhere. Stage 10 drafted
+  JP, JB, AA, JJ and the card renders JJ, AA, JP, JB, which is the Fantasy Points order.
+  Read as a pick order it asserts something false about who led off.
+- Its first column was headed "Rider" and has never once held a rider. It holds the SEAT
+  code. That header is what made the sorted order read as a list of people rather than as
+  a ranking.
+- The read rows underneath rendered in SEAT order while the table above them rendered in
+  SCORE order. Same card, same four codes, two orders, neither labeled.
+
+WHAT IT IS NOW. The table carries a `<caption class="sc-ord">` naming its order, "Best card
+first, by Fantasy Points" or "by Placement". The header reads "Seat". The read rows follow
+the table, THROUGH THE TOGGLE: each row carries its Fantasy Points rank and its Placement
+rank as custom properties and a sibling rule off the same `data-view` attribute the tables
+use flips between them, so no read text is duplicated and there is no second sort to drift.
+Source order is the Fantasy Points order, so the card is still right with no CSS at all.
+
+`.note .readrow:first-of-type` had to become a `gap` on a flex column. `:first-of-type` is a
+SOURCE-order selector, so with the rows reordered it would have put the tighter top margin
+on whichever row happened to be written first rather than on the one the reader sees first.
+That is worth knowing generally: no CSS selector matches "visually first" under `order`.
+
+THE UPCOMING CARD had the same "Rider" header and got the same "Seat" plus a "Draft order"
+caption. Its picks table was built from `Object.entries(up.picks)`, so its display order was
+the INSERTION ORDER OF AN OBJECT built somewhere else entirely. It happens to match the
+draft order today. It is not a display order anyone declared, and the same card's read rows
+and the Today's Order strip above it were both already ordering by `up.order` explicitly, so
+the table is now built off that same list. Any seat the picks map carries that the order
+does not is appended rather than dropped.
+
+Also removed there: the read rows fell back to a hardcoded `['AA','JP','JB','JJ']`. That is
+a curated seat roster in a file whose whole copy-hazard section is about curated lists, and
+a four-person pool is not a fact about the next race.
+
+ONE COMPUTATION, per the standard rule. `SC_SEAT_ORDER` is recorded as each table is built
+and the read rows read it. Deriving the order a second time at the read site is the
+`FP_SCALE` mistake in miniature, and the copy that drifts is always the one nobody is
+looking at.
+
 ## The abandoned-rider greyout: OFF, then REBUILT on a different source
 
 Turned OFF mid-race on 2026-08-28 during an open stage 8 draft, then rebuilt the same day
@@ -1821,6 +1910,66 @@ executable and a reader trusts it.
 still named and absent, which is deliberate and is not a broken test. Do not silence it
 by adding close-stage.js to its EXTERNAL map; that map is for files that legitimately
 live elsewhere, and this one does not live anywhere.
+
+## The combatif comes from the ice bind, and from nothing else
+
+Added 2026-09-01, after three stages were found wrong at once.
+
+`combatif` on a scored stage doc names the day's official most combative rider and is what
+the Premio de la Combatividad is awarded from. Stage 7 and stage 10 carried no value at
+all. Stage 9 carried STAGE 8'S VALUE, which is the interesting one, because it is not a
+typo and it did not come from the race.
+
+WHERE THE WRONG VALUE CAME FROM, stated plainly because it is the reason the rule exists:
+Allen pulled it from a WEB SEARCH rather than from the official classification. A search
+for a given stage's most combative rider surfaces the previous stage's story often enough
+to read as an answer, and the answer it returns is confident, well sourced and about the
+wrong day. Nothing in the board could tell the difference. The value is a plain string, it
+rendered, and the season Premio tally would have been computed off it.
+
+THE COPY-FORWARD SIGNATURE. A combatif that equals the previous stage's value is the tell.
+It is not proof, because a rider genuinely can be most combative on consecutive days, which
+is exactly why the rule demands EVIDENCE rather than banning the repeat.
+
+THE RULE, both halves:
+
+1. `combatif` comes from the ICE BIND of `rankingType-{year}-{stage}`. Not a web search,
+   not a race report, not a previous stage. If the bind cannot be read, the close STOPS
+   and the field is left unset. A missing combatif shows nothing; a wrong one is AWARDED.
+2. It must not equal the previous scored stage's value UNLESS the ice bind independently
+   names it.
+
+Remember the summary document trap two sections up applies here too: the summary bind is
+truncated by contract, so the ice bind has to be read the same two-hop way, through the
+bind's own `_id`.
+
+THE GATE is `tools-combatif-gate.js` in the repo root, with self-tests. `node
+tools-combatif-gate.js` runs them, 16 checks. It is a pure function with no I/O on purpose,
+so it can be pasted into the signed-in console the stage is actually closed from. It
+refuses with a SEPARATE NAMED reason per failure, because "it did not work" is what let
+three builds of the roster greyout ship:
+
+- `no-bind`, the classification could not be read. It NEVER falls back to the previous
+  stage, which is the whole mechanism of the failure it closes.
+- `wrong-stage`, the bind answered for a different stage. Same audit the board runs on
+  every feed request: valid data about the wrong day.
+- `no-winner`, no rider at position 1. A non-positive position is a STATUS CODE and never
+  a placing, the same trap `ite` carries.
+- `not-from-bind`, the proposed value is not what the bind names.
+- `copy-forward`, the proposed value is the previous stage's AND the bind names someone
+  else. This is `not-from-bind` with the diagnosis attached, and it is a separate reason so
+  the message tells the operator which failure they are looking at.
+- `unknown-bib` and `bib-name-mismatch`, when a startlist is passed. A name on the wrong
+  bib is silent and total everywhere else in this repo, so the gate resolves through the
+  bib when it can.
+
+It is run BY HAND, like everything else in the close, because `tools/close-stage.js` does
+not exist. When a closer is built, this is the gate it calls; until then, the honest
+description is that the rule is written down and executable and nothing forces it to run.
+
+THE THREE CORRECTIONS, applied 2026-09-01: stage 7 set to "W. van Aert", stage 9 changed
+from "S. Fernandez" to "P. Sivakov", stage 10 set to "M. Gogl". No Premio moved on any of
+them, checked rather than assumed: nobody drafted any of the three riders.
 
 ## An abandoned rider is not a missed pick
 
@@ -2155,6 +2304,14 @@ leader chips, trend-line captions) has to follow that race's profile.
 
 ## Open items
 
+- The three standings tables, `gcLoHTML`, `gcHi` and `gcRankPts`, head their first column
+  "Rider" over a SEAT CODE and a player name. Same defect as the stage card's ledger,
+  fixed there on 2026-09-01 under ONE CARD, ONE ORDER, and deliberately NOT fixed here in
+  the same commit because Allen scoped that one to the stage card. These three are less
+  dangerous than the stage card was: they carry a numbered `.pos` column and a LEADER tag,
+  so the sort is not mistakable for a draft order. The header is still wrong. The `.rider`
+  CSS class is misnamed with it, which makes this the same shape as the `gcPlace` and
+  `.dns-stamp` renames: its own commit, not bundled with feature work.
 - `USA_RIDERS` on the VUELTA board still holds the Tour's list, four of six not in
   this race. It is DORMANT, not live: `sideGameOn('merica')` is false, so nothing
   reads it. Deliberately not hand-corrected on 2026-08-28, because the fix Allen
