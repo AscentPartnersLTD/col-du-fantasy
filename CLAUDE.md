@@ -1759,7 +1759,9 @@ leader AA had drafted 4 stage winners in 11 stages while leading JJ by 4 points 
 scored stages, so the stated cause was neither the largest effect nor a differentiator.
 
 It now reads off `OURS.tail`, counted in the SAME pass as `OURS.rank`: picks landing in the
-day's bottom two of eight. Measured at stage 11: AA 4 of 22, JJ 5, JP 5, JB 6. The clause
+day's bottom two of eight. Measured at stage 11: AA 4 of 20, JJ 5, JP 5, JB 6. The
+denominator is 20 and not 22 because it counts picks over COMPLETED, which excludes the
+void stage 3. The clause
 quotes the count and degrades to a neutral aggregate sentence when the rank leader is not
 also the one with the fewest, so it cannot silently become false again.
 
