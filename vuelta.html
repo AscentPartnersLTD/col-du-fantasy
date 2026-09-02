@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260902-002637Z -->
+<head><!-- build:20260902-230951Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -4111,6 +4111,61 @@ try{ window.__FACTS = FACTS; }catch(e){}
    guessing which stages exist. */
 try{ if(typeof window.__loadRoster==='function') window.__loadRoster(COMPLETED); }catch(e){}
 
+/* ---------------------------------------------------------------------------
+   THE TEAM ALLEGIANCE TALLY, hoisted 2026-09-02. ONE computation, four readers.
+
+   It used to live inside the Allegiances IIFE further down this block, which made it
+   unreachable from here, exactly like the MER counters recorded in CLAUDE.md. The
+   Fantasy Points tiebreak below needs the distinct-team count, and re-deriving it at a
+   second site is the FP_SCALE mistake: the copy that drifts is always the one nobody is
+   looking at. So the tally is computed once, here, above every consumer, and the
+   Allegiances tab, the pool bars, the Arlequin bar and the tiebreak all read THIS.
+   --------------------------------------------------------------------------- */
+const TEAMS23=["Alpecin-Premier Tech","Bahrain Victorious","Burgos-BH","Cofidis","Decathlon CMA CGM Team","EF Education-EasyPost","Equipo Kern Pharma","Groupama-FDJ United","Lidl-Trek","Lotto-Intermarché","Movistar Team","Netcompany INEOS","NSN Cycling Team","Pinarello Q36.5","Red Bull-BORA-hansgrohe","Soudal Quick-Step","Team Jayco AlUla","Team Picnic PostNL","Tudor Pro Cycling","UAE Team Emirates XRG","Uno-X Mobility","Visma-Lease a Bike","XDS Astana Team"];
+const TEAM_ALIAS={"UAE Team Emirates":"UAE Team Emirates XRG","Ineos":"Netcompany INEOS","Decathlon":"Decathlon CMA CGM Team","Red Bull-Bora":"Red Bull-BORA-hansgrohe"};
+const RIDER_TEAM={
+  "P. Roglič":"Red Bull-BORA-hansgrohe","F. Fisher-Black":"Red Bull-BORA-hansgrohe","J. Meeus":"Red Bull-BORA-hansgrohe","G. Moscon":"Red Bull-BORA-hansgrohe","C. Thornley":"Red Bull-BORA-hansgrohe","L. Tuckwell":"Red Bull-BORA-hansgrohe","G. Vermeersch":"Red Bull-BORA-hansgrohe","F. Wandahl":"Red Bull-BORA-hansgrohe","T. Pogačar":"UAE Team Emirates XRG","J. Almeida":"UAE Team Emirates XRG","D. Novak":"UAE Team Emirates XRG","I. Oliveira":"UAE Team Emirates XRG","P. Sivakov":"UAE Team Emirates XRG","P. Torres":"UAE Team Emirates XRG","K. Vermaerke":"UAE Team Emirates XRG","J. Vine":"UAE Team Emirates XRG","E. Mas":"Movistar Team","J. Arcas":"Movistar Team","O. Aular":"Movistar Team","C. Canal":"Movistar Team","P. Castrillo":"Movistar Team","R. García Pierna":"Movistar Team","I. Romeo":"Movistar Team","C. Uijtdebroeks":"Movistar Team","W. van Aert":"Visma-Lease a Bike","B. Armirail":"Visma-Lease a Bike","M. Brennan":"Visma-Lease a Bike","S. Kruijswijk":"Visma-Lease a Bike","S. Kuss":"Visma-Lease a Bike","C. Laporte":"Visma-Lease a Bike","J. Nordhagen":"Visma-Lease a Bike","B. Tulett":"Visma-Lease a Bike","F. Gall":"Decathlon CMA CGM Team","L. Bisiaux":"Decathlon CMA CGM Team","O. Chamberlain":"Decathlon CMA CGM Team","S. de Pestel":"Decathlon CMA CGM Team","J. Labrosse":"Decathlon CMA CGM Team","G. Mühlberger":"Decathlon CMA CGM Team","M. Riccitello":"Decathlon CMA CGM Team","C. Scotson":"Decathlon CMA CGM Team","D. de la Cruz":"Pinarello Q36.5","X. Azparren":"Pinarello Q36.5","W. Calzoni":"Pinarello Q36.5","M. Camprubí":"Pinarello Q36.5","E. Dunbar":"Pinarello Q36.5","T. Gloag":"Pinarello Q36.5","D. González":"Pinarello Q36.5","M. Vader":"Pinarello Q36.5","O. Onley":"Netcompany INEOS","J. Haig":"Netcompany INEOS","L. Hamilton":"Netcompany INEOS","A. Laurance":"Netcompany INEOS","Carlos Rodríguez":"Netcompany INEOS","E. Svestad-Bårdseng":"Netcompany INEOS","J. Tarling":"Netcompany INEOS","B. Turner":"Netcompany INEOS","P. Bilbao":"Bahrain Victorious","S. Buitrago":"Bahrain Victorious","R. Ermakov":"Bahrain Victorious","M. Govekar":"Bahrain Victorious","P. Miquel":"Bahrain Victorious","J. Omrzel":"Bahrain Victorious","M. Paasschens":"Bahrain Victorious","A. Valter":"Bahrain Victorious","M. Skjelmose":"Lidl-Trek","J. Bernard":"Lidl-Trek","L. Kämna":"Lidl-Trek","P. Konrad":"Lidl-Trek","J. Mosca":"Lidl-Trek","M. Sunekær Norsgaard":"Lidl-Trek","T. Nys":"Lidl-Trek","M. Pedersen":"Lidl-Trek","C. Berthet":"Groupama-FDJ United","O. le Gac":"Groupama-FDJ United","V. Madouas":"Groupama-FDJ United","G. Martin":"Groupama-FDJ United","R. Molard":"Groupama-FDJ United","E. Paleni":"Groupama-FDJ United","R. Rochas":"Groupama-FDJ United","B. Tronchon":"Groupama-FDJ United","K. Groves":"Alpecin-Premier Tech","F. Busatto":"Alpecin-Premier Tech","L. de Vylder":"Alpecin-Premier Tech","R. Debruyne":"Alpecin-Premier Tech","G. Glivar":"Alpecin-Premier Tech","M. Gogl":"Alpecin-Premier Tech","H. Houle":"Alpecin-Premier Tech","S. Sentjens":"Alpecin-Premier Tech","A. Lutsenko":"NSN Cycling Team","G. Bennett":"NSN Cycling Team","J. Hirt":"NSN Cycling Team","H. Hofstetter":"NSN Cycling Team","M. Kretschy":"NSN Cycling Team","P. Martí":"NSN Cycling Team","N. Schultz":"NSN Cycling Team","F. van Tricht":"NSN Cycling Team","M. Landa":"Soudal Quick-Step","A. Dainese":"Soudal Quick-Step","G. Garofoli":"Soudal Quick-Step","E. Hayter":"Soudal Quick-Step","V. Paret-Peintre":"Soudal Quick-Step","F. van den Bossche":"Soudal Quick-Step","M. Vansevenant":"Soudal Quick-Step","F. Zana":"Soudal Quick-Step","M. Cort":"Uno-X Mobility","S. Dalby":"Uno-X Mobility","F. Dversnes Lavik":"Uno-X Mobility","T. Johannessen":"Uno-X Mobility","A. Kron":"Uno-X Mobility","A. Leknessund":"Uno-X Mobility","R. Tiller":"Uno-X Mobility","M. Tjøtta":"Uno-X Mobility","E. Buchmann":"Cofidis","B. Coquard":"Cofidis","A. Kirsch":"Cofidis","S. Moniquet":"Cofidis","P. Ourselin":"Cofidis","A. Renard":"Cofidis","L. Rouland":"Cofidis","S. Samitier":"Cofidis","A. Covi":"Team Jayco AlUla","K. Bouwman":"Team Jayco AlUla","P. Double":"Team Jayco AlUla","A. Hellemose":"Team Jayco AlUla","H. Mckenzie":"Team Jayco AlUla","F. Pickering":"Team Jayco AlUla","R. Porter":"Team Jayco AlUla","J. Sütterlin":"Team Jayco AlUla","R. Carapaz":"EF Education-EasyPost","V. Albanese":"EF Education-EasyPost","M. Beloki":"EF Education-EasyPost","A. Mackellar":"EF Education-EasyPost","D. Rafferty":"EF Education-EasyPost","J. Rodriguez":"EF Education-EasyPost","J. Shaw":"EF Education-EasyPost","G. Steinhauser":"EF Education-EasyPost","M. Brenner":"Tudor Pro Cycling","W. Barta":"Tudor Pro Cycling","A. Kluckers":"Tudor Pro Cycling","S. Küng":"Tudor Pro Cycling","R. Thalmann":"Tudor Pro Cycling","L. Warbasse":"Tudor Pro Cycling","F. Weiss":"Tudor Pro Cycling","H. Wilksch":"Tudor Pro Cycling","H. Tejada":"XDS Astana Team","Y. Fedorov":"XDS Astana Team","L. Fortunato":"XDS Astana Team","V. Langellotti":"XDS Astana Team","H. Mulubrhan":"XDS Astana Team","Cristián Rodríguez":"XDS Astana Team","A. Romele":"XDS Astana Team","D. van Bekkum":"XDS Astana Team","J. Herrada":"Burgos-BH","C. Alleno":"Burgos-BH","M. Aparicio":"Burgos-BH","S. Chumil":"Burgos-BH","J. Díaz":"Burgos-BH","J. Faura":"Burgos-BH","S. Fernández":"Burgos-BH","C. Macías":"Burgos-BH","J. Widar":"Lotto-Intermarché","V. Braet":"Lotto-Intermarché","L. Craps":"Lotto-Intermarché","S. de Schuyteneer":"Lotto-Intermarché","L. Rota":"Lotto-Intermarché","R. Thompson":"Lotto-Intermarché","L. van Boven":"Lotto-Intermarché","R. van Sintmaartensdijk":"Lotto-Intermarché","C. Hamilton":"Team Picnic PostNL","T. de Jong":"Team Picnic PostNL","M. Gaffuri":"Team Picnic PostNL","G. Leemreize":"Team Picnic PostNL","J. Martinez":"Team Picnic PostNL","O. Peace":"Team Picnic PostNL","H. Renard-Haquin":"Team Picnic PostNL","T. Roosen":"Team Picnic PostNL","U. Berrade":"Equipo Kern Pharma","M. Brustenga":"Equipo Kern Pharma","I. Cobo":"Equipo Kern Pharma","I. Elosegui":"Equipo Kern Pharma","I. Ruiz":"Equipo Kern Pharma","I. Sosa":"Equipo Kern Pharma","D. Uriarte":"Equipo Kern Pharma","M. Wenzel":"Equipo Kern Pharma"
+};
+function teamOf(n){ if(!n) return null; if(TEAM_ALIAS[n]) return TEAM_ALIAS[n]; if(TEAMS23.indexOf(n)>=0) return n; if(RIDER_TEAM[n]) return RIDER_TEAM[n]; return null; }
+const TEAM_TALLY={}; PL4.forEach(p=>TEAM_TALLY[p]={});
+const unmapped={};
+// Allegiances is a pure pick count with no tie to the race, so it reflects a round the
+// moment picks are called. Count scored STAGES (picks are [rider, finish]) AND the live
+// UPCOMING card (picks are plain rider names), guarded so a stage is never counted twice.
+function tally(picksObj){
+  if(!picksObj) return;
+  PL4.forEach(p=>{ (picksObj[p]||[]).forEach(pk=>{
+    const raw = Array.isArray(pk) ? pk[0] : pk;   // STAGES: [name, finish]; UPCOMING: name
+    const t=teamOf(raw);
+    if(t){ TEAM_TALLY[p][t]=(TEAM_TALLY[p][t]||0)+1; }
+    else if(raw && !/missed/i.test(raw)){ unmapped[raw]=(unmapped[raw]||0)+1; }
+  }); });
+}
+/* VOID STAGES COUNT HERE, DELIBERATELY. Do not "fix" this by filtering them out.
+   Allegiances and Le Maillot Arlequin count PICKS, not results. A cancelled stage
+   wipes the result, not the drafting: the riders were really chosen, so the teams
+   were really collected. STAGES is iterated whole, with no COMPLETED filter and no
+   voidStage check, and that is the correct behavior rather than an oversight.
+   It is load-bearing right now. Vuelta 2026 stage 3 was cancelled for hail after
+   all four seats had drafted. JJ took Skjelmose (Lidl-Trek) and Johannessen (Uno-X
+   Mobility) that day, and those are the only two teams he holds from it. Filtering
+   void stages drops him from 8 teams to 6, which erases his entire Arlequin lead
+   and ties him with JP. That exact mistake was made once already, by hand, on
+   2026-08-25.
+   Scoring is the opposite and stays the opposite: COMPLETED filters on
+   !voidStage && days, so a void stage scores nothing. Both rules are correct and
+   they are not in conflict, because one counts picks and the other counts results. */
+const _stages=(typeof STAGES!=='undefined'?STAGES:[]);
+_stages.forEach(st=>tally(st.picks));
+if(typeof UPCOMING!=='undefined' && UPCOMING && UPCOMING.picks && !_stages.some(s=>s.n===UPCOMING.n)){
+  tally(UPCOMING.picks);  // live round's picks, once it is not yet scored
+}
+if(Object.keys(unmapped).length) console.warn('Allegiances unmapped picks:',unmapped);
+
+/* Distinct teams per seat. This is the Arlequin board, and since 2026-09-02 it is also
+   the first tiebreak on Fantasy Points. Void stages are INCLUDED, per the note above. */
+const ARLEQUIN_TEAMS={}; PL4.forEach(p=>{ ARLEQUIN_TEAMS[p]=Object.keys(TEAM_TALLY[p]||{}).length; });
+
 const OURS = { through: COMPLETED.length?Math.max(...COMPLETED):0, placement:{}, rank:{}, fantasy:{} };
 PL4.forEach(p=>{OURS.placement[p]=0;OURS.rank[p]=0;OURS.fantasy[p]=0;});
 COMPLETED.forEach(n=>{
@@ -4163,8 +4218,69 @@ const placeOrder = orderBy(OURS.placement);
 const rankOrder  = orderBy(OURS.rank);
 // Fantasy Points is highest-leads, so it sorts descending. Do NOT route it through
 // orderBy(), which is ascending and correct only for Placement and Rank.
-const fanOrder = Object.keys(OURS.fantasy).sort((a,b)=>OURS.fantasy[b]-OURS.fantasy[a]);
-const placeLeader = placeOrder[0], rankLeader = rankOrder[0], fanLeader = fanOrder[0];
+/* ---------------------------------------------------------------------------
+   THE FANTASY POINTS TIEBREAK. Rule from Allen, 2026-09-02.
+
+   This used to be `Object.keys(OURS.fantasy).sort((a,b)=>fantasy[b]-fantasy[a])`, and on
+   a tie that is decided by INSERTION ORDER. The keys are seeded from PL4, which is
+   pool.order, which is the DRAFT ROTATION, so the leader of a tie was whichever tied seat
+   happened to be drafting earlier that day. It moves every stage. Two seats level on the
+   system of record could therefore swap the lead with nobody scoring a point, and the
+   persona engine keys off this order, so each phantom swap would re-draw all four
+   personas and burn a winner-tier name out of a bank that has three left.
+
+   The chain, in order. Every step is a board the pool already plays:
+     1. ARLEQUIN, most distinct teams drafted, counting ALL stages including void ones,
+        exactly as the Arlequin itself counts. A seat drafting from more teams is reading
+        more of the field, and that should be rewarded rather than merely tolerated.
+     2. Rank, lowest total.
+     3. Placement, lowest total.
+     4. Genuinely shared. The board SAYS SO rather than picking one.
+
+   The last resort is the seat code, which is alphabetical and fixed for the race, chosen
+   so that DISPLAY order is deterministic while `shared` carries the truth. Insertion
+   order decides nothing here, and that is the whole point of the rewrite.
+   --------------------------------------------------------------------------- */
+const FAN_STANDING = (function(){
+  const cmp = (a,b) =>
+       (OURS.fantasy[b]||0) - (OURS.fantasy[a]||0)          // Fantasy Points, high leads
+    || (ARLEQUIN_TEAMS[b]||0) - (ARLEQUIN_TEAMS[a]||0)      // 1. Arlequin, most teams
+    || (OURS.rank[a]||0) - (OURS.rank[b]||0)                // 2. Rank, low leads
+    || (OURS.placement[a]||0) - (OURS.placement[b]||0)      // 3. Placement, low leads
+    || String(a).localeCompare(String(b));                  // 4. deterministic display only
+  const order = PL4.slice().sort(cmp);
+  const a = order[0], b = order[1];
+  /* What, if anything, broke the tie at the TOP. Only the top matters for the leader
+     label; a tie further down is still ordered by the same chain. */
+  let by = null, shared = [a];
+  if (b != null && (OURS.fantasy[a]||0) === (OURS.fantasy[b]||0)) {
+    if      ((ARLEQUIN_TEAMS[a]||0) !== (ARLEQUIN_TEAMS[b]||0)) by = 'Arlequin';
+    else if ((OURS.rank[a]||0)      !== (OURS.rank[b]||0))      by = 'Rank';
+    else if ((OURS.placement[a]||0) !== (OURS.placement[b]||0)) by = 'Placement';
+    else { by = 'shared'; shared = order.filter(p =>
+             (OURS.fantasy[p]||0)===(OURS.fantasy[a]||0) &&
+             (ARLEQUIN_TEAMS[p]||0)===(ARLEQUIN_TEAMS[a]||0) &&
+             (OURS.rank[p]||0)===(OURS.rank[a]||0) &&
+             (OURS.placement[p]||0)===(OURS.placement[a]||0)); }
+  }
+  return { order, leader: a, tiedWith: by ? b : null, brokenBy: by, shared };
+})();
+const fanOrder  = FAN_STANDING.order;
+const placeLeader = placeOrder[0], rankLeader = rankOrder[0], fanLeader = FAN_STANDING.leader;
+/* One sentence naming the board that broke the tie, per "every ordinal names its board".
+   A leader whose position rests on a tiebreak nobody can see is the same failure as an
+   unlabeled ordinal. Empty string when nothing was tied, so no site needs a guard. */
+const FAN_TIEBREAK_NOTE = (function(){
+  const F=FAN_STANDING; if(!F.brokenBy) return '';
+  if(F.brokenBy==='shared') return 'Lead shared on Fantasy Points by '+F.shared.join(' and ')+', with every tiebreak level.';
+  const val = F.brokenBy==='Arlequin' ? (ARLEQUIN_TEAMS[F.leader]+' teams to '+ARLEQUIN_TEAMS[F.tiedWith])
+            : F.brokenBy==='Rank'     ? (OURS.rank[F.leader]+' to '+OURS.rank[F.tiedWith])
+            :                           (OURS.placement[F.leader]+' to '+OURS.placement[F.tiedWith]);
+  return 'Level on Fantasy Points with '+F.tiedWith+'. '+F.brokenBy+' breaks the tie, '+val+'.';
+})();
+window.__fanTiebreak = { leader:FAN_STANDING.leader, brokenBy:FAN_STANDING.brokenBy,
+  tiedWith:FAN_STANDING.tiedWith, shared:FAN_STANDING.shared, order:fanOrder.slice(),
+  arlequin:Object.assign({},ARLEQUIN_TEAMS), note:FAN_TIEBREAK_NOTE };
 const THRU = OURS.through;
 
 /* hero live-leaders strip */
@@ -4220,7 +4336,7 @@ document.getElementById('heroLead').innerHTML = `
 
 /* callouts */
 document.getElementById('callouts').innerHTML = `
-  <div class="callout"><div class="n">${OURS.fantasy[fanLeader]}</div><div class="l">Fantasy Points leader</div><div class="d">${fanLeader}, highest total through Stage ${THRU}. The system of record on this race. Higher leads.</div></div>
+  <div class="callout"><div class="n">${OURS.fantasy[fanLeader]}</div><div class="l">Fantasy Points leader</div><div class="d">${fanLeader}, highest total through Stage ${THRU}. The system of record on this race. Higher leads.${FAN_TIEBREAK_NOTE?' '+FAN_TIEBREAK_NOTE:''}</div></div>
   <div class="callout"><div class="n">${OURS.rank[rankLeader]}</div><div class="l">Rank leader</div><div class="d">${rankLeader}, lowest rank total. Each stage all eight picks are ranked 1 to 8 by finish; this sums each day's two.</div></div>
   <div class="callout"><div class="n">${WINS_PICKED}/${COMPLETED.length}</div><div class="l">Winners picked</div><div class="d">Stages where someone in the pool drafted the actual stage winner, across the ${COMPLETED.length} scored days.</div></div>
   <div class="callout"><div class="n">${OURS.placement[placeLeader]}</div><div class="l">Placement leader</div><div class="d">${placeLeader}, lowest total of actual stage finishes. The third view, behind See Placement on any card. Lower leads.</div></div>
@@ -5315,7 +5431,18 @@ const PERSONA_BY = (function(){
      for the whole board.
      L.order is the standings at the moment of the last assignment, written by the
      persistence block below, so this compares like with like rather than comparing a
-     standing against a seat order. */
+     standing against a seat order.
+
+     TIES, added 2026-09-02. `fanOrder` is FAN_STANDING.order, the DECLARED order, whose
+     tiebreak chain is Arlequin, then Rank, then Placement, then genuinely shared. That
+     matters here more than anywhere else on the board. The old order broke a tie by
+     object insertion order, which is pool.order, which ROTATES EVERY STAGE, so two seats
+     level on Fantasy Points would have swapped places on the rotation alone and this
+     comparison would have reported a change with nobody having scored a point. Every one
+     of those phantom changes re-draws all four personas, and the winner tier has three
+     unworn names left. A tie that resolves to the same leader now produces the identical
+     array and therefore no movement, which is the correct behavior and is verified by
+     simulation rather than assumed. */
   const prevOrder=(L.order||[]).slice();
   const orderChanged = prevOrder.length!==fanOrder.length
     || fanOrder.some((p,i)=>prevOrder[i]!==p);
@@ -6460,7 +6587,7 @@ const DP_HISTORY=(function(){
 })();
 
 /* stats */
-const stats=[{k:"Fantasy Points leader",v:OURS.fantasy[fanLeader],d:`${fanLeader}, highest total (system of record). Next: ${fanOrder.slice(1).map(k=>k+' '+OURS.fantasy[k]).join(', ')}.`},
+const stats=[{k:"Fantasy Points leader",v:OURS.fantasy[fanLeader],d:`${fanLeader}, highest total (system of record).${FAN_TIEBREAK_NOTE?' '+FAN_TIEBREAK_NOTE:''} Next: ${fanOrder.slice(1).map(k=>k+' '+OURS.fantasy[k]).join(', ')}.`},
   {k:"Rank leader",v:OURS.rank[rankLeader],ink:true,d:`${rankLeader}, lowest rank total. ${rankOrder.slice(1).map(k=>k+' '+OURS.rank[k]).join(', ')} behind.`},
   {k:"Stage winners picked",v:`${WINS_PICKED}/${COMPLETED.length}`,d:`Days the pool drafted the actual winner, across ${COMPLETED.length} scored stages.`}].concat((CDF.editorial&&CDF.editorial.stats&&CDF.editorial.stats.length)
     ? CDF.editorial.stats
@@ -6497,11 +6624,6 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 
 /* Allegiances tab: which 2026 team each pick belongs to. Computes from STAGES. */
 (function(){
-  const TEAMS23=["Alpecin-Premier Tech","Bahrain Victorious","Burgos-BH","Cofidis","Decathlon CMA CGM Team","EF Education-EasyPost","Equipo Kern Pharma","Groupama-FDJ United","Lidl-Trek","Lotto-Intermarché","Movistar Team","Netcompany INEOS","NSN Cycling Team","Pinarello Q36.5","Red Bull-BORA-hansgrohe","Soudal Quick-Step","Team Jayco AlUla","Team Picnic PostNL","Tudor Pro Cycling","UAE Team Emirates XRG","Uno-X Mobility","Visma-Lease a Bike","XDS Astana Team"];
-  const TEAM_ALIAS={"UAE Team Emirates":"UAE Team Emirates XRG","Ineos":"Netcompany INEOS","Decathlon":"Decathlon CMA CGM Team","Red Bull-Bora":"Red Bull-BORA-hansgrohe"};
-  const RIDER_TEAM={
-    "P. Roglič":"Red Bull-BORA-hansgrohe","F. Fisher-Black":"Red Bull-BORA-hansgrohe","J. Meeus":"Red Bull-BORA-hansgrohe","G. Moscon":"Red Bull-BORA-hansgrohe","C. Thornley":"Red Bull-BORA-hansgrohe","L. Tuckwell":"Red Bull-BORA-hansgrohe","G. Vermeersch":"Red Bull-BORA-hansgrohe","F. Wandahl":"Red Bull-BORA-hansgrohe","T. Pogačar":"UAE Team Emirates XRG","J. Almeida":"UAE Team Emirates XRG","D. Novak":"UAE Team Emirates XRG","I. Oliveira":"UAE Team Emirates XRG","P. Sivakov":"UAE Team Emirates XRG","P. Torres":"UAE Team Emirates XRG","K. Vermaerke":"UAE Team Emirates XRG","J. Vine":"UAE Team Emirates XRG","E. Mas":"Movistar Team","J. Arcas":"Movistar Team","O. Aular":"Movistar Team","C. Canal":"Movistar Team","P. Castrillo":"Movistar Team","R. García Pierna":"Movistar Team","I. Romeo":"Movistar Team","C. Uijtdebroeks":"Movistar Team","W. van Aert":"Visma-Lease a Bike","B. Armirail":"Visma-Lease a Bike","M. Brennan":"Visma-Lease a Bike","S. Kruijswijk":"Visma-Lease a Bike","S. Kuss":"Visma-Lease a Bike","C. Laporte":"Visma-Lease a Bike","J. Nordhagen":"Visma-Lease a Bike","B. Tulett":"Visma-Lease a Bike","F. Gall":"Decathlon CMA CGM Team","L. Bisiaux":"Decathlon CMA CGM Team","O. Chamberlain":"Decathlon CMA CGM Team","S. de Pestel":"Decathlon CMA CGM Team","J. Labrosse":"Decathlon CMA CGM Team","G. Mühlberger":"Decathlon CMA CGM Team","M. Riccitello":"Decathlon CMA CGM Team","C. Scotson":"Decathlon CMA CGM Team","D. de la Cruz":"Pinarello Q36.5","X. Azparren":"Pinarello Q36.5","W. Calzoni":"Pinarello Q36.5","M. Camprubí":"Pinarello Q36.5","E. Dunbar":"Pinarello Q36.5","T. Gloag":"Pinarello Q36.5","D. González":"Pinarello Q36.5","M. Vader":"Pinarello Q36.5","O. Onley":"Netcompany INEOS","J. Haig":"Netcompany INEOS","L. Hamilton":"Netcompany INEOS","A. Laurance":"Netcompany INEOS","Carlos Rodríguez":"Netcompany INEOS","E. Svestad-Bårdseng":"Netcompany INEOS","J. Tarling":"Netcompany INEOS","B. Turner":"Netcompany INEOS","P. Bilbao":"Bahrain Victorious","S. Buitrago":"Bahrain Victorious","R. Ermakov":"Bahrain Victorious","M. Govekar":"Bahrain Victorious","P. Miquel":"Bahrain Victorious","J. Omrzel":"Bahrain Victorious","M. Paasschens":"Bahrain Victorious","A. Valter":"Bahrain Victorious","M. Skjelmose":"Lidl-Trek","J. Bernard":"Lidl-Trek","L. Kämna":"Lidl-Trek","P. Konrad":"Lidl-Trek","J. Mosca":"Lidl-Trek","M. Sunekær Norsgaard":"Lidl-Trek","T. Nys":"Lidl-Trek","M. Pedersen":"Lidl-Trek","C. Berthet":"Groupama-FDJ United","O. le Gac":"Groupama-FDJ United","V. Madouas":"Groupama-FDJ United","G. Martin":"Groupama-FDJ United","R. Molard":"Groupama-FDJ United","E. Paleni":"Groupama-FDJ United","R. Rochas":"Groupama-FDJ United","B. Tronchon":"Groupama-FDJ United","K. Groves":"Alpecin-Premier Tech","F. Busatto":"Alpecin-Premier Tech","L. de Vylder":"Alpecin-Premier Tech","R. Debruyne":"Alpecin-Premier Tech","G. Glivar":"Alpecin-Premier Tech","M. Gogl":"Alpecin-Premier Tech","H. Houle":"Alpecin-Premier Tech","S. Sentjens":"Alpecin-Premier Tech","A. Lutsenko":"NSN Cycling Team","G. Bennett":"NSN Cycling Team","J. Hirt":"NSN Cycling Team","H. Hofstetter":"NSN Cycling Team","M. Kretschy":"NSN Cycling Team","P. Martí":"NSN Cycling Team","N. Schultz":"NSN Cycling Team","F. van Tricht":"NSN Cycling Team","M. Landa":"Soudal Quick-Step","A. Dainese":"Soudal Quick-Step","G. Garofoli":"Soudal Quick-Step","E. Hayter":"Soudal Quick-Step","V. Paret-Peintre":"Soudal Quick-Step","F. van den Bossche":"Soudal Quick-Step","M. Vansevenant":"Soudal Quick-Step","F. Zana":"Soudal Quick-Step","M. Cort":"Uno-X Mobility","S. Dalby":"Uno-X Mobility","F. Dversnes Lavik":"Uno-X Mobility","T. Johannessen":"Uno-X Mobility","A. Kron":"Uno-X Mobility","A. Leknessund":"Uno-X Mobility","R. Tiller":"Uno-X Mobility","M. Tjøtta":"Uno-X Mobility","E. Buchmann":"Cofidis","B. Coquard":"Cofidis","A. Kirsch":"Cofidis","S. Moniquet":"Cofidis","P. Ourselin":"Cofidis","A. Renard":"Cofidis","L. Rouland":"Cofidis","S. Samitier":"Cofidis","A. Covi":"Team Jayco AlUla","K. Bouwman":"Team Jayco AlUla","P. Double":"Team Jayco AlUla","A. Hellemose":"Team Jayco AlUla","H. Mckenzie":"Team Jayco AlUla","F. Pickering":"Team Jayco AlUla","R. Porter":"Team Jayco AlUla","J. Sütterlin":"Team Jayco AlUla","R. Carapaz":"EF Education-EasyPost","V. Albanese":"EF Education-EasyPost","M. Beloki":"EF Education-EasyPost","A. Mackellar":"EF Education-EasyPost","D. Rafferty":"EF Education-EasyPost","J. Rodriguez":"EF Education-EasyPost","J. Shaw":"EF Education-EasyPost","G. Steinhauser":"EF Education-EasyPost","M. Brenner":"Tudor Pro Cycling","W. Barta":"Tudor Pro Cycling","A. Kluckers":"Tudor Pro Cycling","S. Küng":"Tudor Pro Cycling","R. Thalmann":"Tudor Pro Cycling","L. Warbasse":"Tudor Pro Cycling","F. Weiss":"Tudor Pro Cycling","H. Wilksch":"Tudor Pro Cycling","H. Tejada":"XDS Astana Team","Y. Fedorov":"XDS Astana Team","L. Fortunato":"XDS Astana Team","V. Langellotti":"XDS Astana Team","H. Mulubrhan":"XDS Astana Team","Cristián Rodríguez":"XDS Astana Team","A. Romele":"XDS Astana Team","D. van Bekkum":"XDS Astana Team","J. Herrada":"Burgos-BH","C. Alleno":"Burgos-BH","M. Aparicio":"Burgos-BH","S. Chumil":"Burgos-BH","J. Díaz":"Burgos-BH","J. Faura":"Burgos-BH","S. Fernández":"Burgos-BH","C. Macías":"Burgos-BH","J. Widar":"Lotto-Intermarché","V. Braet":"Lotto-Intermarché","L. Craps":"Lotto-Intermarché","S. de Schuyteneer":"Lotto-Intermarché","L. Rota":"Lotto-Intermarché","R. Thompson":"Lotto-Intermarché","L. van Boven":"Lotto-Intermarché","R. van Sintmaartensdijk":"Lotto-Intermarché","C. Hamilton":"Team Picnic PostNL","T. de Jong":"Team Picnic PostNL","M. Gaffuri":"Team Picnic PostNL","G. Leemreize":"Team Picnic PostNL","J. Martinez":"Team Picnic PostNL","O. Peace":"Team Picnic PostNL","H. Renard-Haquin":"Team Picnic PostNL","T. Roosen":"Team Picnic PostNL","U. Berrade":"Equipo Kern Pharma","M. Brustenga":"Equipo Kern Pharma","I. Cobo":"Equipo Kern Pharma","I. Elosegui":"Equipo Kern Pharma","I. Ruiz":"Equipo Kern Pharma","I. Sosa":"Equipo Kern Pharma","D. Uriarte":"Equipo Kern Pharma","M. Wenzel":"Equipo Kern Pharma"
-  };
   const TEAM_COLOR={"Alpecin-Premier Tech":"#6B0F1A","Bahrain Victorious":"#C8102E","Burgos-BH":"#1E8449","Caja Rural-Seguros RGA":"#1E8449","Cofidis":"#E2001A","Decathlon CMA CGM Team":"#0082C3","EF Education-EasyPost":"#FF0098","Equipo Kern Pharma":"#00A99D","Groupama-FDJ United":"#26429B","Lidl-Trek":"#001E62","Lotto-Intermarché":"#A6093D","Movistar Team":"#009DDC","Netcompany INEOS":"#A50021","NSN Cycling Team":"#F7A600","Pinarello Q36.5":"#009CA6","Red Bull-BORA-hansgrohe":"#223971","Soudal Quick-Step":"#0033A0","Team Jayco AlUla":"#00A94F","Team Picnic PostNL":"#FF6900","TotalEnergies":"#F04E23","Tudor Pro Cycling":"#2B2B2B","UAE Team Emirates XRG":"#d4111e","Uno-X Mobility":"#FF5C39","Visma-Lease a Bike":"#E3C400","XDS Astana Team":"#00A9CE"};
   /* Team jersey + icon images (in the repo root, added by Allen for the Vuelta). Filenames
      have spaces, so encodeURI() at render. Netcompany has no icon file - falls back to a dot. */
@@ -6511,41 +6633,10 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
     g.innerHTML=TEAMS23.slice().sort().map(t=>{ const f=TEAM_IMG[t]; return `<div class="jcell" data-team="${esc(t)}">${f?`<img src="${encodeURI(f)}" alt="${t} jersey">`:''}<div class="jn">${t}</div></div>`; }).join('');
   })();
   const PL=(CDF.seats||CDF.order).slice();
-  function teamOf(n){ if(!n) return null; if(TEAM_ALIAS[n]) return TEAM_ALIAS[n]; if(TEAMS23.indexOf(n)>=0) return n; if(RIDER_TEAM[n]) return RIDER_TEAM[n]; return null; }
-  const counts={}; PL.forEach(p=>counts[p]={});
-  const unmapped={};
-  // Allegiances is a pure pick count with no tie to the race, so it reflects a round the
-  // moment picks are called. Count scored STAGES (picks are [rider, finish]) AND the live
-  // UPCOMING card (picks are plain rider names), guarded so a stage is never counted twice.
-  function tally(picksObj){
-    if(!picksObj) return;
-    PL.forEach(p=>{ (picksObj[p]||[]).forEach(pk=>{
-      const raw = Array.isArray(pk) ? pk[0] : pk;   // STAGES: [name, finish]; UPCOMING: name
-      const t=teamOf(raw);
-      if(t){ counts[p][t]=(counts[p][t]||0)+1; }
-      else if(raw && !/missed/i.test(raw)){ unmapped[raw]=(unmapped[raw]||0)+1; }
-    }); });
-  }
-  /* VOID STAGES COUNT HERE, DELIBERATELY. Do not "fix" this by filtering them out.
-     Allegiances and Le Maillot Arlequin count PICKS, not results. A cancelled stage
-     wipes the result, not the drafting: the riders were really chosen, so the teams
-     were really collected. STAGES is iterated whole, with no COMPLETED filter and no
-     voidStage check, and that is the correct behavior rather than an oversight.
-     It is load-bearing right now. Vuelta 2026 stage 3 was cancelled for hail after
-     all four seats had drafted. JJ took Skjelmose (Lidl-Trek) and Johannessen (Uno-X
-     Mobility) that day, and those are the only two teams he holds from it. Filtering
-     void stages drops him from 8 teams to 6, which erases his entire Arlequin lead
-     and ties him with JP. That exact mistake was made once already, by hand, on
-     2026-08-25.
-     Scoring is the opposite and stays the opposite: COMPLETED filters on
-     !voidStage && days, so a void stage scores nothing. Both rules are correct and
-     they are not in conflict, because one counts picks and the other counts results. */
-  const _stages=(typeof STAGES!=='undefined'?STAGES:[]);
-  _stages.forEach(st=>tally(st.picks));
-  if(typeof UPCOMING!=='undefined' && UPCOMING && UPCOMING.picks && !_stages.some(s=>s.n===UPCOMING.n)){
-    tally(UPCOMING.picks);  // live round's picks, once it is not yet scored
-  }
-  if(Object.keys(unmapped).length) console.warn('Allegiances unmapped picks:',unmapped);
+  /* The tally is computed ONCE, at the top of this block, and read here. Do not rebuild
+     it: the Arlequin count it produces is also the first Fantasy Points tiebreak, so a
+     second copy here would let the standings and this tab disagree about the same board. */
+  const counts=TEAM_TALLY;
   const poolTotals={}; PL.forEach(p=>Object.keys(counts[p]).forEach(t=>{poolTotals[t]=(poolTotals[t]||0)+counts[p][t];}));
   /* "Teams a player still needs" filter - PER PLAYER, pure info. Shows the selected
      player only the teams THEY have not yet drafted a rider from, so an Arlequin chaser

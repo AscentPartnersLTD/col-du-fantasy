@@ -1630,6 +1630,81 @@ Surfaces checked and left alone, because they are already unambiguous:
 Fixed alongside the badge: two persona lines emitted a bare ordinal off the Placement
 board and now say "3rd on Placement".
 
+## The Fantasy Points tiebreak, and why insertion order decided it
+
+Added 2026-09-02, when stage 11 left AA and JJ level on 438 Fantasy Points, the system of
+record on this race. There was no tiebreak rule, and the board had one anyway: an
+accidental one.
+
+WHAT WAS ACTUALLY DECIDING IT. `fanOrder` was
+`Object.keys(OURS.fantasy).sort((a,b)=>fantasy[b]-fantasy[a])`. `Array.prototype.sort` is
+stable, so on a tie the order falls back to KEY INSERTION ORDER. Those keys are seeded
+from `PL4`, which is `CDF.order`, which is `pool.order`, which is THE DRAFT ROTATION. So
+the leader of a tie was whichever tied seat happened to be drafting earlier that day, and
+the rotation moves one seat every single stage. Two seats level on the system of record
+would have swapped the lead back and forth with nobody scoring a point.
+
+It is worse than a display fault, because the persona engine reads the same order.
+`orderChanged` re-draws ALL FOUR personas whenever it fires, and the winner tier had three
+unworn names left with ten stages to go. Each phantom swap would have burned one.
+
+ALLEN'S RULE, in order:
+
+1. ARLEQUIN, most distinct teams drafted. Counting ALL stages including void ones, exactly
+   the way the Arlequin already counts. Most teams wins.
+2. Rank, lowest total.
+3. Placement, lowest total.
+4. Genuinely shared, and the board SAYS SO rather than picking one.
+
+HIS REASONING, recorded with the rule because it is the part that will not be
+reconstructable later: a seat drafting from more teams is READING MORE OF THE FIELD, and
+that should be rewarded. Variety currently costs about 94 placement points a day, measured
+off the draft-slot analysis, so this turns a measured cost into a payoff rather than
+leaving it a pure handicap.
+
+THE LAST RESORT IS THE SEAT CODE, alphabetically, and that is a DISPLAY device only. It is
+deterministic and fixed for the race, so it can never be the rotation in disguise. When
+every step is level the board reports the lead as shared and names both seats; it does not
+quietly hand it to whoever sorts first.
+
+WHERE IT LIVES. `FAN_STANDING` in the first board script block, just above `fanOrder`,
+which is now `FAN_STANDING.order`. `FAN_TIEBREAK_NOTE` is one sentence naming the board
+that broke the tie, and it is EMPTY when nothing was tied so no render site needs a guard.
+It is surfaced on the Fantasy Points callout and in The Numbers, per "Every ordinal names
+its board" above: a leader whose position rests on a tiebreak nobody can see is the same
+failure as an unlabeled ordinal. `window.__fanTiebreak` carries the diagnosis.
+
+THE ARLEQUIN COUNT IS NOW HOISTED, and that was the real work. It lived inside the
+Allegiances IIFE, which made it unreachable from the standings, exactly like the `MER`
+counters in Open items. Re-deriving it at a second site is the `FP_SCALE` mistake, so
+`TEAMS23`, `TEAM_ALIAS`, `RIDER_TEAM`, `teamOf()` and the tally itself moved to the top
+level of the block as `TEAM_TALLY`, with `ARLEQUIN_TEAMS` the distinct count per seat. The
+Allegiances tab, the pool bars, the Arlequin bar and the tiebreak now all read ONE
+computation. Do not rebuild it inside that IIFE again.
+
+VERIFIED, by `tools-fantasy-tiebreak-verify.js`, which lifts `FAN_STANDING` VERBATIM out
+of the built `vuelta.html` the way the roster and draft-guard verifiers do. 25 checks. The
+ones that matter:
+
+- all 24 permutations of `pool.order` give ONE leader, and it is JJ
+- the OLD sort, on the SAME numbers, gives TWO different leaders across those permutations,
+  so the regression is recorded rather than asserted
+- zero persona re-draws across all 24 permutations while the tie holds
+- Rank and Placement are both pinned as LOWEST-leads, since getting either direction
+  backwards is the silent failure under Per-race scoring profiles
+- a genuine change on Fantasy Points is STILL detected, so the guard was fixed and not
+  merely disabled
+
+LIVE AT STAGE 11: AA and JJ both 438. Arlequin is JJ 16 to AA 11, so JJ leads. Counted
+live rather than taken on trust, and cross-checked against the number the Arlequin bar was
+already rendering. Worth knowing that this also made tonight cheaper: the new order is
+`JJ, AA, JP, JB`, which is IDENTICAL to the stored `personaLedger.order`, so nothing moved
+and no persona was spent. The old code would have produced `AA, JJ, JP, JB`, seen a change,
+and re-drawn all four.
+
+Vuelta only so far. The Tour board still sorts Placement through `orderBy()` and has no
+tie rule; carrying this across means hoisting its own team tally first.
+
 ## ONE CARD, ONE ORDER
 
 Added 2026-09-01. This is the sibling of "Every ordinal names its board" above and comes
