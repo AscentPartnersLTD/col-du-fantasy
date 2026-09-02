@@ -1705,6 +1705,65 @@ and re-drawn all four.
 Vuelta only so far. The Tour board still sorts Placement through `orderBy()` and has no
 tie rule; carrying this across means hoisting its own team tally first.
 
+### The third surface, and why the first fix was not enough
+
+Found by Allen on 2026-09-02, IN A SCREENSHOT, hours after the tiebreak shipped. The hero
+chip said JJ. The Fantasy Points callout said JJ and explained the tiebreak. The STANDINGS
+table, on the same page, said `AA LEADER` on the same 438.
+
+The first fix had corrected the leader in the two places that read `fanOrder` and missed a
+third that never did. `gcHi()` sorted its own argument, and the argument was `cumPts`, a
+SECOND accumulator summing `FP_SCALE` over the same `COMPLETED` set to reach the same
+totals by a second route. Because its keys were seeded from `PL`, which is `pool.order`,
+its tie fell back to the draft rotation exactly the way `fanOrder` used to.
+
+THE SHAPE, stated so it is recognizable next time: this was not one duplicated sort, it
+was a duplicated VALUE that carried a sort with it. `cumPts` always agreed with
+`OURS.fantasy` on the totals, which is why it survived; the disagreement only ever showed
+up in the ORDER, and only on a tie. A duplicate that agrees on the number it displays can
+still disagree on the number it implies.
+
+WHAT WAS SWEPT, and this is the full list as of 2026-09-02:
+
+| Site | Reads or sorts | Now |
+|---|---|---|
+| `FAN_STANDING` | THE computation | unchanged, the only one |
+| hero chip, FP callout, The Numbers | read `fanLeader` | correct already |
+| palmares `fanPos` | reads `fanOrder.indexOf` | correct already |
+| Standings, `gcHi` | SORTED `cumPts` itself | reads `FAN_STANDING.order` |
+| `gcLoHTML` (Placement, Rank) | called `orderBy(obj)` per render | takes a declared order |
+| `trendPtsHTML` | accumulates a per-stage series | left alone, it orders no seats |
+| `gcRankPts`, `rankPts` | DEAD, defined and never called | deleted |
+
+`orderBy` also gained a seat-code last resort, so Placement and Rank cannot fall through to
+the rotation either. They agree today, and a second sort that agrees by luck is still a
+second sort.
+
+THE GATE is `tools-one-order-gate.js`, over the BUILT files. Run against the build that
+actually shipped the bug it FAILS, which is the only way to know a gate is worth having.
+
+And the part worth carrying to the next gate: the obvious check, "nothing but FAN_STANDING
+sorts a Fantasy Points total", PASSED on the buggy build. The offending line was
+`Object.keys(obj).sort(...)` inside `function gcHi(obj,label)`, so by the time the sort
+happened the total was called `obj` and no grep for its name could see it. What caught it
+was the RENDERER SIGNATURE check: no renderer may decide an order at all. A renderer that
+sorts its own argument launders the identity of what it sorts, so assert on the signature,
+not on the comparator.
+
+### The Rank because-clause was asserted, not computed
+
+The two-leaders callout said the rank leader got there "by repeatedly landing the actual
+stage winner". Never tested, and not what Rank measures. Rank scores BOTH picks against the
+day's eight, so it punishes a dead pick rather than rewarding a win. At stage 11 the rank
+leader AA had drafted 4 stage winners in 11 stages while leading JJ by 4 points across 10
+scored stages, so the stated cause was neither the largest effect nor a differentiator.
+
+It now reads off `OURS.tail`, counted in the SAME pass as `OURS.rank`: picks landing in the
+day's bottom two of eight. Measured at stage 11: AA 4 of 22, JJ 5, JP 5, JB 6. The clause
+quotes the count and degrades to a neutral aggregate sentence when the rank leader is not
+also the one with the fewest, so it cannot silently become false again.
+
+
 ## ONE CARD, ONE ORDER
 
 Added 2026-09-01. This is the sibling of "Every ordinal names its board" above and comes

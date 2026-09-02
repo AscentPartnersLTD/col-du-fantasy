@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260902-230951Z -->
+<head><!-- build:20260902-234427Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -302,6 +302,8 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
   .gc tr.lead td{background:#fdf7e6}
   .gc tr.lead .rider{color:var(--gold-d)}
   .lead-tag{display:inline-block;font-family:'Montserrat',sans-serif;font-weight:800;font-size:9px;letter-spacing:0.5px;background:var(--gold);color:#fff;padding:2px 7px;border-radius:3px;vertical-align:middle;margin-left:8px}
+  /* The tiebreak, on the LEADER row. It exists so the Standings table cannot assert a leader that the callout above it explains differently. Muted rather than gold: it qualifies the badge, it is not a second award. */
+  .lead-tb{display:inline-block;font-family:'Montserrat',sans-serif;font-weight:700;font-size:9px;letter-spacing:0.4px;background:transparent;color:var(--mute);border:1px solid var(--line);padding:1px 6px;border-radius:3px;vertical-align:middle;margin-left:5px;text-transform:uppercase}
   .twocol{display:grid;grid-template-columns:1fr 1fr;gap:28px}
   .metric-note{font-size:11px;color:var(--mute);margin-top:4px}
 
@@ -3733,7 +3735,12 @@ const ASK_JJ = [
 const NEED_PICK = [];
 /* ===================== END EDIT ZONE ===================== */
 
-const orderBy = obj => Object.keys(obj).sort((a,b)=>obj[a]-obj[b]); // ascending = better
+/* Ascending = better, which is correct for Placement and Rank and NOT for Fantasy Points.
+   The trailing seat-code comparator is the same lesson as FAN_STANDING below: without it a
+   tie falls through to key insertion order, which is PL4, which is pool.order, which is the
+   DRAFT ROTATION. A tied Placement or Rank would then reorder itself every stage. The seat
+   code is fixed for the race, so it can never be the rotation in disguise. */
+const orderBy = obj => Object.keys(obj).sort((a,b)=>(obj[a]-obj[b]) || String(a).localeCompare(String(b)));
 
 /* Our cumulative, computed from the stage data across every completed stage (void stage skipped, today held off). */
 const PL4 = (CDF.seats||CDF.order);
@@ -4166,8 +4173,8 @@ if(Object.keys(unmapped).length) console.warn('Allegiances unmapped picks:',unma
    the first tiebreak on Fantasy Points. Void stages are INCLUDED, per the note above. */
 const ARLEQUIN_TEAMS={}; PL4.forEach(p=>{ ARLEQUIN_TEAMS[p]=Object.keys(TEAM_TALLY[p]||{}).length; });
 
-const OURS = { through: COMPLETED.length?Math.max(...COMPLETED):0, placement:{}, rank:{}, fantasy:{} };
-PL4.forEach(p=>{OURS.placement[p]=0;OURS.rank[p]=0;OURS.fantasy[p]=0;});
+const OURS = { through: COMPLETED.length?Math.max(...COMPLETED):0, placement:{}, rank:{}, fantasy:{}, tail:{}, picks:{} };
+PL4.forEach(p=>{OURS.placement[p]=0;OURS.rank[p]=0;OURS.fantasy[p]=0;OURS.tail[p]=0;OURS.picks[p]=0;});
 COMPLETED.forEach(n=>{
   const st=STAGES.find(s=>s.n===n);
   PL4.forEach(p=>{ if(st.days[p]!=null) OURS.placement[p]+=st.days[p]; });
@@ -4179,6 +4186,14 @@ COMPLETED.forEach(n=>{
   allp.sort((a,b)=>a.fin-b.fin);
   let seen=0,rk=0,prev=null;
   allp.forEach(x=>{ seen++; if(prev===null||x.fin>prev) rk=seen; OURS.rank[x.p]+=rk; prev=x.fin; });
+  /* Counted in the SAME pass, because the Rank callout needs a cause and a second loop to
+     find one is how a board ends up with two answers. `tail` is picks landing in the day's
+     bottom two of eight, which is what a Rank total is actually punishing: Rank scores both
+     picks against the field, so it rewards not having a dead pick rather than rewarding a
+     stage win. `picks` is the denominator, so the copy can quote both. */
+  let s2=0,r2=0,p2=null;
+  allp.forEach(x=>{ s2++; if(p2===null||x.fin>p2) r2=s2; p2=x.fin;
+    OURS.picks[x.p]++; if(r2>=allp.length-1) OURS.tail[x.p]++; });
 });
 let WINS_PICKED=0;
 const WINS_BY={}; PL4.forEach(p=>WINS_BY[p]=0);
@@ -4342,9 +4357,22 @@ document.getElementById('callouts').innerHTML = `
   <div class="callout"><div class="n">${OURS.placement[placeLeader]}</div><div class="l">Placement leader</div><div class="d">${placeLeader}, lowest total of actual stage finishes. The third view, behind See Placement on any card. Lower leads.</div></div>
   <div class="insight">
     <svg class="arrow" viewBox="0 0 38 26" fill="none"><path d="M2 13H30M30 13L21 4M30 13L21 22" stroke="#c8102e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <div class="txt">${fanLeader===rankLeader
-      ? `<b>${fanLeader}</b> leads both boards: out front on <span class="hl">fantasy points</span> by stacking top-30 finishes, and on <span class="hl">rank</span> by landing the actual stage winner more than anyone.`
-      : `Two leaders, two boards. <b>${fanLeader}</b> is out front on <span class="hl">fantasy points</span> by stacking top-30 finishes; <b>${rankLeader}</b> leads <span class="hl">rank</span> by repeatedly landing the actual stage winner.`}</div>
+    <div class="txt">${(function(){
+      /* THE BECAUSE CLAUSE IS COMPUTED. It used to assert that the rank leader got there
+         "by repeatedly landing the actual stage winner", which was never tested and is not
+         what Rank measures. Rank scores BOTH picks against the day's eight, so it punishes a
+         dead pick rather than rewarding a win, and on 2026-09-02 the rank leader AA had
+         drafted 4 stage winners in 11 while sitting only 4 clear of JJ. The honest driver is
+         the tail count, and it is quoted rather than characterized. */
+      const tailOf=k=>OURS.tail[k]||0;
+      const fewestTail=PL4.slice().sort((a,b)=>tailOf(a)-tailOf(b))[0];
+      const rkWhy = tailOf(rankLeader)===tailOf(fewestTail)
+        ? `by keeping picks out of the day's bottom two, ${tailOf(rankLeader)} of ${OURS.picks[rankLeader]||0}, fewer than anyone`
+        : `on the aggregate of both picks against the day's eight, ${OURS.rank[rankLeader]} across ${THRU===0?0:COMPLETED.length} scored stages`;
+      return fanLeader===rankLeader
+      ? `<b>${fanLeader}</b> leads both boards: out front on <span class="hl">fantasy points</span> by stacking top-30 finishes, and on <span class="hl">rank</span> ${rkWhy}.`
+      : `Two leaders, two boards. <b>${fanLeader}</b> is out front on <span class="hl">fantasy points</span> by stacking top-30 finishes; <b>${rankLeader}</b> leads <span class="hl">rank</span> ${rkWhy}.`;
+    })()}</div>
   </div>
   `;
 
@@ -5832,17 +5860,26 @@ const PERSONA_BY = (function(){
 /* bars (lower is better: leader = smallest value = shortest bar, gold) */
 
 /* GC tables */
-function gcLoHTML(obj, label){
-  const ord=orderBy(obj);
+/* THE ORDER IS PASSED IN, NEVER DERIVED HERE. A renderer that sorts is a second opinion
+   about who leads, and on 2026-09-02 exactly that put AA at the top of the Standings table
+   while the hero chip and the callout six inches above it both said JJ. One computation
+   decides an order; every renderer reads it. `who` names the caller so a missing order is
+   loud rather than silently re-sorted. */
+function gcLoHTML(obj, label, order, who){
+  let ord=order;
+  if(!Array.isArray(ord)){
+    console.error('gcLoHTML: no declared order passed by '+(who||'an unnamed caller')+', falling back to orderBy');
+    ord=orderBy(obj);
+  }
   return `<thead><tr><th class="pos"></th><th>Rider</th><th class="r">${label}</th></tr></thead><tbody>`+
     ord.map((k,i)=>`<tr class="${i===0?'lead':''}">
       <td class="pos">${i+1}</td>
       <td><div class="rider">${k}${i===0?'<span class="lead-tag">LEADER</span>':''}</div><div class="full">${PLAYERS[k].name}</div></td>
       <td class="r big lead-val">${obj[k]}</td></tr>`).join('')+`</tbody>`;
 }
-function renderGC(el, obj, label){ el.innerHTML=gcLoHTML(obj,label); }
-renderGC(document.getElementById('gcPlace'), OURS.placement, 'Placement');
-renderGC(document.getElementById('gcRank'),  OURS.rank, 'Rank');
+function renderGC(el, obj, label, order, who){ el.innerHTML=gcLoHTML(obj,label,order,who); }
+renderGC(document.getElementById('gcPlace'), OURS.placement, 'Placement', placeOrder, 'gcPlace initial');
+renderGC(document.getElementById('gcRank'),  OURS.rank, 'Rank', rankOrder, 'gcRank initial');
 
 /* profile */
 function profileSVG(type){
@@ -7207,19 +7244,16 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   const PL=(CDF.seats||CDF.order).slice();
   const COL=(function(){var _p=['#c9971a','#26347e','#2f8f52','#cf2530'],_s=CDF.order.slice().sort(),o={};_s.forEach(function(c,i){o[c]=_p[i%_p.length];});return o;})();
 
-  /* ---- points aggregates, computed straight from STAGES over the same completed set ---- */
-  // cumulative fantasy points (every scored pick, all completed stages), higher is better
-  const cumPts={}; PL.forEach(p=>cumPts[p]=0);
-  // per-stage points-rank sum (rank the day's picks by points, most points = 1), lower is better
-  const rankPts={}; PL.forEach(p=>rankPts[p]=0);
-  COMPLETED.forEach(n=>{
-    const st=STAGES.find(s=>s.n===n);
-    const arr=[];
-    PL.forEach(p=>{ (st.picks[p]||[]).forEach(([r,f])=>{ if(f!=null){ cumPts[p]+=P(f); arr.push({p,pts:P(f)}); } }); });
-    arr.sort((a,b)=>b.pts-a.pts);
-    let seen=0,rk=0,prev=null;
-    arr.forEach(x=>{ seen++; if(prev===null||x.pts<prev) rk=seen; rankPts[x.p]+=rk; prev=x.pts; });
-  });
+  /* CUMULATIVE FANTASY POINTS IS `OURS.fantasy` AND IS NOT ACCUMULATED AGAIN HERE.
+     There used to be a second accumulator, `cumPts`, summing FP_SCALE over the same
+     COMPLETED set to reach the same numbers by a second route. It always agreed on the
+     totals, so it looked harmless, and it was not: it carried its own key order and its own
+     sort, which is how the Standings table came to disagree with the rest of the board
+     about who led a tie. This is the FP_SCALE lesson in its original form, a value written
+     out twice, and the copy that drifts is always the one nobody is looking at.
+     `rankPts` and `gcRankPts` went with it. Both were DEAD: rankPts was accumulated and
+     never read, and gcRankPts was defined and never called. Verified by occurrence count
+     before deleting, the same check that retired RACE_TOP5 and barsRankPts. */
 
   // rider picks, Stage 2 on, real finishes (matches the Stats cards' population)
   const rp={}; PL.forEach(p=>rp[p]=[]);
@@ -7228,21 +7262,23 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 
   /* ---- points renderers that mirror the existing markup exactly ---- */
 
-  function gcHi(obj,label){
-    const ord=Object.keys(obj).sort((a,b)=>obj[b]-obj[a]);
+  /* THE FANTASY POINTS ORDER IS FAN_STANDING.order AND IS NOT RECOMPUTED HERE.
+     This function used to sort its own argument, and because a stable sort falls back to
+     key insertion order, and those keys come from PL which is pool.order which is the
+     DRAFT ROTATION, it put AA at the top of the Standings table on 2026-09-02 while the
+     hero chip and the Fantasy Points callout both correctly said JJ. Same board, same tie,
+     opposite answers, and the third surface was found by looking at a screenshot rather
+     than by any check. See the tiebreak section in CLAUDE.md. */
+  function gcHi(obj,label,order,who){
+    let ord=order;
+    if(!Array.isArray(ord)){
+      console.error('gcHi: no declared order passed by '+(who||'an unnamed caller')+', falling back to a local sort');
+      ord=Object.keys(obj).sort((a,b)=>(obj[b]-obj[a])||String(a).localeCompare(String(b)));
+    }
     return `<thead><tr><th class="pos"></th><th>Rider</th><th class="r">${label}</th></tr></thead><tbody>`+
       ord.map((k,i)=>`<tr class="${i===0?'lead':''}">
         <td class="pos">${i+1}</td>
-        <td><div class="rider">${k}${i===0?'<span class="lead-tag">LEADER</span>':''}</div><div class="full">${PLAYERS[k].name}</div></td>
-        <td class="r big lead-val">${obj[k]}</td></tr>`).join('')+`</tbody>`;
-  }
-
-  function gcRankPts(obj,label){
-    const ord=Object.keys(obj).sort((a,b)=>obj[a]-obj[b]);
-    return `<thead><tr><th class="pos"></th><th>Rider</th><th class="r">${label}</th></tr></thead><tbody>`+
-      ord.map((k,i)=>`<tr class="${i===0?'lead':''}">
-        <td class="pos">${i+1}</td>
-        <td><div class="rider">${k}${i===0?'<span class="lead-tag">LEADER</span>':''}</div><div class="full">${PLAYERS[k].name}</div></td>
+        <td><div class="rider">${k}${i===0?'<span class="lead-tag">LEADER</span>':''}${(i===0&&FAN_STANDING.brokenBy&&FAN_STANDING.brokenBy!=='shared')?`<span class="lead-tb" title="${FAN_TIEBREAK_NOTE}">on ${FAN_STANDING.brokenBy}</span>`:''}${(i===0&&FAN_STANDING.brokenBy==='shared')?'<span class="lead-tb">shared</span>':''}</div><div class="full">${PLAYERS[k].name}</div></td>
         <td class="r big lead-val">${obj[k]}</td></tr>`).join('')+`</tbody>`;
   }
 
@@ -7334,11 +7370,11 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 
   // --- Overview: GC tables ---
   const dPlace=colOf('gcPlace');
-  wire(dPlace,'gcPlace', gcHi(cumPts,'Fantasy Pts'),
+  wire(dPlace,'gcPlace', gcHi(OURS.fantasy,'Fantasy Pts',FAN_STANDING.order,'gcPlace toggle'),
     [{el:q(dPlace,'.eyebrow'), points:`Fantasy Points &middot; primary`}], 'Fantasy Points', true);
 
   const dRank=colOf('gcRank');
-  wire(dRank,'gcRank', gcLoHTML(OURS.placement,'Placement'),
+  wire(dRank,'gcRank', gcLoHTML(OURS.placement,'Placement',placeOrder,'gcRank toggle'),
     [{el:q(dRank,'.eyebrow'), points:`Placement &middot; explore`}], 'Rank', false);
 
   // --- Stats: average fantasy points per pick ---
