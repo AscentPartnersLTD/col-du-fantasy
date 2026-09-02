@@ -986,6 +986,11 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
       /* small alerts-on bell tucked into the rider-selection card once enabled */
       #draftMount .push-bell{background:none;border:1px solid var(--line);border-radius:999px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#2e7d43;flex:none;padding:0;transition:border-color .15s}
       #draftMount .push-bell svg{width:15px;height:15px;display:block}
+      /* Emitted by head() on every draft render so the bell always has a home in the new
+         markup. It collapses when empty, so a board that has never switched alerts on
+         reserves nothing and the header lays out exactly as it did before. */
+      #draftMount .bell-slot{display:flex;align-items:center;flex:none}
+      #draftMount .bell-slot:empty{display:none}
       #draftMount .push-bell:hover{border-color:#2e7d43}
       .mer-site{color:#B22234;font-weight:700;text-decoration:underline}
       .mer-credit{font-size:10px;color:var(--mute);margin-top:4px;opacity:.8}
@@ -2291,6 +2296,7 @@ auth.onAuthStateChanged(async user=>{
       var _ins=document.querySelector('#callouts .insight .txt');
       if(_ins) _ins.innerHTML='The boards are level to start. The story fills in as the race is scored.';
     }
+    subscribePool();  // keep ORDER and friends current, see watchPool
     subscribe();     // live draft into #draftMount
   }catch(e){ console.error(e);
     diag('BOARD LOAD FAILED: '+(e&&(e.code||e.message||e)));
@@ -2674,14 +2680,146 @@ async function buildCDF(){
 }
 /* ---------------- draft engine (per pool) ---------------- */
 function draftRef(){ return db.doc('pools/'+poolId+'/drafts/'+STAGE); }
-function draftInit(){ return { n:Number(STAGE), order:ORDER, snake:SNAKE, queue:SNAKE.slice(), picks:[], status:'pending', createdAt:FV.serverTimestamp() }; }
+/* order and snake are COPIED. draftInit used to hand the live ORDER and SNAKE arrays
+   straight to Firestore, so the document and the board shared one array. Nothing mutates
+   them today, which is the only reason it never bit. */
+function draftInit(){ return { n:Number(STAGE), order:ORDER.slice(), snake:SNAKE.slice(), queue:SNAKE.slice(), picks:[], status:'pending', createdAt:FV.serverTimestamp() }; }
+
+/* THE PENDING-DRAFT RESET, AND WHY IT NEEDS A LIMIT.
+
+   The reset below exists so a pending draft picks up a change to the pool's pick order.
+   It is written as "if the stored order is not MY order, make it my order", which is only
+   safe while every open session agrees what the order is. They do not: ORDER is read once
+   in loadPool() and, until the pool listener added below, was never refreshed. So a
+   session opened before the order was rotated asserted the OLD order for its whole life,
+   the newer session asserted the new one, and each rewrote the other, at network speed.
+
+   Measured live on 2026-09-01, stage 11: 50 snapshots in 4 seconds, about 750 writes a
+   minute, alternating between the two orders, for hours. Nothing logged, because the
+   failure path was `catch(e){}` and the success path said nothing at all. It was spotted
+   as a pill jumping on a phone.
+
+   The pool listener removes the CAUSE. This guard is the BACKSTOP: any future
+   disagreement, from any source, costs a handful of wasted writes instead of a storm, and
+   says so out loud. */
+const DRAFT_RESET_MAX = 3;          // per stage, per session
+const DRAFT_RESET_COOLDOWN_MS = 4000;
+const _resetGuard = { stage:null, count:0, last:0 };
+function mayResetDraft(){
+  const key=String(STAGE), now=Date.now();
+  if(_resetGuard.stage!==key){ _resetGuard.stage=key; _resetGuard.count=0; _resetGuard.last=0; }
+  if(_resetGuard.count>=DRAFT_RESET_MAX) return false;
+  if(now-_resetGuard.last<DRAFT_RESET_COOLDOWN_MS) return false;
+  return true;
+}
+function noteResetAttempt(){ _resetGuard.count++; _resetGuard.last=Date.now(); }
+
+/* THE STORM MONITOR. A draft doc that is being written faster than people can draft is a
+   storm, and it must be VISIBLE rather than inferred from a moving badge. An idle pending
+   draft sees zero snapshots a minute and a busy one sees roughly one per pick, so ten in
+   ten seconds cannot be human. It warns ONCE per storm, names both competing orders, and
+   parks the evidence on window.__draftDiag for whoever reads it next. */
+const STORM_WINDOW_MS = 10000, STORM_SNAPSHOTS = 10;
+window.__draftDiag = { snaps:[], resets:0, refusedResets:0, storm:false, lastRefusal:'', ourOrder:null, theirOrder:null };
+function noteSnapshot(d){
+  const D=window.__draftDiag, now=Date.now();
+  D.snaps.push(now);
+  while(D.snaps.length && now-D.snaps[0]>STORM_WINDOW_MS) D.snaps.shift();
+  D.ourOrder=(typeof ORDER!=='undefined'?ORDER:[]).join(',');
+  D.theirOrder=((d&&d.order)||[]).join(',');
+  if(D.snaps.length>=STORM_SNAPSHOTS){
+    if(!D.storm){
+      D.storm=true;
+      console.warn('[CDF] DRAFT WRITE STORM on '+draftRef().path+': '+D.snaps.length
+        +' snapshots in '+(STORM_WINDOW_MS/1000)+'s. This board wants order ['+D.ourOrder
+        +']; the document keeps coming back as ['+D.theirOrder+']. That means another open'
+        +' session is holding a different pool order. Reload or close the other session.'
+        +' Evidence on window.__draftDiag.');
+    }
+  } else if(D.storm && D.snaps.length<=2){
+    D.storm=false;
+    console.info('[CDF] draft write storm cleared on '+draftRef().path);
+  }
+}
+/* THE POOL LISTENER, and the class of bug it closes.
+
+   loadPool() reads the pool document ONCE and fans it out into module state. Every one of
+   those values was then treated as current for the life of the session, and none of them
+   was. ORDER is the one that bit: rotating pool.order between stages left every already
+   open board asserting the previous stage's order forever, which is what turned the
+   pending-draft reset above into a two-session write fight.
+
+   ANY VALUE READ ONCE AT LOAD AND THEN TREATED AS CURRENT IS A STALE-SESSION HAZARD. This
+   refreshes the ones that are cheap and safe to refresh live. It deliberately does NOT
+   rebuild the whole board, because buildCDF and __runBoard are a one-shot render and
+   re-running them is a much larger change than this fix.
+
+   KNOWN AND DELIBERATE ASYMMETRY: this refreshes `pool`, but NOT `STAGE`, which loadPool
+   pins from pool.startStage. STAGE is what draftRef() addresses, so changing it live means
+   re-subscribing the draft and re-rendering most of the board. An open session therefore
+   still sits on the stage it booted with when a stage is closed under it, and the fix for
+   that is still a reload. That is the largest remaining item on the stale-session list.
+
+   It never writes, so it cannot itself loop. */
+let unsubPool=null;
+function subscribePool(){
+  if(unsubPool) unsubPool();
+  unsubPool=db.doc('pools/'+poolId).onSnapshot(snap=>{
+    if(!snap.exists) return;
+    const p=snap.data()||{};
+    const beforeOrder=ORDER.join(',');
+    pool=p;                                   // the cached doc every later read goes through
+    ORDER=(p.order&&p.order.length)?p.order.slice():Object.values(p.members||{});
+    SNAKE=ORDER.concat(ORDER.slice().reverse());
+    JUDGE=p.judge||null;
+    PMETA={}; { const seats=ORDER.slice().sort(); ORDER.forEach(c=>{ PMETA[c]={n:(p.names&&p.names[c])||c,c:PALETTE[seats.indexOf(c)%PALETTE.length]}; }); }
+    myCode=(p.members||{})[myEmail]||null; isJudge=(myCode&&myCode===JUDGE);
+    if(ORDER.join(',')!==beforeOrder){
+      /* Say it out loud. A session silently changing its mind about the pick order is
+         exactly as confusing as one silently refusing to. */
+      console.info('[CDF] pool order changed under this session: ['+beforeOrder+'] -> ['+ORDER.join(',')+']');
+      /* A fresh order resets this session's budget, because this is a real change rather
+         than the disagreement the guard exists to damp. */
+      _resetGuard.stage=null;
+      try{ if(draft) renderDraft(); }catch(e){ console.error('draft repaint after order change',e); }
+      try{ highlightSeat(); }catch(e){}
+    }
+  }, err=>{ console.warn('[CDF] pool listener stopped: '+((err&&err.message)||err)); });
+}
 function subscribe(){
   if(unsub) unsub();
   unsub=draftRef().onSnapshot(async snap=>{
     if(!snap.exists){ if(isOwner||myCode){ try{ await draftRef().set(draftInit()); }catch(e){ $('draftMount').innerHTML=warn('Could not open the draft: '+esc(e.message)); } return; } $('draftMount').innerHTML='<div class="draft"><div class="allin"><div class="sm">The draft has not been opened yet.</div></div></div>'; return; }
     draft=snap.data();
     try{ window.__livePicks={stage:Number(draft.n||STAGE), picks:(draft.picks||[]).map(function(p){return {p:p.player, rider:p.rider};})}; }catch(e){}
-    if(draft.status==='pending'&&(draft.picks||[]).length===0&&JSON.stringify(draft.order||[])!==JSON.stringify(ORDER)){ if(isOwner||myCode){ try{ await draftRef().set(draftInit()); }catch(e){} return; } }
+    noteSnapshot(draft);
+    if(draft.status==='pending'&&(draft.picks||[]).length===0&&JSON.stringify(draft.order||[])!==JSON.stringify(ORDER)){
+      if(isOwner||myCode){
+        if(mayResetDraft()){
+          noteResetAttempt(); window.__draftDiag.resets++;
+          /* LOGGED, both ways. The silent catch here is half the reason a 750-writes-a-
+             minute storm ran unnoticed: the failure said nothing and the success said
+             nothing, so there was no difference between working and looping. */
+          try{
+            await draftRef().set(draftInit());
+            console.info('[CDF] pending draft '+STAGE+' reset to pick order ['+ORDER.join(',')+']');
+          }catch(e){
+            console.warn('[CDF] could not reset pending draft '+STAGE+': '+((e&&e.code)||'')+' '+((e&&e.message)||e));
+          }
+          return;
+        }
+        /* Refused. Do NOT return: fall through and render the draft as the document
+           actually stands. A board that shows the card with somebody else's order is
+           usable and visibly wrong; a board that returns early here renders nothing at
+           all and looks like a dead page. */
+        window.__draftDiag.refusedResets++;
+        window.__draftDiag.lastRefusal='wanted ['+ORDER.join(',')+'], document holds ['+((draft.order||[]).join(','))+']';
+        if(window.__draftDiag.refusedResets===1)
+          console.warn('[CDF] stopped resetting the pending draft after '+DRAFT_RESET_MAX
+            +' attempts this session. '+window.__draftDiag.lastRefusal
+            +'. Another open session is almost certainly holding an older pool order.');
+      }
+    }
     renderDraft();
     highlightSeat();
     try{ renderKassei(); }catch(e){ console.error('kassei render',e); }
@@ -2727,8 +2865,14 @@ async function paintPushUI(){
   const bell='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>';
   if(sub){
     bar.style.display='none'; bar.innerHTML='';
-    const host=document.querySelector('#draftMount .dh')||document.querySelector('#draftMount .minibar');
-    if(host && !host.querySelector('.push-bell')){
+    /* The SLOT first. The bell is normally carried across renders by setMount and is
+       already sitting here, in which case this does nothing. This path is the FIRST mount,
+       and the one after the alerts bar switches them on. `.dh` and `.minibar` stay as
+       fallbacks so a render that predates the slot still finds a home. */
+    const host=document.querySelector('#draftMount .bell-slot')
+      ||document.querySelector('#draftMount .dh')
+      ||document.querySelector('#draftMount .minibar');
+    if(host && !document.querySelector('#draftMount .push-bell')){
       const b=document.createElement('button');
       b.type='button'; b.className='push-bell';
       b.title='On-the-clock alerts are ON for '+myCode+' on this device - tap to turn off';
@@ -3270,7 +3414,36 @@ function renderKassei(){
   });
 }
 function highlightSeat(){ const clock=(draft&&draft.queue&&draft.queue[0])||null; document.querySelectorAll('.pb-seat').forEach(s=>s.classList.toggle('on', s.dataset.code===clock)); }
-function head(sub,badge){ return `<div class="dh"><div class="dh-l"><div class="dh-ico"><svg viewBox="0 0 40 40" fill="none"><path d="M4 31 L15 13 L21 22 L27 9 L36 31 Z" fill="#c8102e"/><circle cx="27" cy="9" r="3.2" fill="#c8102e"/></svg></div><div><div class="dh-t">Stage ${esc(STAGE)} draft</div><div class="dh-s">${sub}</div></div></div>${badge||''}</div>`; }
+/* The `.bell-slot` is where the on-the-clock bell lives. It is emitted by the HEADER, so
+   both renderers get it from one place, and it is `:empty`-hidden so it costs nothing on a
+   board that has never switched alerts on. See setMount for why the bell is MOVED into it
+   rather than rebuilt. */
+function head(sub,badge){ return `<div class="dh"><div class="dh-l"><div class="dh-ico"><svg viewBox="0 0 40 40" fill="none"><path d="M4 31 L15 13 L21 22 L27 9 L36 31 Z" fill="#c8102e"/><circle cx="27" cy="9" r="3.2" fill="#c8102e"/></svg></div><div><div class="dh-t">Stage ${esc(STAGE)} draft</div><div class="dh-s">${sub}</div></div></div>${badge||''}<span class="bell-slot"></span></div>`; }
+/* THE BELL SURVIVES A RENDER. It is not rebuilt after one.
+
+   Both renderers replace #draftMount wholesale, so anything mounted inside it by someone
+   else is destroyed on every render. The bell was mounted into `.dh` by paintPushUI after
+   the fact, so each render dropped it and the next paintPushUI put it back. With three
+   flex children rather than two, `justify-content:space-between` puts the badge in a
+   different place, so the badge moved about 340px every time the bell came and went. That
+   is the pill that was seen jumping on a phone.
+
+   The write storm made it happen eight times a second and is fixed separately, above. This
+   is the half that is worth fixing anyway: EVERY legitimate render destroys the bell too,
+   and there is one of those per pick lock.
+
+   Detaching the node and putting it back keeps the element and its click listener alive,
+   and does it SYNCHRONOUSLY inside the same call that replaces the markup, so the bell is
+   never absent for even one frame. Re-mounting it asynchronously afterwards, which is what
+   paintPushUI does, is what allowed a reflow in between. */
+function setMount(html){
+  const mount=$('draftMount');
+  const keep=mount.querySelector('.push-bell');
+  if(keep) keep.remove();          // detached, not destroyed: the node and its listener live on
+  mount.innerHTML=html;
+  const slot=mount.querySelector('.bell-slot');
+  if(keep){ const dh=slot||mount.querySelector('.dh')||mount.querySelector('.minibar'); if(dh) dh.appendChild(keep); }
+}
 function riderAv(rider,pending,clock,player){ if(pending) return `<span class="tav pending ${clock?'clock':''}"><span class="fb" style="color:${PMETA[player].c}">${player}</span></span>`; const col=rider.c||'#888'; const fb=`<span class="fb" style="background:${col}">${init(rider.r)}</span>`; /* Tier 1 and 2 from the bib-keyed portrait map; rider.p is whatever the pick stored at
      draft time and stays as a last source so an older pick keeps what it was saved with. */
   const img=portraitImg(rider.r,'ph',col)||(rider.p?`<img class="ph" src="${esc(rider.p)}" onerror="this.remove()">`:''); return `<span class="tav" style="box-shadow:0 0 0 2.5px ${col}">${fb}${img}</span>`; }
@@ -3313,11 +3486,11 @@ function renderMini(picks){
       +(gone?'<div class="tgone">Out of the race</div>':'')
       +`</div>`;
   });
-  $('draftMount').innerHTML='<div class="draft">'
+  setMount('<div class="draft">'
     +head('Snake draft · locked',`<span class="dh-badge badge-done">All ${picks.length} in</span>`)
     +`<div class="ticker locked" style="--lk-cols:${cols}">${cells}</div>`
     +`<div class="seedbar">Picks are live on the stage card. Standings post once the stage is scored.</div>`
-    +'</div>';
+    +'</div>');
 }
 function renderDraft(){
   const picks=draft.picks||[], queue=draft.queue||[]; const clock=queue[0]||null; const status=draft.status||'pending';
@@ -3345,7 +3518,7 @@ function renderDraft(){
   else { const mine=[]; queue.forEach((c,idx)=>{ if(c===myCode) mine.push(idx); }); const nextTxt=myCode?(mine.length?`Your next turn is pick #${picks.length+mine[0]+1}.`:'Both your picks are in.'):'You are watching.'; action=`<div class="action"><div class="waitline"><b>${PMETA[clock].n} is on the clock.</b> ${nextTxt}</div></div>`; }
   let admin=''; if(isOwner&&!pending&&clock&&clock!==myCode){ admin=`<div class="admin"><div class="ad-h">Operator · enter for the player on the clock</div><div class="ad-b">${PMETA[clock].n} is up (pick #${picks.length+1}).</div>${searchRow('Enter for '+PMETA[clock].n)}</div>`; }
   let judge=''; if(isJudge&&!pending&&clock&&clock!==myCode){ judge=`<div class="judge"><div class="j-h">Judge control</div><div class="j-b">Waiting on <b>${PMETA[clock].n}</b> (pick #${picks.length+1}).</div><button class="j-skip" id="bump" type="button">Bump ${PMETA[clock].n} to the back</button></div>`; }
-  $('draftMount').innerHTML='<div class="draft">'+head(sub,badge)+`<div class="ticker">${nodes}</div>`+action+admin+judge+'</div>';
+  setMount('<div class="draft">'+head(sub,badge)+`<div class="ticker">${nodes}</div>`+action+admin+judge+'</div>');
   let forCode=null; if(clock===myCode) forCode=myCode; else if(isOwner&&pending) forCode=ORDER[0]; else if(isOwner&&clock&&clock!==myCode) forCode=clock;
   if(forCode) wireSearch(forCode);
   const b=$('bump'); if(b) b.addEventListener('click',doBump);

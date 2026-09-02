@@ -871,6 +871,48 @@ bars, so "border-radius 999px with no display rule" is NOT by itself a defect si
 Also worth knowing: `<button>` shrink-to-fit even at `display:block`, so the button
 pills were never at risk either.
 
+## A MEASURED SYMPTOM IS NOT A DIAGNOSIS
+
+Added 2026-09-01, after two confident diagnoses of two different bugs were both wrong and
+both were backed by correct measurements.
+
+- The pill. Measured: the badge alternates between x=757 and x=1097 every 120ms, 80 DOM
+  mutations in 5 seconds, the mount alternating 2273 and 2733 characters, the only
+  difference a trailing push-bell button. Every number was right. The diagnosis drawn from
+  them, that the bell mount re-triggers the draft render and the two are chasing each
+  other, was wrong. Nothing in the file observes the DOM: there is no MutationObserver,
+  ResizeObserver or IntersectionObserver anywhere in it, and renderDraft has exactly two
+  callers. The bell was a PASSENGER. The cause was two sessions fighting over the pick
+  order, eight writes a second, and the bell was merely being destroyed by each render.
+- The pill, again, one section up. A span computing to `display:block` was measured
+  correctly and read as evidence of stretching, when it is evidence of a FLEX PARENT,
+  which is the one context where the element cannot stretch.
+
+THE RULE. A measurement tells you WHAT is happening. It does not tell you WHY, and the
+gap between those is where both of these lived. Before implementing the fix a symptom
+suggests, find the mechanism and TEST it, cheaply, in a way that can come back negative.
+
+The two tests that settled these took minutes each:
+
+- grep for the second occurrence of the thing you think is listening. No observer in the
+  file means nothing can be observing. This is the same move as "grep for a config flag's
+  second occurrence" under the side-games section, and it answers the same question:
+  does the mechanism you are assuming actually EXIST?
+- watch the DATA, not the DOM. Logging `draft.order` on every snapshot showed it
+  alternating between two values in the same sample window that showed the badge
+  alternating between two positions. That one line reframed the whole bug.
+
+WHY IT MATTERS MORE THAN BEING RIGHT. Both proposed fixes would have WORKED, in the sense
+that the symptom would have stopped. Pinning the pill or moving the bell out of the
+replaced subtree makes the badge hold still, and leaves the board re-rendering eight times
+a second and writing to Firestore 750 times a minute, with the only outward sign of it
+removed. That is the fail-open shape this file keeps recording, arrived at from the other
+direction: not a guard that silently stops working, but a fix that silently hides the
+thing it was supposed to expose.
+
+So: when a fix makes a symptom disappear, be able to say WHICH MECHANISM it interrupted.
+If the answer is "the visible part", it is a workaround, and the bug is still running.
+
 ## loading="lazy" and this board, measured 2026-08-30
 
 Do NOT add `loading="lazy"` to a small image on this board, and do not "tidy up" by
@@ -1910,6 +1952,117 @@ executable and a reader trusts it.
 still named and absent, which is deliberate and is not a broken test. Do not silence it
 by adding close-stage.js to its EXTERNAL map; that map is for files that legitimately
 live elsewhere, and this one does not live anywhere.
+
+### Rotating pool.order is part of the close, and it strands every open session
+
+Added 2026-09-01. THIS IS THE TRIGGER for the write storm recorded below, and it matters
+far more for the automated close than it did for the hand one, because the automated close
+will do exactly this every single day.
+
+WHAT HAPPENED. Allen rotated `pool.order` by hand on the afternoon of 2026-09-01, as part
+of closing stage 10 and opening stage 11. That is the correct operation. Every board
+already open at that moment kept the PREVIOUS order, because `ORDER` was read once at boot
+and never refreshed, and there is no reason for a reader to reload. From then on the open
+session and any newly opened session disagreed permanently, and the pending-draft reset
+turned that disagreement into a mutual rewrite at network speed.
+
+So the rotation did not cause a storm because it was done by hand or done wrongly. It
+caused one because the board had no way to hear about it. A scheduled close doing the same
+write at the same time every day would have produced the same storm every day.
+
+WHAT TO KNOW WHEN THE CLOSE IS AUTOMATED:
+
+- `pool.order` is a LIVE value that other sessions hold copies of. Writing it is not like
+  writing a stage doc, which nothing has cached. Treat it as a broadcast.
+- `subscribePool()` now makes open boards pick the change up, so the rotation is safe in a
+  way it was not before. That is what makes this recordable as fixed rather than as a
+  standing hazard.
+- `STAGE` is NOT refreshed by that listener, per the audit below, so an open board still
+  sits on the stage it booted with when `startStage` advances. Rotating the order and
+  advancing the stage are the same operation at close time, and only half of it currently
+  reaches an open session.
+- Do the rotation and the stage advance as CLOSE TOGETHER as possible. A gap between them
+  is a window in which sessions hold a new order against an old stage.
+
+## Values read once in loadPool are STALE-SESSION HAZARDS
+
+Added 2026-09-01, after `ORDER` cost a day.
+
+`loadPool()` reads the pool document ONCE and fans it out into module state. Everything it
+sets was then treated as CURRENT for the life of the session, and none of it was. That is
+fine for a page nobody leaves open. Every one of these boards is left open, on a phone, for
+days.
+
+WHAT IT COST. `ORDER` is read from `pool.order` at boot. Rotating the order between stages
+left every already-open board asserting the previous stage's order forever. Combined with
+the pending-draft reset in `subscribe()`, which says "if the stored order is not MY order,
+make it my order", two sessions rewrote each other at network speed: measured live on stage
+11, 50 snapshots in 4 seconds, about 750 writes a minute, for hours. See the storm section
+below.
+
+FIXED 2026-09-01: `subscribePool()` keeps `pool`, `ORDER`, `SNAKE`, `PMETA`, `JUDGE`,
+`myCode` and `isJudge` current from a pool-doc snapshot. It never writes, so it cannot
+itself loop, and it repaints the draft when the order actually changes.
+
+### The audit, and what is still stale
+
+Asked for by Allen and deliberately NOT fixed in the same commit. This is the list, not a
+work order. `pool` itself is now refreshed, so these are all things DERIVED from it once
+and never recomputed:
+
+- `STAGE`, from `pool.startStage`. THE BIGGEST ONE. It is what `draftRef()` addresses, so
+  an open session keeps drafting the stage it booted with after a close advances the pool.
+  Refreshing it live means re-subscribing the draft and re-rendering most of the board,
+  which is why it was left. Today the fix is a reload.
+- `CDF.boardConfig`, the whole race calendar, weather and `predictionsThroughStage`. Read
+  once in `buildCDF`. A calendar edit does not reach an open board.
+- `CDF.stages`, the scored stage docs. Read once. A stage scored while a board is open does
+  not appear on it. `jpDeadlineMet()` already works around this with a direct read, which
+  is evidence the gap is real rather than theoretical.
+- `CDF.official`, `CDF.personaLedger`, `CDF.riderProfile`, `CDF.carriedJerseys`,
+  `CDF.editorial`. All one-shot off `pool`.
+- The masthead subtitle and `document.title`, from `pool.subtitle` and `pool.pageTitle`.
+  Harmless, listed for completeness.
+- The manifest href, from `poolId`. One-shot by nature and correct.
+
+`pool.predictionsLocked` is NOT on this list: the jersey-predictions widget already has its
+own pool-doc listener for exactly this reason, and it is the precedent the new one follows.
+
+THE GENERAL RULE, which is the reason this section exists rather than a bug entry: ANY
+VALUE READ ONCE AT LOAD AND THEN TREATED AS CURRENT IS A STALE-SESSION HAZARD. It is
+invisible in every test, because a test opens the page and then acts. It only appears when
+a session outlives a change, which on this board is the normal case and not the edge one.
+
+## A draft write storm, and why it took a moving pill to find
+
+Added 2026-09-01.
+
+The pending-draft reset had NO limit and NO logging. Its failure path was `catch(e){}` and
+its success path said nothing, so a board that was working and a board looping 750 times a
+minute were indistinguishable from the outside. It ran for hours and was noticed because a
+badge was jumping on a phone.
+
+TWO THINGS SHIP WITH IT NOW, and they do different jobs:
+
+- THE BACKSTOP. `mayResetDraft()` allows at most `DRAFT_RESET_MAX` resets per stage per
+  session with a `DRAFT_RESET_COOLDOWN_MS` gap. A thousand disagreeing snapshots now cost
+  three writes instead of a thousand. When it refuses it does NOT return early any more: it
+  falls through and renders the draft as the document actually stands, because a board
+  showing somebody else's order is usable and visibly wrong, where the old early return
+  rendered nothing and looked like a dead page.
+- THE ALARM. `noteSnapshot()` counts snapshots in a rolling ten seconds and warns ONCE per
+  storm, naming the document, this board's order, the competing order, and what to do about
+  it. Ten snapshots in ten seconds cannot be human: an idle pending draft sees none and a
+  busy one sees about one per pick. Evidence lands on `window.__draftDiag`.
+
+Both are exercised by `tools-draft-guard-verify.js`, which lifts them VERBATIM out of the
+built `vuelta.html` and runs them under Node, the same way `tools-roster-verify.js` does.
+21 checks. It asserts the budget, the cooldown, that a fresh stage gets a fresh budget, that
+the alarm fires once rather than once per snapshot, that the warning actually names both
+orders, that it clears, and that a normal eight-pick draft never trips it.
+
+The alarm is the point. The backstop stops a storm being expensive; the alarm stops the
+next one needing a person to notice a moving pixel.
 
 ## The combatif comes from the ice bind, and from nothing else
 
