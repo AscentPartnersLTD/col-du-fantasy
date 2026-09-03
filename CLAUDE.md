@@ -2581,6 +2581,38 @@ leader chips, trend-line captions) has to follow that race's profile.
 
 ## Writing conventions for anything user-facing
 
+### DO NOT ADD PLAYER-FACING SURFACES UNLESS ALLEN ASKS. Absolute.
+
+Added 2026-09-03, after the third occurrence, twice on things he had already had removed.
+
+NO new widget, panel, badge, card, chip, drawer, banner or line of status copy goes in
+front of the four players unless Allen asked for it. Not a small one. Not a temporary one.
+Not one that is only visible in an edge case.
+
+INTERNAL ENGINE STATE BELONGS IN DIAGNOSTICS, NEVER ON THE BOARD. `window.__personaDiag`,
+`window.__PERSONA_FROZEN`, `window.__draftDiag`, `window.__ROSTER_STATE`,
+`window.__fanTiebreak` are the pattern: a console read for the operator, invisible to
+players. A pool of four people does not need to be told what a persona tier is, that a
+bank has narrowed, or that a rotation was bypassed.
+
+THE TRAP THIS CLOSES, and it is a seductive one, because this file is full of the reasoning
+that leads to it. Several sections here correctly say that a silent failure is
+indistinguishable from working software: a pinned persona looks like a broken engine, a
+held persona looks like a stuck rotation, a fail-open guard looks like a guard. All true.
+The wrong conclusion is to make the state visible TO PLAYERS. The right conclusion is to
+make it visible TO THE OPERATOR, which is what a diagnostic is for. "It needs a surface to
+be verifiable" is the exact thought that produced every one of these, and it is wrong every
+time.
+
+IF A CHANGE SEEMS TO NEED A SURFACE, PROPOSE IT AND WAIT. Do not ship it and offer to
+remove it later. It is in front of all four players the moment it is pushed.
+
+Removed under this rule on 2026-09-03: the persona status badges on the Palmares cards
+("Persona pinned, rotation bypassed", "Pin not in the bank, ignored", "Persona held, no
+unworn champion name left", "No unworn style name left") and the whole Persona bank panel
+beneath them. Both were built to expose engine state. Neither was asked for.
+
+
 - No em dashes, no en dashes, hyphens only, no HTML entities.
 - American spelling.
 - Board text never references how the board was made and never says "you".
