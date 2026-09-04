@@ -1,5 +1,42 @@
 # Col du Fantasy - context for Claude Code
 
+## EVERY SESSION STARTS WITH node tools-preflight.js
+
+No exceptions, whatever the task. On any FAIL, stop and fix it before starting work.
+
+```
+node tools-preflight.js
+```
+
+  0 behind, clean tree   -> proceed
+  behind, clean tree     -> git pull --ff-only, then proceed
+  behind, dirty tree     -> STOP, report, and wait for Allen. Do not merge, do not
+                            reset, do not work on top of it.
+
+A FETCH ALONE IS NOT ENOUGH. It updates the remote refs and leaves the working tree
+exactly as stale as it was. On 2026-09-04 a fetch would have prevented the missing-file
+alarm but NOT the roster-floor alarm, because that fix lived in a commit the tree did
+not have. Reconcile, do not just look.
+
+WHY: a stale clone does not report staleness, it reports ABSENCE, and absence is what a
+reader acts on. That day a clone 18 commits behind produced two false alarms in one
+session: a tool reported missing that had existed for three days, and a roster-floor
+cliff that commit `293dde3` had already fixed. Both reported confidently. Neither real.
+
+Allen works across Dragon and Gerald and pushes from whichever he is at, so any session
+on either machine can be arbitrarily far behind, and the gap is invisible until
+something contradicts.
+
+What the preflight covers, confirmed 2026-09-04: the machine it is running on, that
+`git fetch` ran, the behind count, the working-tree state, `CDF_KEY` present AND
+`/api/pool-state` answering 200 as two separate checks, the official feed reachable,
+the pool's current `startStage` and `order`, and which stage closer is on disk. The
+dirty-and-behind stop was added the same day: that check used to be `record(true, ...)`
+and could never fail, so the one case most worth stopping was the one case the preflight
+had no opinion about.
+
+---
+
 Read this first. It is the cold-start brief for this repo. If it disagrees with a
 chat conversation, this file wins, because chat history disappears and the repo
 does not. Keep this file updated in the same commit as any change it describes.
@@ -1478,6 +1515,75 @@ are no pins, so there are no movers and the ladder is never reached. AA badger,
 JP professor, JJ tonymartin, JB eternalsecond stands as the engine wrote it. Simulating
 JJ overtaking JP re-draws all four and reuses nothing from the ledger.
 
+## Personas must match the SEX of the race
+
+Added 2026-09-04, on Allen's ruling, after JJ took a 40 point lead and the board handed
+him Nicole Cooke.
+
+THE RULE. Personas match the gender of the race being run. A men's Grand Tour draws only
+from men. A women's race, if one is ever added, draws only from women. A woman's name on
+a seat in a men's race reads as an INSULT rather than an honour, which is the exact
+opposite of what the feature is for.
+
+IT LIVES IN THE DATA, never as a draw-time hack, so it travels per race:
+
+- every `PERSONA_BANK` row carries `sex:"m"` or `sex:"f"`
+- `RACE_PROFILE` carries `sex`, and this Vuelta is `'m'`
+- `sexOk(c)` is one predicate next to `byId`, and every draw site asks it
+
+A persona whose sex does not match is UNAVAILABLE, exactly like a worn one. The Giro
+sets its own `sex` and no engine code changes, which is the same call as `FP_SCALE` and
+the rest day derivation.
+
+THE WOMEN'S ROWS ARE KEPT, NOT DELETED, because a women's race would want them. They are
+simply unreachable here. "Present and unreachable" is a different claim from "gone", and
+it is the one the gate asserts. Eight rows: `berylburton` (style, Beryl Burton) and seven
+winners, `vos`, `longo`, `vanvleuten`, `vdbreggen`, `vanmoorsel`, `nicolecooke`,
+`deignan`. That leaves 84 drawable of 92, 29 winner and 55 style.
+
+### The filter on the DRAW cannot repair a board that is already wrong
+
+This is the tonymartin lesson exactly, one rule over, and it is why the fix is two
+changes rather than one. With the order steady there are no movers, so nothing
+re-examines `by`, and a stored persona that fails the filter would sit there forever. On
+the night this shipped `orderChanged` was FALSE: the stored order already matched the new
+Fantasy Points order, so JJ would have kept Cooke for the rest of the race.
+
+A seat whose stored persona fails the filter is therefore a MOVER in its own right,
+alongside `retiring`, `orderChanged`, `dupe` and a tier mismatch. Measured against the
+live ledger: exactly one mover, JJ, on the wrong-sex condition alone, with AA, JP and JB
+all holding. Nothing else is disturbed and no extra bank is spent.
+
+The exhaustion HOLD is guarded the same way. Without `sexOk` on the keep branch, a
+depleted tier would hand the failing name straight back, which is the fail-open shape
+this file keeps recording: the guard runs, and the wrong name stays.
+
+### Verified
+
+`tools-persona-sex-gate.js` lifts the bank, `RACE_PROFILE.sex` and the ART map VERBATIM
+out of the built `vuelta.html`, the same way the roster and tiebreak verifiers do, so it
+measures shipped code rather than a transcription. It asserts every row carries a sex,
+ART parity at 92 of 92, that the women are retained and none drawable, and the per-tier
+headroom. With `CDF_KEY` set it additionally reads the LIVE ledger and asserts that no
+seat holds a failing persona, which is the half that proves the repair RAN rather than
+that the code merely contains a filter.
+
+That live gate FAILS until the board has re-rendered once and written the repaired
+ledger, and that is deliberate. Re-run it after a load to confirm the repair landed.
+
+`tools-persona-sim.js` was updated in the same commit, and it had been THROWING since the
+bank was filled: it asserted exactly 56 rows and the bank is 92, so it verified nothing
+across that whole window. Its capacity line also read "of 12" and "of 44", the pre-fill
+sizes, and reported spending more than existed. Both are now counted from the bank rather
+than typed. A hardcoded denominator goes wrong exactly when the thing it describes
+improves.
+
+NOT DONE, deliberately: the TOUR board. `board.src.html` carries its own separate 27-row
+bank and its own older widening-ladder draw. All 27 rows are men, so the filter would be
+a provable no-op there, and wiring it means changing a board that is not running a race
+tonight and cannot be verified with it. If that bank ever grows, it needs the same two
+changes and the same gate.
+
 ## Personas never repeat within a race
 
 Added 2026-08-28. This supersedes the widening ladder above.
@@ -2180,30 +2286,43 @@ To ask whether a stage is done, read the CLASSIFICATION and not those two fields
 - the `ite` bind own `_updatedAt` from `rankingType-{year}-{stage}`.
 - `rankingType-{year}-{stage+1}` returning `[]`, meaning nothing has raced since.
 
-## tools/close-stage.js DOES NOT EXIST, and every stage since 5 was closed by hand
+## tools/close-stage.js EXISTS as of 2026-09-04, and stages 5 to 12 were closed by hand
 
-Recorded 2026-09-01. This file is described throughout CLAUDE.md as the thing that
-resolves picks to bibs, applies the missed-pick and DNF rules and writes the scored stage
-doc. IT HAS NEVER EXISTED IN THIS REPO. There is no file and there is no git history for
-the path, and `bibByName` and `posByBib`, the two identifiers the sections above quote
-from it, appear nowhere in the repo. `operator.html` is a members and judge console, not
-a stage closer.
+This section said DOES NOT EXIST from 2026-09-01, and that was true when written. The
+file was committed on 2026-09-04, in the same commit as the stage 13 close it ran, having
+sat UNTRACKED on Dragon for three days, which by this file's own rule means no other
+machine and no other session had it.
 
-EVERY STAGE SINCE 5 HAS BEEN CLOSED BY HAND, from a signed-in browser console. That is
-the real operating procedure, and it is why a lost browser session has blocked the board
-TWICE. The scoring rules are written down here in full; the thing that applies them is
-not, so the only executable copy of the close procedure is whatever is in the operator
-head at the time.
+WHAT IT DOES. Reads the official classification in two hops, resolves every pick to a bib
+off `RIDERS` in the built board, applies the abandon rule, computes Placement, Fantasy
+Points and Rank, runs eight gates, and prints the stage document. `--emit` writes both a
+paste-in browser snippet and a machine-readable payload file beside it, so a writer
+consumes the numbers the gates checked rather than a re-typed copy of them.
 
-Until it is built, treat the surrounding sections as a SPEC rather than as a description
-of running code. Anything above that says close-stage.js "now" does something is stating
-an intention, which is the same failure as a config flag with no consumer: it reads as
-executable and a reader trusts it.
+WHAT IT DELIBERATELY DOES NOT DO. It NEVER writes to Firestore. A human stays between a
+computed result and four players' season. The write path is `/api/score-stage` and
+`/api/board-config` in the coldufantasy-login repo, whose payload shapes are READ from
+that repo rather than guessed, per what guessing a write payload costs in this stack.
 
-`tools-claudemd-paths.js` is the gate that keeps this honest. It fails while the path is
-still named and absent, which is deliberate and is not a broken test. Do not silence it
-by adding close-stage.js to its EXTERNAL map; that map is for files that legitimately
-live elsewhere, and this one does not live anywhere.
+STAGES 5 TO 12 WERE CLOSED BY HAND, from a signed-in browser console, and that is why a
+lost browser session blocked the board twice. Stage 13 was the first close computed and
+gated by this tool.
+
+TREAT THE SURROUNDING SECTIONS AS SPEC UNTIL CHECKED. They were written as a description
+of a tool that did not exist, so anything they claim it "now" does is an intention that
+happens to have been implemented later, not a record of behavior. Two of those claims
+were WRONG when the tool was finally written against them, and both would have shipped a
+broken card: the stage doc needs `route` and `type`, which the spec never mentions and
+which `stageCard` reads directly, and the field floor was written at 0.85 when the board
+had already settled on 0.75. See the floor note at `MIN_FIELD_FRACTION`.
+
+`tools-claudemd-paths.js` is the gate that keeps this honest, and it has ONE KNOWN
+WEAKNESS worth reading before trusting it: it resolves paths with `fs.existsSync` against
+the WORKING TREE, not against origin. So it passes on a file that exists only as an
+untracked local artifact, which is exactly the state close-stage.js was in for three days
+while this section said it did not exist. The rule this file states, that every path must
+be verified AT ORIGIN, is therefore stricter than the gate that is supposed to enforce it.
+Closing that gap means asking git, not the filesystem.
 
 ### Rotating pool.order is part of the close, and it strands every open session
 
@@ -2402,7 +2521,7 @@ It is also NOT the old missed-pick value, one behind the worst pick ANYONE made 
 stage. That is far more lenient than it sounds: with every other pick inside the top 60
 it scores an abandon as 61st.
 
-`close-stage.js` writes the scored value into `f` so every existing consumer keeps
+`tools/close-stage.js` writes the scored value into `f` so every existing consumer keeps
 working with no change. `FP_SCALE[174]` is undefined and every call site on the board is
 `FP_SCALE[f] || 0`, so Fantasy lands on 0 with no NaN, and 174 sorts last for Rank.
 
@@ -2567,7 +2686,7 @@ the seat knows before the stage is scored rather than after.
 Added 2026-08-27, after two bibs were found swapped on a live board.
 
 `RIDERS` is not a display list. It is the bib table, and it is what turns a pick into
-a result. `close-stage.js` builds `bibByName` from it, resolves every pick to a bib,
+a result. `tools/close-stage.js` builds `bibByName` from it, resolves every pick to a bib,
 and reads the finish off `posByBib`. Its own gate says it: "a pick did not resolve to
 a bib; never fall back to name matching". So a name attached to the wrong bib does not
 error, does not look wrong, and does not fail a gate. It hands one rider another

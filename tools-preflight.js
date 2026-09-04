@@ -127,14 +127,26 @@ function checkGit() {
       'You are ' + behind + ' commit(s) behind. STOP. Reconcile before any other work:\n' +
       '           git merge --ff-only origin/main\n' +
       '         If that is refused, you have local changes; save them, then merge.\n' +
+      '         A FETCH ALONE IS NOT ENOUGH. It updates the remote refs and leaves the\n' +
+      '         working tree exactly as stale as it was. Reconcile, do not just look.\n' +
       '         A stale clone reports ABSENCE, not staleness, and absence is what you act on.');
 
   let dirty = '';
   try { dirty = sh('git status --porcelain'); } catch (e) { }
   const modified = dirty.split('\n').filter(l => l.trim() && !l.startsWith('??'));
-  record(true, 'working tree',
+  /* A dirty tree on a CURRENT clone is ordinary working state and passes. Dirty AND
+     behind is the one combination that must STOP: a fast-forward is not available, and
+     merging or resetting on Allen's behalf is exactly the destructive guess this check
+     exists to prevent. Report it and wait for him.
+     This used to be record(true, ...), which could never fail, so the case Allen most
+     wanted stopped was the one case the preflight had no opinion about at all. */
+  const blocked = modified.length > 0 && behind > 0;
+  record(!blocked, 'working tree',
     (modified.length ? modified.length + ' modified' : 'clean') +
-    ', ' + dirty.split('\n').filter(l => l.startsWith('??')).length + ' untracked');
+    ', ' + dirty.split('\n').filter(l => l.startsWith('??')).length + ' untracked' +
+    (blocked ? ', and ' + behind + ' behind' : ''),
+    blocked ? 'DIRTY TREE AND ' + behind + ' COMMIT(S) BEHIND. STOP and report to Allen.\n' +
+      '         Do NOT merge, do NOT reset, and do NOT work on top of it.' : null);
 
   return { behind: behind, ahead: ahead, head: head };
 }

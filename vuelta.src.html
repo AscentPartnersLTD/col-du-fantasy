@@ -64,6 +64,15 @@ const RACE_PROFILE = {
   routeUrl:'https://www.lavuelta.es/en/overall-route',
   stageUrl:function(n){ return 'https://www.lavuelta.es/en/stage-'+n; },
 
+  /* THE SEX OF THE FIELD THIS RACE IS RUN BY, 'm' or 'f'. The persona bank is filtered
+     on it, so a men's Grand Tour draws only from men and a women's race would draw only
+     from women. It is DATA rather than a draw-time test so it travels per race: the Giro
+     sets its own and no engine code changes.
+     WHY IT EXISTS: on 2026-09-04 JJ took a 40 point lead and the board handed him Nicole
+     Cooke. A woman's name on a seat in a men's race reads as an insult rather than an
+     honour, which is the opposite of what the feature is for. */
+  sex:'m',
+
   /* Copy only. The calendar itself is Firestore boardConfig.race. */
   stageCount:21,
   startCity:'Monaco',
@@ -5454,37 +5463,37 @@ const PERSONA_BANK = [
   /* ---- New winners, added 2026-08-11. No ART emblem yet; cards fall back to the empty avatar. ---- */
 
   /* src: https://en.wikipedia.org/wiki/Greg_LeMond */
-  { id:"lemond", tier:"winner", rider:"Greg LeMond", epithet:"The American in Paris",
+  { id:"lemond", tier:"winner", sex:"m", rider:"Greg LeMond", epithet:"The American in Paris",
     fit:S=> S.wins*45 + (5-S.consPos)*45 + 20,
     blurb:"LeMond came back from a hunting accident with shotgun pellets still in his body and won the 1989 Tour by eight seconds, the closest finish in its history.",
     why:S=> `${S.k} leads on a margin that would not survive one bad day${S.wins?`, with ${S.wins} stage ${S.wins===1?'winner':'winners'} drafted`:''} - held together by nerve as much as legs.` },
 
   /* src: https://en.wikipedia.org/wiki/Gino_Bartali */
-  { id:"bartali", tier:"winner", rider:"Gino Bartali", epithet:"Gino the Pious",
+  { id:"bartali", tier:"winner", sex:"m", rider:"Gino Bartali", epithet:"Gino the Pious",
     fit:S=> (5-S.consPos)*60 + S.aggro*35 + 25,
     blurb:"Bartali won the Tour ten years apart, and during the war carried forged documents hidden in his bicycle frame to help save Jewish families. Israel later named him Righteous Among the Nations.",
     why:S=> `${S.k} leads the quiet way - steady day after day, nothing wasted, no theater.` },
 
   /* src: https://en.wikipedia.org/wiki/Carlos_Sastre */
-  { id:"sastre", tier:"winner", rider:"Carlos Sastre", epithet:"The Quiet Man",
+  { id:"sastre", tier:"winner", sex:"m", rider:"Carlos Sastre", epithet:"The Quiet Man",
     fit:S=> (5-S.consPos)*50 + S.nonSprintWins*60 + 20,
     blurb:"Sastre spent years as the loyal lieutenant, then won the 2008 Tour on a single attack up Alpe d'Huez.",
     why:S=> `${S.k} leads without fanfare${S.nonSprintWins?`, ${S.nonSprintWins} of the wins coming on days that had to be climbed`:''} - patient, then decisive.` },
 
   /* src: https://en.wikipedia.org/wiki/%C3%93scar_Pereiro */
-  { id:"pereiro", tier:"winner", rider:"Oscar Pereiro", epithet:"The Lucky One",
+  { id:"pereiro", tier:"winner", sex:"m", rider:"Oscar Pereiro", epithet:"The Lucky One",
     fit:S=> S.wins*35 + (S.burial>=100?90:0) + 15,
     blurb:"Pereiro was handed almost thirty minutes in a breakaway nobody bothered to chase, and rode that gift into the 2006 Tour title.",
     why:S=> `${S.k} leads with a worst finish of ${S.burial} on the sheet - proof that the days that go wrong matter less than the days that go right.` },
-  { id:"cannibal", tier:"winner", rider:"Eddy Merckx", epithet:"The Cannibal",
+  { id:"cannibal", tier:"winner", sex:"m", rider:"Eddy Merckx", epithet:"The Cannibal",
     fit:S=> S.wins*80 + S.aggro*30 + 60,
     blurb:"A rival's daughter coined 'The Cannibal' because Merckx left nothing for anyone else - he tried to win everything, everywhere.",
     why:S=> `${S.k} leads the pool, with ${S.wins} stage ${S.wins===1?'winner':'winners'} drafted${S.mostWins?', more than anyone at the table':''} - the field left with scraps.` },
-  { id:"bigmig", tier:"winner", rider:"Miguel Induráin", epithet:"Big Mig",
+  { id:"bigmig", tier:"winner", sex:"m", rider:"Miguel Induráin", epithet:"Big Mig",
     fit:S=> (5-S.consPos)*80 + (S.burial<=55?70:0),
     blurb:"Induráin won five straight Tours and, at 6'1\", towered over every podium - a huge, calm, unbreakable engine, the quietest dominance the sport has seen.",
     why:S=> `${S.k} leads with the steadiest hand of the four - low finishes banked day after day, no theatrics.` },
-  { id:"badger", tier:"winner", rider:"Bernard Hinault", epithet:"The Badger",
+  { id:"badger", tier:"winner", sex:"m", rider:"Bernard Hinault", epithet:"The Badger",
     fit:S=> S.aggro*140 + S.wins*30 + 40,
     blurb:"Hinault, the last Frenchman to win the Tour, said a badger waits in its sett, then comes out and attacks - and he raced, and won, exactly that way.",
     why:S=> `${S.k} leads and fights for it${S.prix?`, holding ${S.prix} Premio de la Combatividad`:''}${S.wins?`, with ${S.wins} stage ${S.wins===1?'winner':'winners'} drafted`:''}.` },
@@ -5492,251 +5501,251 @@ const PERSONA_BANK = [
   /* ---- New styles, added 2026-08-11. No ART emblem yet; cards fall back to the empty avatar. ---- */
 
   /* src: https://en.wikipedia.org/wiki/Robbie_McEwen */
-  { id:"mcewen", tier:"style", rider:"Robbie McEwen", epithet:"Rocket Robbie",
+  { id:"mcewen", tier:"style", sex:"m", rider:"Robbie McEwen", epithet:"Rocket Robbie",
     fit:S=> S.sprintWins*110 + (S.aggro===0?60:0) + 15,
     blurb:"McEwen took three green jerseys with no leadout train of his own, freelancing off rival trains and picking the right wheel at the right second. He came to the road from BMX.",
     why:S=> `${S.k} wins on flat days without any setup${S.sprintWins?`, ${S.sprintWins} of them so far`:''} - all timing, no help.` },
 
   /* src: https://en.wikipedia.org/wiki/Baden_Cooke */
-  { id:"cooke", tier:"style", rider:"Baden Cooke", epithet:"Cookie",
+  { id:"cooke", tier:"style", sex:"m", rider:"Baden Cooke", epithet:"Cookie",
     fit:S=> S.sprintWins*60 + (S.placePos===2?120:0) + 10,
     blurb:"Cooke beat McEwen to the 2003 green jersey by two points, settled on the Champs-Elysees on the final afternoon.",
     why:S=> `${S.k} sits ${ordinal(S.placePos)} on Placement and close enough that a single stage swings it - the margin is nothing.` },
 
   /* src: https://en.wikipedia.org/wiki/Andr%C3%A9_Greipel */
-  { id:"greipel", tier:"style", rider:"Andre Greipel", epithet:"The Gorilla",
+  { id:"greipel", tier:"style", sex:"m", rider:"Andre Greipel", epithet:"The Gorilla",
     fit:S=> S.sprintWins*90 + S.wins*30 + (S.burial>=90?40:0),
     blurb:"Greipel won stages in all three grand tours on raw power. He spent years stuck behind Cavendish at the same team, then left.",
     why:S=> `${S.k} wins by force rather than finesse${S.sprintWins?`, ${S.sprintWins} on the fast days`:''} - and takes the rough days that come with it.` },
 
   /* src: https://en.wikipedia.org/wiki/Mark_Renshaw */
-  { id:"renshaw", tier:"style", rider:"Mark Renshaw", epithet:"The Best Leadout in the World",
+  { id:"renshaw", tier:"style", sex:"m", rider:"Mark Renshaw", epithet:"The Best Leadout in the World",
     fit:S=> S.loyC*90 + S.sprintWins*40 + 10,
     blurb:"Renshaw was the leadout man who made Cavendish's wins possible, and once headbutted a rival three times at speed defending the line. The Tour threw him off for it.",
     why:S=> `${S.k} keeps going back to ${S.sigName||'the same rider'}${S.loyC?`, ${S.loyC} times now`:''} - one horse, ridden hard.` },
 
   /* src: https://en.wikipedia.org/wiki/%C3%93scar_Freire */
-  { id:"freire", tier:"style", rider:"Oscar Freire", epithet:"El Gato",
+  { id:"freire", tier:"style", sex:"m", rider:"Oscar Freire", epithet:"El Gato",
     fit:S=> S.wins*55 + (S.aggro===0?80:0) + 10,
     blurb:"Freire won three world titles by reading a finish better than anyone rather than out-powering it, and was open about training as little as he could get away with.",
     why:S=> `${S.k} does nothing loud all week and then takes the day${S.wins?`, ${S.wins} so far`:''} - efficiency over effort.` },
 
   /* src: https://en.wikipedia.org/wiki/Andr%C3%A9_Darrigade */
-  { id:"darrigade", tier:"style", rider:"Andre Darrigade", epithet:"The Greyhound of Narbonne",
+  { id:"darrigade", tier:"style", sex:"m", rider:"Andre Darrigade", epithet:"The Greyhound of Narbonne",
     fit:S=> S.sprintWins*70 + S.wins*35 + 12,
     blurb:"Darrigade won twenty-two Tour stages and the 1959 world title, and made a habit of taking the opening stage before anyone had settled in.",
     why:S=> `${S.k} gets off the mark early and often${S.wins?`, ${S.wins} ${S.wins===1?'win':'wins'} banked`:''} - fast from the gun.` },
 
   /* src: https://en.wikipedia.org/wiki/Federico_Bahamontes */
-  { id:"bahamontes", tier:"style", rider:"Federico Bahamontes", epithet:"The Eagle of Toledo",
+  { id:"bahamontes", tier:"style", sex:"m", rider:"Federico Bahamontes", epithet:"The Eagle of Toledo",
     fit:S=> S.nonSprintWins*90 + (S.rankPos<=2?50:0) + 20,
     blurb:"Bahamontes took six mountains titles.",
     why:S=> `${S.k} does the damage where the road tilts up${S.nonSprintWins?`, ${S.nonSprintWins} ${S.nonSprintWins===1?'win':'wins'} away from the flat`:''}.` },
 
   /* src: https://en.wikipedia.org/wiki/Lucien_Van_Impe */
-  { id:"vanimpe", tier:"style", rider:"Lucien Van Impe", epithet:"The Little Climber",
+  { id:"vanimpe", tier:"style", sex:"m", rider:"Lucien Van Impe", epithet:"The Little Climber",
     fit:S=> S.nonSprintWins*70 + (5-S.consPos)*30 + 12,
     blurb:"Van Impe won six mountains classifications on purpose, treating polka dots as the goal rather than the consolation prize, and won the 1976 Tour along the way.",
     why:S=> `${S.k} picks a lane and works it${S.nonSprintWins?`, ${S.nonSprintWins} ${S.nonSprintWins===1?'win':'wins'} on the climbing days`:''} - a specialist, not an accident.` },
 
   /* src: https://en.wikipedia.org/wiki/Charly_Gaul */
-  { id:"gaul", tier:"style", rider:"Charly Gaul", epithet:"The Angel of the Mountains",
+  { id:"gaul", tier:"style", sex:"m", rider:"Charly Gaul", epithet:"The Angel of the Mountains",
     fit:S=> S.nonSprintWins*60 + (S.burial>=80?60:0) + 10,
     blurb:"Gaul rode best when conditions were worst. In freezing rain on the 1958 Tour he took back most of a quarter hour in a single afternoon.",
     why:S=> `${S.k} shows up on the ugly days${S.burial?`, a worst finish of ${S.burial} on the sheet and unbothered by it`:''}.` },
 
   /* src: https://en.wikipedia.org/wiki/Joaquim_Rodr%C3%ADguez */
-  { id:"purito", tier:"style", rider:"Joaquim Rodriguez", epithet:"Purito",
+  { id:"purito", tier:"style", sex:"m", rider:"Joaquim Rodriguez", epithet:"Purito",
     fit:S=> S.nonSprintWins*75 + (S.placePos===2?80:0) + 12,
     blurb:"Rodriguez was explosive on steep uphill finishes, and lost a grand tour he was leading late.",
     why:S=> `${S.k} keeps landing near the front${S.placePos===2?' and sits second, close enough to feel it':''} - dangerous whenever the finish kicks up.` },
 
   /* src: https://en.wikipedia.org/wiki/Jacky_Durand */
-  { id:"durand", tier:"style", rider:"Jacky Durand", epithet:"Dudu",
+  { id:"durand", tier:"style", sex:"m", rider:"Jacky Durand", epithet:"Dudu",
     fit:S=> S.prix*150 + S.aggro*40 + 10,
     blurb:"Durand built an entire career on long breakaways that were usually doomed, and collected combativity prizes doing it. He rode from the front because that was the point.",
     why:S=> `${S.k} keeps drafting the day's aggressor${S.prix?`, ${S.prix} Premio ${S.prix===1?'award':'awards'} banked`:''} - the attempt is the identity.` },
 
   /* src: https://en.wikipedia.org/wiki/Thomas_Voeckler */
-  { id:"voeckler", tier:"style", rider:"Thomas Voeckler", epithet:"The Grimace",
+  { id:"voeckler", tier:"style", sex:"m", rider:"Thomas Voeckler", epithet:"The Grimace",
     fit:S=> (S.placePos<=2?110:0) + S.aggro*50 + 15,
     blurb:"Voeckler held the yellow jersey ten days in 2004, far longer than anyone expected, and every kilometer of it showed on his face.",
     why:S=> `${S.k} is holding ${ordinal(S.placePos)} on Placement and defending it the hard way - visible effort, no comfort.` },
 
   /* src: https://en.wikipedia.org/wiki/Sylvain_Chavanel */
-  { id:"chavanel", tier:"style", rider:"Sylvain Chavanel", epithet:"Monsieur Combatif",
+  { id:"chavanel", tier:"style", sex:"m", rider:"Sylvain Chavanel", epithet:"Monsieur Combatif",
     fit:S=> S.prix*120 + S.sel*60 + 10,
     blurb:"Chavanel started eighteen Tours, a record at the time, and won the combativity prize again and again without ever contending for the race.",
     why:S=> `${S.k} shows up on the attack week after week${S.aggro?`, ${S.aggro} combativity ${S.aggro===1?'award':'awards'} between the two boards`:''}.` },
 
   /* src: https://en.wikipedia.org/wiki/Juan_Antonio_Flecha */
-  { id:"flecha", tier:"style", rider:"Juan Antonio Flecha", epithet:"The Arrow",
+  { id:"flecha", tier:"style", sex:"m", rider:"Juan Antonio Flecha", epithet:"The Arrow",
     fit:S=> S.sel*140 + (S.burial>=100?40:0) + 10,
     blurb:"Flecha was a breakaway specialist who got knocked off his bike by a French television car on live coverage in 2011, got back up, and finished the stage.",
     why:S=> `${S.k} keeps landing picks in the move${S.sel?`, ${S.sel} Seleccion ${S.sel===1?'award':'awards'} so far`:''} - out front and taking what comes.` },
 
   /* src: https://en.wikipedia.org/wiki/Chris_Boardman */
-  { id:"boardman", tier:"style", rider:"Chris Boardman", epithet:"Mr Prologue",
+  { id:"boardman", tier:"style", sex:"m", rider:"Chris Boardman", epithet:"Mr Prologue",
     fit:S=> (5-S.consPos)*50 + (S.burial<=45?80:0) + 10,
     blurb:"Boardman won three Tour prologues and held the hour record, and approached the bicycle as an engineering problem to be solved rather than a machine to be ridden.",
     why:S=> `${S.k} keeps the floor high${S.burial?`, nothing worse than ${S.burial} all race`:''} - measured, repeatable, no wasted watts.` },
 
   /* src: https://en.wikipedia.org/wiki/Tony_Martin_(cyclist) */
-  { id:"tonymartin", tier:"style", rider:"Tony Martin", epithet:"Panzerwagen",
+  { id:"tonymartin", tier:"style", sex:"m", rider:"Tony Martin", epithet:"Panzerwagen",
     fit:S=> (5-S.consPos)*60 + (S.aggro===0?50:0) + 12,
     blurb:"Martin won four world time trial titles and once rode a Tour stage to the finish with a broken collarbone.",
     why:S=> `${S.k} grinds out the same solid day every time - no theatrics, and nothing breaks it.` },
 
   /* src: https://en.wikipedia.org/wiki/Beryl_Burton */
-  { id:"berylburton", tier:"style", rider:"Beryl Burton", epithet:"BB",
+  { id:"berylburton", tier:"style", sex:"f", rider:"Beryl Burton", epithet:"BB",
     fit:S=> (5-S.consPos)*45 + S.wins*30 + 15,
     blurb:"Burton dominated British time trialling for a quarter of a century and beat the men's twelve hour record in 1967. The story goes that she offered the rider she passed a liquorice allsort.",
     why:S=> `${S.k} is simply steadier than the room${S.wins?`, with ${S.wins} ${S.wins===1?'win':'wins'} on top of it`:''}.` },
 
   /* src: https://en.wikipedia.org/wiki/Tom_Boonen */
-  { id:"boonen", tier:"style", rider:"Tom Boonen", epithet:"Tommeke",
+  { id:"boonen", tier:"style", sex:"m", rider:"Tom Boonen", epithet:"Tommeke",
     fit:S=> S.sprintWins*70 + S.aggro*55 + 15,
     blurb:"Boonen won Paris-Roubaix four times and the Tour of Flanders three, and for a decade was the most recognized man in Belgium.",
     why:S=> `${S.k} can win it fast or win it rough${S.wins?`, ${S.wins} ${S.wins===1?'win':'wins'} across both kinds of day`:''}.` },
 
   /* src: https://en.wikipedia.org/wiki/Johan_Vansummeren */
-  { id:"vansummeren", tier:"style", rider:"Johan Vansummeren", epithet:"Summie",
+  { id:"vansummeren", tier:"style", sex:"m", rider:"Johan Vansummeren", epithet:"Summie",
     fit:S=> (S.wins===1?140:0) + (S.burial>=100?50:0) + 10,
     blurb:"Vansummeren was a domestique nobody backed when he won Paris-Roubaix in 2011, and he rode the last kilometers on a flat tire.",
     why:S=> `${S.k} has one that landed and plenty that did not - the single win is the whole story.` },
 
   /* src: https://en.wikipedia.org/wiki/Philippe_Gilbert */
-  { id:"gilbert", tier:"style", rider:"Philippe Gilbert", epithet:"Phil",
+  { id:"gilbert", tier:"style", sex:"m", rider:"Philippe Gilbert", epithet:"Phil",
     fit:S=> S.wins*60 + S.aggro*45 + (S.mostWins?70:0),
     blurb:"In one spring of 2011 Gilbert won Amstel Gold, Fleche Wallonne, Liege-Bastogne-Liege and the Tour's opening stage. Almost nobody has strung a run like it.",
     why:S=> `${S.k} is on a run${S.mostWins?', more stage winners drafted than anyone at the table':''} - everything landing at once.` },
 
   /* src: https://en.wikipedia.org/wiki/Paolo_Bettini */
-  { id:"bettini", tier:"style", rider:"Paolo Bettini", epithet:"Il Grillo",
+  { id:"bettini", tier:"style", sex:"m", rider:"Paolo Bettini", epithet:"Il Grillo",
     fit:S=> S.nonSprintWins*55 + S.aggro*60 + 12,
     blurb:"Bettini won Olympic gold and back to back world titles, and attacked on terrain where nobody else would.",
     why:S=> `${S.k} goes on the days that are not designed for it${S.aggro?`, ${S.aggro} combativity ${S.aggro===1?'award':'awards'} to show for it`:''}.` },
 
   /* src: https://en.wikipedia.org/wiki/Damiano_Cunego */
-  { id:"cunego", tier:"style", rider:"Damiano Cunego", epithet:"Il Piccolo Principe",
+  { id:"cunego", tier:"style", sex:"m", rider:"Damiano Cunego", epithet:"Il Piccolo Principe",
     fit:S=> S.wins*40 + (S.placePos>=3?100:0) + 10,
     blurb:"Cunego won the Giro at twenty-two, beating his own team leader to do it, and never won another grand tour.",
     why:S=> `${S.k} has the wins${S.wins?` (${S.wins})`:''} without the standing to match - the talent is not the problem.` },
 
   /* src: https://en.wikipedia.org/wiki/Samuel_S%C3%A1nchez */
-  { id:"samusanchez", tier:"style", rider:"Samuel Sanchez", epithet:"Samu",
+  { id:"samusanchez", tier:"style", sex:"m", rider:"Samuel Sanchez", epithet:"Samu",
     fit:S=> (S.burial>=90?70:0) + (5-S.consPos)*35 + 10,
     blurb:"Sanchez won Olympic road gold in 2008 and was widely rated the best descender of his generation, taking back on the way down what others gained going up.",
     why:S=> `${S.k} recovers from the bad ones${S.burial?`, a worst finish of ${S.burial} that did not stick`:''} - the damage never compounds.` },
 
   /* src: https://en.wikipedia.org/wiki/Eros_Poli */
-  { id:"poli", tier:"style", rider:"Eros Poli", epithet:"The Giant",
+  { id:"poli", tier:"style", sex:"m", rider:"Eros Poli", epithet:"The Giant",
     fit:S=> S.nonSprintWins*100 + (S.burial>=110?70:0) + 10,
     blurb:"Poli stood two meters tall and rode as a leadout man, then in 1994 went clear alone over Mont Ventoux, the least likely climb of his career, and won the stage.",
     why:S=> `${S.k} just did something completely out of character${S.nonSprintWins?`, ${S.nonSprintWins} ${S.nonSprintWins===1?'win':'wins'} where none was expected`:''}.` },
 
   /* src: https://en.wikipedia.org/wiki/Andy_Schleck  and  https://en.wikipedia.org/wiki/Fr%C3%A4nk_Schleck */
-  { id:"schleckbros", tier:"style", rider:"The Schleck Brothers", epithet:"The Brothers",
+  { id:"schleckbros", tier:"style", sex:"m", rider:"The Schleck Brothers", epithet:"The Brothers",
     fit:S=> S.loyC*110 + (S.placePos<=3?40:0) + 12,
     blurb:"Andy and Frank Schleck rode the same team, attacked together, and in 2011 finished the Tour on the podium side by side, the first brothers ever to manage it.",
     why:S=> `${S.k} keeps pairing picks off the same squad${S.sigName?`, ${S.sigName} at the center of it`:''} - one plan, two riders.` },
-  { id:"godofthunder", tier:"style", rider:"Thor Hushovd", epithet:"The God of Thunder",
+  { id:"godofthunder", tier:"style", sex:"m", rider:"Thor Hushovd", epithet:"The God of Thunder",
     fit:S=> S.wins*60 + (S.rankPos<=2?90:0) + S.nonSprintWins*45,
     blurb:"Thor Hushovd, 'The God of Thunder', was a powerhouse who won bunch sprints, survived the mountains, and took the Tour's green jersey twice.",
     why:S=> `${S.k} fits it now: ${S.wins} stage ${S.wins===1?'winner':'winners'} drafted across all kinds of days${S.rankPos===1?', and tops the rank standing':''} - power everywhere.` },
-  { id:"lionking", tier:"style", rider:"Mario Cipollini", epithet:"The Lion King",
+  { id:"lionking", tier:"style", sex:"m", rider:"Mario Cipollini", epithet:"The Lion King",
     fit:S=> S.sprintWins*120 + S.wins*20 + 10,
     blurb:"Cipollini was the fastest, flashiest sprinter of his era - 'Super Mario', the Lion King, who turned bunch finishes into a show.",
     why:S=> `${S.k} fits it now: ${S.sprintWins?`${S.sprintWins} sprint-day ${S.sprintWins===1?'winner':'winners'} drafted`:'a nose for the fast finishes'}, and cashes the bunch gallops.` },
-  { id:"manxmissile", tier:"style", rider:"Mark Cavendish", epithet:"The Manx Missile",
+  { id:"manxmissile", tier:"style", sex:"m", rider:"Mark Cavendish", epithet:"The Manx Missile",
     fit:S=> S.sprintWins*160,
     blurb:"Cavendish is the Manx Missile - the fastest finisher cycling has produced, and holder of the record 35 Tour de France stage wins.",
     why:S=> `${S.k} fits it now: ${S.sprintWins} sprint ${S.sprintWins===1?'winner':'winners'} drafted, pure speed on the flat.` },
-  { id:"pirate", tier:"style", rider:"Marco Pantani", epithet:"The Pirate",
+  { id:"pirate", tier:"style", sex:"m", rider:"Marco Pantani", epithet:"The Pirate",
     fit:S=> S.sel*260 + S.aggro*70,
     blurb:"Pantani raced in a bandana and a hoop earring and knew one gear: attack. 'Il Pirata' lit up the mountains by going from far out.",
     why:S=> `${S.k} fits it now: ${S.sel?"took the Selección más Combativa out of the day's break":'the boldest picks on the board'}, all in on the aggressive move.` },
-  { id:"professor", tier:"style", rider:"Laurent Fignon", epithet:"The Professor",
+  { id:"professor", tier:"style", sex:"m", rider:"Laurent Fignon", epithet:"The Professor",
     fit:S=> (5-S.consPos)*70 + (S.aggro===0?70:0) + 20,
     blurb:"Fignon, twice a Tour winner, wore round glasses and had passed his baccalaureate - the peloton called him 'The Professor' for the studious, calculating way he raced.",
     why:S=> `${S.k} fits it now: the calmest, most calculated card of the four, banking steady finishes over hero rides.` },
-  { id:"eternalsecond", tier:"style", rider:"Raymond Poulidor", epithet:"The Eternal Second",
+  { id:"eternalsecond", tier:"style", sex:"m", rider:"Raymond Poulidor", epithet:"The Eternal Second",
     fit:S=> S.loyC*120 + (S.placePos>=3?150:0) + (S.placePos===4?110:0) + S.mvdp*30,
     blurb:"Poulidor was second at the Tour three times and never wore yellow, yet France adored 'Poupou' more than the winners - and he is Mathieu van der Poel's grandfather.",
     why:S=> S.mvdp
       ? `${S.k} fits it now: still backing Mathieu van der Poel, Poulidor's own grandson, and hanging tough at the foot of the standings, loved for it.`
       : `${S.k} fits it now: ${S.sigName?`the loyal ${S.sigName} backer`:"the table's loyal romantic"}, hanging tough near the foot of the standings and loved for it.` },
   /* ---- Wave 1 additions (July 2026) ---- */
-  { id:"contador", tier:"winner", rider:"Alberto Contador", epithet:"El Pistolero",
+  { id:"contador", tier:"winner", sex:"m", rider:"Alberto Contador", epithet:"El Pistolero",
     fit:S=> S.aggro*110 + S.wins*45 + 30,
     blurb:"Contador won all three Grand Tours and fired a finger-pistol at the line - 'El Pistolero', the great attacking stage-race rider of his era.",
     why:S=> `${S.k} leads the pool and rides on the attack, a stage-race winner's instinct out front.` },
-  { id:"ullrich", tier:"winner", rider:"Jan Ullrich", epithet:"Der Kaiser",
+  { id:"ullrich", tier:"winner", sex:"m", rider:"Jan Ullrich", epithet:"Der Kaiser",
     fit:S=> (5-S.consPos)*55 + S.wins*25 + 20,
     blurb:"Ullrich, 'Der Kaiser', won the 1997 Tour de France at 23 and was the biggest raw engine of his generation.",
     why:S=> `${S.k} leads on raw power - steady, dominant, hard to drop.` },
-  { id:"cadelevans", tier:"winner", rider:"Cadel Evans", epithet:"Cuddles",
+  { id:"cadelevans", tier:"winner", sex:"m", rider:"Cadel Evans", epithet:"Cuddles",
     fit:S=> S.wins*40 + (5-S.consPos)*35 + (S.rankPos<=2?30:0) + 10,
     blurb:"Evans, affectionately 'Cuddles', ground out the 2011 Tour to become the first Australian winner - patience and a diesel engine over fireworks.",
     why:S=> `${S.k} leads the way Cadel won: patient, consistent, never cracking.` },
-  { id:"sagan", tier:"style", rider:"Peter Sagan", epithet:"The Tourminator",
+  { id:"sagan", tier:"style", sex:"m", rider:"Peter Sagan", epithet:"The Tourminator",
     fit:S=> S.wins*55 + S.sprintWins*70 + 15,
     blurb:"Sagan was cycling's showman - a record seven Tour green jerseys and three world titles, as happy popping a wheelie as winning the sprint.",
     why:S=> `${S.k} fits it now: ${S.wins} stage ${S.wins===1?'winner':'winners'} drafted with a sprinter's flair.` },
-  { id:"jensvoigt", tier:"style", rider:"Jens Voigt", epithet:"Shut Up Legs",
+  { id:"jensvoigt", tier:"style", sex:"m", rider:"Jens Voigt", epithet:"Shut Up Legs",
     fit:S=> S.aggro*120 + 20,
     blurb:"Voigt attacked from the gun for two decades and shouted down his own body to do it - 'Shut Up Legs' became the sport's favourite motto.",
     why:S=> `${S.k} fits it now: throwing picks up the road and refusing to quit, whatever the day.` },
-  { id:"quintana", tier:"style", rider:"Nairo Quintana", epithet:"Nairoman",
+  { id:"quintana", tier:"style", sex:"m", rider:"Nairo Quintana", epithet:"Nairoman",
     fit:S=> (S.rankPos<=2?80:0) + S.nonSprintWins*50 + 10,
     blurb:"Quintana, 'Nairoman', was the pure climber from Boyaca who won the Giro and the Vuelta and lit up the Tour's biggest mountains.",
     why:S=> `${S.k} fits it now: a climber's card, strongest where the road tips up.` },
-  { id:"cancellara", tier:"style", rider:"Fabian Cancellara", epithet:"Spartacus",
+  { id:"cancellara", tier:"style", sex:"m", rider:"Fabian Cancellara", epithet:"Spartacus",
     fit:S=> S.aggro*80 + S.wins*35 + 15,
     blurb:"Cancellara, 'Spartacus', was the great engine of the classics and the time trial - four world time-trial titles, Paris-Roubaix and Flanders, and days on end in yellow.",
     why:S=> `${S.k} fits it now: raw power on the front, a rouleur's strength that grinds the day down.` },
-  { id:"roglic", tier:"style", rider:"Primož Roglič", epithet:"Rogla",
+  { id:"roglic", tier:"style", sex:"m", rider:"Primož Roglič", epithet:"Rogla",
     fit:S=> (5-S.consPos)*55 + (S.rankPos<=2?60:0) + 10,
     blurb:"Roglič, 'Rogla', came to cycling late from ski jumping and turned into a Grand Tour winner and Olympic time-trial champion - fearless downhill, relentless against the clock.",
     why:S=> `${S.k} fits it now: strong against the clock and never rattled, a late-day closer.` },
-  { id:"wiggins", tier:"winner", rider:"Bradley Wiggins", epithet:"Wiggo",
+  { id:"wiggins", tier:"winner", sex:"m", rider:"Bradley Wiggins", epithet:"Wiggo",
     fit:S=> (5-S.consPos)*60 + S.wins*25 + 15,
     blurb:"Wiggins, 'Wiggo', became the first Briton to win the Tour de France in 2012 - a track-and-time-trial engine with a mod's swagger.",
     why:S=> `${S.k} leads on power and poise, a time-trial engine out front.` },
   /* ---- Wave 2 additions ---- */
-  { id:"basso", tier:"winner", rider:"Ivan Basso", epithet:"Ivan the Terrible",
+  { id:"basso", tier:"winner", sex:"m", rider:"Ivan Basso", epithet:"Ivan the Terrible",
     fit:S=> S.wins*40 + (5-S.consPos)*40 + 10,
     blurb:"Basso, 'Ivan the Terrible', was a two-time Giro d'Italia winner and one of the finest climbers of his generation.",
     why:S=> `${S.k} leads the pool, ruthless on the days that decide it.` },
-  { id:"hincapie", tier:"style", rider:"George Hincapie", epithet:"Big George",
+  { id:"hincapie", tier:"style", sex:"m", rider:"George Hincapie", epithet:"Big George",
     fit:S=> S.aggro*70 + 12,
     blurb:"Hincapie, 'Big George', was the ultimate lieutenant and a cobbled-classics hardman who started a record run of Tours.",
     why:S=> `${S.k} fits it now: the loyal engine, doing the unglamorous work that holds a day together.` },
-  { id:"armstrong", tier:"style", rider:"Lance Armstrong", epithet:"Mellow Johnny",
+  { id:"armstrong", tier:"style", sex:"m", rider:"Lance Armstrong", epithet:"Mellow Johnny",
     fit:S=> S.wins*40 + (5-S.consPos)*30 + 10,
     blurb:"Armstrong, 'Mellow Johnny' (a play on maillot jaune), dominated the Tour from 1999 to 2005; all seven titles were later stripped for doping.",
     why:S=> `${S.k} fits it now: relentless and hard to shake, front and centre.` },
-  { id:"valverde", tier:"style", rider:"Alejandro Valverde", epithet:"The Unbeatable",
+  { id:"valverde", tier:"style", sex:"m", rider:"Alejandro Valverde", epithet:"The Unbeatable",
     fit:S=> S.wins*45 + (S.rankPos<=2?50:0) + 10,
     blurb:"Valverde, 'El Imbatido' - the Unbeatable - was the perennial puncheur who kept winning into his forties and took the world title at 38.",
     why:S=> `${S.k} fits it now: always there at the finish, a knack for the right move.` },
-  { id:"vinokourov", tier:"style", rider:"Alexander Vinokourov", epithet:"Vino",
+  { id:"vinokourov", tier:"style", sex:"m", rider:"Alexander Vinokourov", epithet:"Vino",
     fit:S=> S.aggro*100 + 15,
     blurb:"Vinokourov, 'Vino', raced like every stage owed him money - all-out aggression, and an Olympic road-race title to show for it.",
     why:S=> `${S.k} fits it now: the boldest, most restless picks on the board.` },
-  { id:"uran", tier:"style", rider:"Rigoberto Urán", epithet:"Rigo",
+  { id:"uran", tier:"style", sex:"m", rider:"Rigoberto Urán", epithet:"Rigo",
     fit:S=> (S.rankPos<=2?60:0) + (5-S.consPos)*40 + 10,
     blurb:"Urán, 'Rigo', was the unflappable Colombian who quietly finished on Grand Tour podiums while keeping the whole peloton laughing.",
     why:S=> `${S.k} fits it now: steady near the sharp end, and never sweats it.` },
-  { id:"alaphilippe", tier:"style", rider:"Julian Alaphilippe", epithet:"Loulou",
+  { id:"alaphilippe", tier:"style", sex:"m", rider:"Julian Alaphilippe", epithet:"Loulou",
     fit:S=> S.aggro*90 + S.wins*40 + 10,
     blurb:"Alaphilippe, 'Loulou', is the two-time world champion who raced on pure panache - attacking from anywhere, holding yellow on nerve.",
     why:S=> `${S.k} fits it now: all flair and attack, the pick that lights up the day.` },
-  { id:"riis", tier:"style", rider:"Bjarne Riis", epithet:"The Eagle from Herning",
+  { id:"riis", tier:"style", sex:"m", rider:"Bjarne Riis", epithet:"The Eagle from Herning",
     fit:S=> (5-S.consPos)*45 + S.wins*25 + 10,
     blurb:"Riis, 'The Eagle from Herning', won the 1996 Tour de France; he later admitted he had doped to do it.",
     why:S=> `${S.k} fits it now: calm and calculating, letting the day come to a plan.` },
-  { id:"bobroll", tier:"style", rider:"Bob Roll", epithet:"Bobke",
+  { id:"bobroll", tier:"style", sex:"m", rider:"Bob Roll", epithet:"Bobke",
     fit:S=> 22,
     blurb:"Bob Roll, 'Bobke', was the wild-hearted American pro turned beloved, unfiltered commentator - all heart, all character.",
     why:S=> `${S.k} fits it now: the table's character pick, in it for the love of the race.` },
@@ -5746,145 +5755,145 @@ const PERSONA_BANK = [
      states only what was checked against the cited page in the session that added it. ---- */
 
   /* src: https://en.wikipedia.org/wiki/Jacques_Anquetil */
-  { id:"anquetil", tier:"winner", rider:"Jacques Anquetil", epithet:"Monsieur Chrono",
+  { id:"anquetil", tier:"winner", sex:"m", rider:"Jacques Anquetil", epithet:"Monsieur Chrono",
     fit:S=> (5-S.consPos)*70 + S.wins*20 + 18,
     blurb:"Anquetil was the first rider to win the Tour de France five times, in 1957 and then four straight from 1961 to 1964, built on a time trial nobody could answer.",
     why:S=> `${S.k} leads the way Anquetil led, on measured efficiency rather than fireworks.` },
 
   /* src: https://en.wikipedia.org/wiki/Fausto_Coppi */
-  { id:"coppi", tier:"winner", rider:"Fausto Coppi", epithet:"Il Campionissimo",
+  { id:"coppi", tier:"winner", sex:"m", rider:"Fausto Coppi", epithet:"Il Campionissimo",
     fit:S=> S.wins*50 + (5-S.consPos)*50 + 25,
     blurb:"Coppi, the champion of champions, was the first rider to win the Giro d'Italia and the Tour de France in the same year, in 1949, and won by margins that embarrassed the timekeepers.",
     why:S=> `${S.k} is out front with ${S.wins} stage ${S.wins===1?'winner':'winners'} drafted and the standing to match.` },
 
   /* src: https://en.wikipedia.org/wiki/Felice_Gimondi */
-  { id:"gimondi", tier:"winner", rider:"Felice Gimondi", epithet:"La Fenice",
+  { id:"gimondi", tier:"winner", sex:"m", rider:"Felice Gimondi", epithet:"La Fenice",
     fit:S=> (5-S.consPos)*55 + S.wins*30 + 16,
     blurb:"Gimondi won all three Grand Tours, the Tour de France, the Giro d'Italia and the Vuelta a Espana, and spent a career finding a way past the era's giants.",
     why:S=> `${S.k} keeps turning up at the front whatever the road does.` },
 
   /* src: https://en.wikipedia.org/wiki/Joop_Zoetemelk */
-  { id:"zoetemelk", tier:"winner", rider:"Joop Zoetemelk", epithet:"The Patient One",
+  { id:"zoetemelk", tier:"winner", sex:"m", rider:"Joop Zoetemelk", epithet:"The Patient One",
     fit:S=> (5-S.consPos)*65 + S.wins*15 + 14,
     blurb:"Zoetemelk finished the Tour de France sixteen times, a record, and stood on the podium again and again before finally winning it in 1980.",
     why:S=> `${S.k} is in front by never going away, which is its own kind of pressure.` },
 
   /* src: https://en.wikipedia.org/wiki/Stephen_Roche */
-  { id:"roche", tier:"winner", rider:"Stephen Roche", epithet:"The Triple Crown",
+  { id:"roche", tier:"winner", sex:"m", rider:"Stephen Roche", epithet:"The Triple Crown",
     fit:S=> S.wins*40 + (5-S.consPos)*45 + (S.rankPos<=2?40:0) + 12,
     blurb:"In 1987 Roche won the Giro d'Italia, the Tour de France and the world road race title in one season, a treble only Merckx had managed before him.",
     why:S=> `${S.k} is leading on more than one board at once, which is the hard way to do it.` },
 
   /* src: https://en.wikipedia.org/wiki/Pedro_Delgado */
-  { id:"delgado", tier:"winner", rider:"Pedro Delgado", epithet:"Perico",
+  { id:"delgado", tier:"winner", sex:"m", rider:"Pedro Delgado", epithet:"Perico",
     fit:S=> S.nonSprintWins*55 + (5-S.consPos)*45 + 15,
     blurb:"Delgado won the 1988 Tour de France and the Vuelta a Espana twice, in 1985 and 1989, and took them the Spanish way, uphill and on the attack.",
     why:S=> `${S.k} leads on the days the road goes up, which is where this race is decided.` },
 
   /* src: https://en.wikipedia.org/wiki/Sean_Kelly_(cyclist) */
-  { id:"kingkelly", tier:"winner", rider:"Sean Kelly", epithet:"King Kelly",
+  { id:"kingkelly", tier:"winner", sex:"m", rider:"Sean Kelly", epithet:"King Kelly",
     fit:S=> S.wins*35 + S.sprintWins*30 + (5-S.consPos)*40 + 14,
     blurb:"Kelly won the 1988 Vuelta a Espana and Paris-Nice seven years running from 1982 to 1988, a hard man who could sprint, climb and win classics in the same season.",
     why:S=> `${S.k} wins in more than one way, which is what keeps a lead safe.` },
 
   /* src: https://en.wikipedia.org/wiki/Laurent_Jalabert */
-  { id:"jaja", tier:"winner", rider:"Laurent Jalabert", epithet:"Jaja",
+  { id:"jaja", tier:"winner", sex:"m", rider:"Laurent Jalabert", epithet:"Jaja",
     fit:S=> S.wins*35 + S.aggro*30 + (5-S.consPos)*40 + 12,
     blurb:"Jalabert started as a sprinter and remade himself into a climber and stage race winner, taking the 1995 Vuelta a Espana and the world number one ranking.",
     why:S=> `${S.k} has changed shape as the race has, and it is working.` },
 
   /* src: https://en.wikipedia.org/wiki/Roger_De_Vlaeminck */
-  { id:"devlaeminck", tier:"winner", rider:"Roger De Vlaeminck", epithet:"Monsieur Paris-Roubaix",
+  { id:"devlaeminck", tier:"winner", sex:"m", rider:"Roger De Vlaeminck", epithet:"Monsieur Paris-Roubaix",
     fit:S=> S.nonSprintWins*45 + S.aggro*35 + (5-S.consPos)*35 + 15,
     blurb:"De Vlaeminck won Paris-Roubaix four times, in 1972, 1974, 1975 and 1977, and is one of only three riders ever to win all five Monuments.",
     why:S=> `${S.k} is winning on the roughest days, which is where the gaps really open.` },
 
   /* src: https://en.wikipedia.org/wiki/Rik_Van_Looy */
-  { id:"vanlooy", tier:"winner", rider:"Rik Van Looy", epithet:"Emperor of Herentals",
+  { id:"vanlooy", tier:"winner", sex:"m", rider:"Rik Van Looy", epithet:"Emperor of Herentals",
     fit:S=> S.wins*40 + S.sprintWins*25 + (5-S.consPos)*40 + 16,
     blurb:"Van Looy was the first rider to win all five Monuments, took two world road titles, and finished with 367 professional road victories, second only to Merckx.",
     why:S=> `${S.k} collects wins across every kind of day, the way an emperor collects provinces.` },
 
   /* src: https://en.wikipedia.org/wiki/Vincenzo_Nibali */
-  { id:"squalo", tier:"winner", rider:"Vincenzo Nibali", epithet:"The Shark of Messina",
+  { id:"squalo", tier:"winner", sex:"m", rider:"Vincenzo Nibali", epithet:"The Shark of Messina",
     fit:S=> S.nonSprintWins*50 + S.aggro*30 + (5-S.consPos)*40 + 14,
     blurb:"Nibali won all three Grand Tours and built his reputation on descending, and on attacking at the exact moment everyone else was waiting.",
     why:S=> `${S.k} attacks when the race is uncomfortable, and the standing shows it.` },
 
   /* src: https://en.wikipedia.org/wiki/Chris_Froome */
-  { id:"froome", tier:"winner", rider:"Chris Froome", epithet:"Froomey",
+  { id:"froome", tier:"winner", sex:"m", rider:"Chris Froome", epithet:"Froomey",
     fit:S=> (5-S.consPos)*70 + S.nonSprintWins*30 + 15,
     blurb:"Froome won the Tour de France in 2013, 2015, 2016 and 2017, and added the Vuelta a Espana and the Giro d'Italia, riding to numbers with his elbows out and his head down.",
     why:S=> `${S.k} is grinding out a lead by margins rather than moments.` },
 
   /* src: https://en.wikipedia.org/wiki/Geraint_Thomas */
-  { id:"thomasg", tier:"winner", rider:"Geraint Thomas", epithet:"G",
+  { id:"thomasg", tier:"winner", sex:"m", rider:"Geraint Thomas", epithet:"G",
     fit:S=> (5-S.consPos)*60 + S.wins*25 + (S.rankPos<=2?30:0) + 14,
     blurb:"Thomas spent a decade as the most reliable helper in the peloton, and came from the track, before winning the 2018 Tour de France himself.",
     why:S=> `${S.k} has turned steady into a lead, which is the least glamorous way to be in front.` },
 
   /* src: https://en.wikipedia.org/wiki/Egan_Bernal */
-  { id:"bernal", tier:"winner", rider:"Egan Bernal", epithet:"The Kid from Zipaquira",
+  { id:"bernal", tier:"winner", sex:"m", rider:"Egan Bernal", epithet:"The Kid from Zipaquira",
     fit:S=> S.nonSprintWins*50 + (5-S.consPos)*50 + 18,
     blurb:"Bernal won the 2019 Tour de France at 22, the first Latin American to do it, and took the 2021 Giro d'Italia before a training crash nearly ended everything.",
     why:S=> `${S.k} leads on climbing legs, and the mountains left are the ones that matter.` },
 
   /* src: https://en.wikipedia.org/wiki/Andy_Hampsten */
-  { id:"hampsten", tier:"winner", rider:"Andy Hampsten", epithet:"The Man on the Gavia",
+  { id:"hampsten", tier:"winner", sex:"m", rider:"Andy Hampsten", epithet:"The Man on the Gavia",
     fit:S=> S.nonSprintWins*45 + S.aggro*35 + (5-S.consPos)*40 + 13,
     blurb:"Hampsten won the 1988 Giro d'Italia, sealed on the Gavia Pass in a blizzard bad enough that riders finished with ice in their hair.",
     why:S=> `${S.k} is in front because of the days nobody else wanted.` },
 
   /* src: https://en.wikipedia.org/wiki/Fiorenzo_Magni */
-  { id:"magni", tier:"winner", rider:"Fiorenzo Magni", epithet:"The Lion of Flanders",
+  { id:"magni", tier:"winner", sex:"m", rider:"Fiorenzo Magni", epithet:"The Lion of Flanders",
     fit:S=> S.nonSprintWins*45 + S.aggro*40 + (5-S.consPos)*35 + 14,
     blurb:"Magni won the Tour of Flanders three years running from 1949 to 1951 and took three Giro titles, once riding on with a broken collarbone by biting an inner tube tied to his bars.",
     why:S=> `${S.k} is leading on stubbornness as much as on legs.` },
 
   /* src: https://en.wikipedia.org/wiki/Luis_Oca%C3%B1a */
-  { id:"ocana", tier:"winner", rider:"Luis Ocana", epithet:"The Attacker",
+  { id:"ocana", tier:"winner", sex:"m", rider:"Luis Ocana", epithet:"The Attacker",
     fit:S=> S.aggro*50 + S.nonSprintWins*40 + (5-S.consPos)*35 + 13,
     blurb:"Ocana won the 1973 Tour de France, and is remembered just as much for the year he rode Merckx off his wheel in the Pyrenees before crashing out of the lead.",
     why:S=> `${S.k} rides to win rather than to hold, and it has put ${S.k} in front.` },
 
   /* src: https://en.wikipedia.org/wiki/Marianne_Vos */
-  { id:"vos", tier:"winner", rider:"Marianne Vos", epithet:"The Complete Champion",
+  { id:"vos", tier:"winner", sex:"f", rider:"Marianne Vos", epithet:"The Complete Champion",
     fit:S=> S.wins*45 + S.sprintWins*25 + (5-S.consPos)*45 + 20,
     blurb:"Vos has won Olympic road races, world titles on the road and in cyclo-cross, and Grand Tour classifications, and is regularly called the most complete racer of her generation.",
     why:S=> `${S.k} wins on flat days and hard days alike, which is why the lead keeps growing.` },
 
   /* src: https://en.wikipedia.org/wiki/Jeannie_Longo */
-  { id:"longo", tier:"winner", rider:"Jeannie Longo", epithet:"La Patronne",
+  { id:"longo", tier:"winner", sex:"f", rider:"Jeannie Longo", epithet:"La Patronne",
     fit:S=> (5-S.consPos)*65 + S.wins*20 + 16,
     blurb:"Longo won the Olympic road race in 1996, took world titles on road and track across three decades, and set the Hour record in 2000.",
     why:S=> `${S.k} is in front on longevity, the same total arriving day after day.` },
 
   /* src: https://en.wikipedia.org/wiki/Annemiek_van_Vleuten */
-  { id:"vanvleuten", tier:"winner", rider:"Annemiek van Vleuten", epithet:"The Triple",
+  { id:"vanvleuten", tier:"winner", sex:"f", rider:"Annemiek van Vleuten", epithet:"The Triple",
     fit:S=> S.wins*40 + S.nonSprintWins*35 + (5-S.consPos)*45 + 18,
     blurb:"In 2022 van Vleuten won the Giro d'Italia Donne, the Tour de France Femmes and the Vuelta in the same season, and took the world road title on top of it.",
     why:S=> `${S.k} is winning across every kind of stage this race has offered.` },
 
   /* src: https://en.wikipedia.org/wiki/Anna_van_der_Breggen */
-  { id:"vdbreggen", tier:"winner", rider:"Anna van der Breggen", epithet:"The Metronome",
+  { id:"vdbreggen", tier:"winner", sex:"f", rider:"Anna van der Breggen", epithet:"The Metronome",
     fit:S=> (5-S.consPos)*70 + S.nonSprintWins*25 + 15,
     blurb:"Van der Breggen won Olympic and world road titles and the Giro d'Italia Donne, riding with a steadiness that made her hardest efforts look like her easy ones.",
     why:S=> `${S.k} is in front by repeating the same good day, which is harder than it sounds.` },
 
   /* src: https://en.wikipedia.org/wiki/Leontien_van_Moorsel */
-  { id:"vanmoorsel", tier:"winner", rider:"Leontien van Moorsel", epithet:"The Comeback",
+  { id:"vanmoorsel", tier:"winner", sex:"f", rider:"Leontien van Moorsel", epithet:"The Comeback",
     fit:S=> S.wins*35 + (5-S.consPos)*55 + 16,
     blurb:"Van Moorsel won world titles, left the sport after illness, and came back to become Olympic road champion in 2000 and one of the most decorated riders of her era.",
     why:S=> `${S.k} has come back from a bad day and is leading again.` },
 
   /* src: https://en.wikipedia.org/wiki/Nicole_Cooke */
-  { id:"nicolecooke", tier:"winner", rider:"Nicole Cooke", epithet:"The Wick Wonder",
+  { id:"nicolecooke", tier:"winner", sex:"f", rider:"Nicole Cooke", epithet:"The Wick Wonder",
     fit:S=> S.wins*45 + S.nonSprintWins*30 + (5-S.consPos)*40 + 15,
     blurb:"In 2008 Cooke won the Olympic road race and the world road championship in the same year, both from the front in bad weather, the first British rider to do the double.",
     why:S=> `${S.k} takes the race on when conditions are worst, and it is paying.` },
 
   /* src: https://en.wikipedia.org/wiki/Lizzie_Deignan */
-  { id:"deignan", tier:"winner", rider:"Lizzie Deignan", epithet:"Queen Lizzie",
+  { id:"deignan", tier:"winner", sex:"f", rider:"Lizzie Deignan", epithet:"Queen Lizzie",
     fit:S=> S.aggro*40 + S.nonSprintWins*40 + (5-S.consPos)*40 + 15,
     blurb:"Deignan was world road champion in 2015 and won the first Paris-Roubaix Femmes in 2021, riding away alone with more than eighty kilometres left and holding it to the velodrome.",
     why:S=> `${S.k} goes early and makes it stick, which is how this lead was built.` },
@@ -5892,73 +5901,73 @@ const PERSONA_BANK = [
   /* ---- Wave 3 style rows. The style tier was also empty at 44 of 44 worn. ---- */
 
   /* src: https://en.wikipedia.org/wiki/Erik_Zabel */
-  { id:"zabel", tier:"style", rider:"Erik Zabel", epithet:"Ete",
+  { id:"zabel", tier:"style", sex:"m", rider:"Erik Zabel", epithet:"Ete",
     fit:S=> S.sprintWins*70 + (S.placePos<=3?25:0) + 12,
     blurb:"Zabel won the Tour de France points classification six years running from 1996 to 2001, a sprinter who stayed consistent long after the pure speed had gone.",
     why:S=> `${S.k} keeps collecting on the fast days rather than waiting for the mountains.` },
 
   /* src: https://en.wikipedia.org/wiki/Alessandro_Petacchi */
-  { id:"petacchi", tier:"style", rider:"Alessandro Petacchi", epithet:"Ale-Jet",
+  { id:"petacchi", tier:"style", sex:"m", rider:"Alessandro Petacchi", epithet:"Ale-Jet",
     fit:S=> S.sprintWins*75 + 12,
     blurb:"Petacchi won stages and points classifications in all three Grand Tours, a pure sprinter delivered to the line by the most drilled lead-out train of his era.",
     why:S=> `${S.k} is drafting for the finish, not the climb.` },
 
   /* src: https://en.wikipedia.org/wiki/Claudio_Chiappucci */
-  { id:"chiappucci", tier:"style", rider:"Claudio Chiappucci", epithet:"El Diablo",
+  { id:"chiappucci", tier:"style", sex:"m", rider:"Claudio Chiappucci", epithet:"El Diablo",
     fit:S=> S.aggro*65 + S.nonSprintWins*30 + 12,
     blurb:"Chiappucci raced on pure aggression, attacking from absurd distances and turning stages into a personal argument with the peloton.",
     why:S=> `${S.k} keeps going up the road early, whatever the odds say.` },
 
   /* src: https://en.wikipedia.org/wiki/John_Degenkolb */
-  { id:"degenkolb", tier:"style", rider:"John Degenkolb", epithet:"Der Panzerwagen aus Gera",
+  { id:"degenkolb", tier:"style", sex:"m", rider:"John Degenkolb", epithet:"Der Panzerwagen aus Gera",
     fit:S=> S.sprintWins*45 + S.nonSprintWins*35 + 12,
     blurb:"Degenkolb won Milan-San Remo and Paris-Roubaix in the same spring in 2015, a sprinter heavy enough and strong enough to survive the classics.",
     why:S=> `${S.k} is picking riders who last the distance and still finish fast.` },
 
   /* src: https://en.wikipedia.org/wiki/Niki_Terpstra */
-  { id:"terpstra", tier:"style", rider:"Niki Terpstra", epithet:"The Long Way",
+  { id:"terpstra", tier:"style", sex:"m", rider:"Niki Terpstra", epithet:"The Long Way",
     fit:S=> S.aggro*50 + S.nonSprintWins*40 + 12,
     blurb:"Terpstra won Paris-Roubaix in 2014 and the Tour of Flanders in 2018, both by going clear alone rather than gambling on a sprint he would lose.",
     why:S=> `${S.k} backs the move that goes early rather than the one that waits.` },
 
   /* src: https://en.wikipedia.org/wiki/Zden%C4%9Bk_%C5%A0tybar */
-  { id:"stybar", tier:"style", rider:"Zdenek Stybar", epithet:"Stybie",
+  { id:"stybar", tier:"style", sex:"m", rider:"Zdenek Stybar", epithet:"Stybie",
     fit:S=> S.nonSprintWins*45 + S.aggro*35 + 12,
     blurb:"Stybar was a cyclo-cross world champion who moved to the road and won classics there, bringing bike handling that made bad surfaces look easy.",
     why:S=> `${S.k} is comfortable when the road stops being a road.` },
 
   /* src: https://en.wikipedia.org/wiki/Alexander_Kristoff */
-  { id:"kristoff", tier:"style", rider:"Alexander Kristoff", epithet:"The Norwegian Diesel",
+  { id:"kristoff", tier:"style", sex:"m", rider:"Alexander Kristoff", epithet:"The Norwegian Diesel",
     fit:S=> S.sprintWins*55 + S.nonSprintWins*25 + 12,
     blurb:"Kristoff won Milan-San Remo in 2014 and the Tour of Flanders in 2015, a sprinter who gets stronger as the race gets longer.",
     why:S=> `${S.k} is backing power over pure speed, and it keeps landing.` },
 
   /* src: https://en.wikipedia.org/wiki/Michael_Matthews_(cyclist) */
-  { id:"matthews", tier:"style", rider:"Michael Matthews", epithet:"Bling",
+  { id:"matthews", tier:"style", sex:"m", rider:"Michael Matthews", epithet:"Bling",
     fit:S=> S.sprintWins*45 + S.nonSprintWins*35 + 12,
     blurb:"Matthews wins from reduced bunches on days that are too hard for the pure sprinters and too fast for the climbers, and has taken a Tour points classification doing it.",
     why:S=> `${S.k} keeps finding the awkward finishes that suit nobody else.` },
 
   /* src: https://en.wikipedia.org/wiki/Thomas_De_Gendt */
-  { id:"degendt", tier:"style", rider:"Thomas De Gendt", epithet:"The Breakaway",
+  { id:"degendt", tier:"style", sex:"m", rider:"Thomas De Gendt", epithet:"The Breakaway",
     fit:S=> S.aggro*70 + S.nonSprintWins*25 + 12,
     blurb:"De Gendt built a career out of the day-long breakaway, winning stages in all three Grand Tours from moves that were supposed to be caught.",
     why:S=> `${S.k} is drafting the riders who go up the road and dare the bunch to chase.` },
 
   /* src: https://en.wikipedia.org/wiki/Pierre_Rolland_(cyclist) */
-  { id:"rolland", tier:"style", rider:"Pierre Rolland", epithet:"The Climber's Climber",
+  { id:"rolland", tier:"style", sex:"m", rider:"Pierre Rolland", epithet:"The Climber's Climber",
     fit:S=> S.nonSprintWins*55 + S.aggro*30 + 12,
     blurb:"Rolland won the young rider classification at the 2011 Tour de France and took mountain stages the hard way, off the front rather than off a wheel.",
     why:S=> `${S.k} is picking pure climbers and letting the gradient do the sorting.` },
 
   /* src: https://en.wikipedia.org/wiki/Warren_Barguil */
-  { id:"barguil", tier:"style", rider:"Warren Barguil", epithet:"The Polka Dot",
+  { id:"barguil", tier:"style", sex:"m", rider:"Warren Barguil", epithet:"The Polka Dot",
     fit:S=> S.nonSprintWins*50 + S.aggro*35 + 12,
     blurb:"Barguil won the mountains classification and two stages at the 2017 Tour de France, racing every climb as though the summit were the finish.",
     why:S=> `${S.k} is chasing points where the road tilts up.` },
 
   /* src: https://en.wikipedia.org/wiki/Thibaut_Pinot */
-  { id:"pinot", tier:"style", rider:"Thibaut Pinot", epithet:"The Heart on the Sleeve",
+  { id:"pinot", tier:"style", sex:"m", rider:"Thibaut Pinot", epithet:"The Heart on the Sleeve",
     fit:S=> S.nonSprintWins*50 + S.aggro*30 + (S.burial?25:0) + 12,
     blurb:"Pinot won the young rider classification at the 2014 Tour de France and rode with everything visible on his face, the good days and the ones that fell apart.",
     why:S=> `${S.k} is having a race of highs and lows, and hiding none of it.` },
@@ -5970,6 +5979,15 @@ const PERSONA_BY = (function(){
   const rp=(typeof RIDER_PROFILE!=='undefined')?RIDER_PROFILE:{};
   const L=(typeof PERSONA_LEDGER!=='undefined')?PERSONA_LEDGER:{order:PL4.slice(),by:{},seen:{}};
   const byId=id=>PERSONA_BANK.find(x=>x.id===id)||null;
+  /* A persona whose sex does not match the race is UNAVAILABLE, exactly like a worn one.
+     The women's rows are deliberately KEPT in the bank rather than deleted, because a
+     women's race would want them; they are simply unreachable here. Read from
+     RACE_PROFILE, never hardcoded, so the Giro inherits this with no edit.
+     An absent RACE_PROFILE.sex means NO filter, which keeps a board that has not
+     declared one behaving exactly as it did before rather than drawing nothing. A row
+     with no sex is treated as matching for the same reason. */
+  const RACE_SEX=(typeof RACE_PROFILE!=='undefined' && RACE_PROFILE.sex) ? RACE_PROFILE.sex : null;
+  const sexOk=c=>!RACE_SEX || !c || !c.sex || c.sex===RACE_SEX;
   /* Standing here means the race's system of record, which on the Vuelta is Fantasy
      Points, not Placement. Both lines have to read the same board: `leader` decides who
      draws from the winner tier, and `curPos` decides who held their spot and therefore
@@ -6041,6 +6059,7 @@ const PERSONA_BY = (function(){
   const retiring = !Object.keys(L.by||{}).length && Object.keys(L.seen||{}).length>0;
   const frozen={};
   const dupes=[];
+  const wrongSexed=[];
   const movers=[];
   PL4.forEach(p=>{
     if(assigned[p]) return;
@@ -6058,8 +6077,15 @@ const PERSONA_BY = (function(){
        how tonymartin stayed on JJ after JP had worn it. */
     const dupe=usedByAnother(p,prevId);
     if(dupe) dupes.push(p);
+    /* A STORED persona can fail the race-sex filter, and the filter on the DRAW cannot
+       undo that on its own: with the order steady there are no movers, so nothing
+       re-examines `by` and the wrong name persists forever. That is exactly how
+       tonymartin stayed on JJ, one rule over. A seat wearing a name this race may not
+       award is therefore a mover in its own right. */
+    const wrongSex=!!prev && !sexOk(prev);
+    if(wrongSex) wrongSexed.push(p);
     /* retiring is an operator action rather than a standings event: see RETIREMENT. */
-    const mustMove = retiring || orderChanged || dupe || !prev || prev.tier!==wantTier;
+    const mustMove = retiring || orderChanged || dupe || wrongSex || !prev || prev.tier!==wantTier;
     if(!mustMove){ assigned[p]=prev; used[prevId]=1; }
     else movers.push(p);
   });
@@ -6089,14 +6115,17 @@ const PERSONA_BY = (function(){
        When a tier runs dry the correct behavior is to KEEP the persona the seat already
        wears, never to repeat one. Handled below, and surfaced on the card, because a
        frozen persona and a broken engine look identical from the outside. */
-    const pool=PERSONA_BANK.filter(c=>c.tier===tier && !used[c.id] && !everWorn.has(c.id))
+    const pool=PERSONA_BANK.filter(c=>c.tier===tier && sexOk(c) && !used[c.id] && !everWorn.has(c.id))
       .sort((a,b)=>b.fit(PSTATS[p])-a.fit(PSTATS[p]));
     const pick=pool[0];
     if(pick){ assigned[p]=pick; used[pick.id]=1; return; }
     /* Tier exhausted, so hold. Only if nobody else has taken this name in the same pass,
        which can happen while a stored duplicate is being repaired. */
+    /* A seat may only HOLD a persona it is actually allowed to wear. Without sexOk here
+       an exhausted tier would hand a failing name straight back, which is the fail-open
+       shape this repo keeps recording: the guard runs, and the wrong name stays. */
     const keepId=(L.by||{})[p], keep=keepId?byId(keepId):null;
-    if(keep && !used[keepId]){ assigned[p]=keep; used[keepId]=1; frozen[p]='exhausted'; }
+    if(keep && sexOk(keep) && !used[keepId]){ assigned[p]=keep; used[keepId]=1; frozen[p]='exhausted'; }
     else { frozen[p]='none'; }
   });
   /* 4) safety net, which may NEVER hand out a repeat. It used to fall back to
@@ -6106,13 +6135,13 @@ const PERSONA_BY = (function(){
      its tier is now left UNASSIGNED and frozen, and the card says so. An empty slot is
      honest; a recycled name is not. */
   PL4.forEach(p=>{ if(assigned[p]) return; const tier=(p===leader)?'winner':'style';
-    const pool=PERSONA_BANK.filter(c=>c.tier===tier && !used[c.id] && !everWorn.has(c.id))
+    const pool=PERSONA_BANK.filter(c=>c.tier===tier && sexOk(c) && !used[c.id] && !everWorn.has(c.id))
       .sort((a,b)=>b.fit(PSTATS[p])-a.fit(PSTATS[p]));
     const pick=pool[0];
     if(pick){ assigned[p]=pick; used[pick.id]=1; } else { frozen[p]=frozen[p]||'none'; } });
   /* How much bank is left, per tier. Read by the Persona bank panel under Palmares so a
      narrowing bank is visible on the board before it becomes a bug report. */
-  const bankLeft=t=>PERSONA_BANK.filter(c=>c.tier===t && !everWorn.has(c.id)).length;
+  const bankLeft=t=>PERSONA_BANK.filter(c=>c.tier===t && sexOk(c) && !everWorn.has(c.id)).length;
   /* DRY RUN, and the reason it exists. Retiring the current board is a write to live
      pool state, and Allen approves the four names BEFORE it happens. This computes what
      a retirement would assign, under the same rules and against the same live fit data,
@@ -6121,7 +6150,7 @@ const PERSONA_BY = (function(){
     const u={}, out={};
     fanOrder.forEach(function(pp,ix){
       const t=(ix===0)?'winner':'style';
-      const c=PERSONA_BANK.filter(x=>x.tier===t && !u[x.id] && !everWorn.has(x.id))
+      const c=PERSONA_BANK.filter(x=>x.tier===t && sexOk(x) && !u[x.id] && !everWorn.has(x.id))
         .sort((a,b)=>b.fit(PSTATS[pp])-a.fit(PSTATS[pp]))[0];
       if(c){ u[c.id]=1; out[pp]={id:c.id, tier:c.tier, rider:c.rider, epithet:c.epithet}; }
       else out[pp]=null;
@@ -6155,12 +6184,19 @@ const PERSONA_BY = (function(){
     everWornCount:everWorn.size,
     everWornIds:Array.from(everWorn).sort(),
     bankLeft:{winner:bankLeft('winner'), style:bankLeft('style')},
-    bankTotal:{winner:PERSONA_BANK.filter(c=>c.tier==='winner').length,
-               style:PERSONA_BANK.filter(c=>c.tier==='style').length},
+    bankTotal:{winner:PERSONA_BANK.filter(c=>c.tier==='winner' && sexOk(c)).length,
+               style:PERSONA_BANK.filter(c=>c.tier==='style' && sexOk(c)).length},
     retiring:retiring,
     frozen:JSON.parse(JSON.stringify(frozen)),
     proposed:proposed,
     duplicatesRepaired:dupes.slice(),
+    /* Seats moved because the stored persona failed the race-sex filter. Should be empty
+       on a settled board; a seat named here on EVERY load means the tier has no unworn
+       matching name left and the redraw is falling through to a hold. DIAGNOSTIC ONLY,
+       never a board surface, per DO NOT ADD PLAYER-FACING SURFACES in CLAUDE.md. */
+    wrongSexRepaired:wrongSexed.slice(),
+    raceSex:RACE_SEX,
+    bankBySex:PERSONA_BANK.reduce((o,c)=>(o[c.sex||'?']=(o[c.sex||'?']||0)+1,o),{}),
     pinned:PL4.filter(p=>((rp[p]||{}).pin)),
     prevIdFound:PL4.reduce((o,p)=>(o[p]=!!(((L&&L.by)||{})[p] && byId(((L&&L.by)||{})[p])),o),{}),
     assigned:PL4.reduce((o,p)=>(o[p]=assigned[p]?assigned[p].id:null,o),{})

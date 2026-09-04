@@ -11,7 +11,24 @@ const BANK = (function(){
   if (i < 0 || j < 0) throw new Error('PERSONA_BANK not found in vuelta.html');
   return new Function(SRC.slice(i, j) + '; return PERSONA_BANK;')();
 })();
-if (BANK.length !== 56) throw new Error('expected 56 persona rows, got ' + BANK.length);
+/* The bank GROWS, so a hardcoded size is a test that breaks every time the thing it
+   guards improves. This asserted 56 and had been throwing since the bank was filled to
+   92, which means it verified nothing across that whole window. Assert the SHAPE. */
+if (BANK.length < 56) throw new Error('persona bank looks truncated: ' + BANK.length);
+const noSex = BANK.filter(c => c.sex !== 'm' && c.sex !== 'f').map(c => c.id);
+if (noSex.length) throw new Error('rows with no sex field: ' + noSex.join(', '));
+/* The race the bank is being drawn for. A persona whose sex does not match is
+   unavailable, exactly like a worn one. Lifted from the built board, never retyped. */
+const RACE_SEX = (function(){
+  const m = SRC.match(/^\s*sex:'([mf])',\s*$/m);
+  if (!m) throw new Error('RACE_PROFILE.sex not found in vuelta.html');
+  return m[1];
+})();
+const sexOk = c => !RACE_SEX || !c || !c.sex || c.sex === RACE_SEX;
+console.log('bank ' + BANK.length + ' rows, race sex ' + RACE_SEX +
+  ', drawable ' + BANK.filter(sexOk).length +
+  ' (winner ' + BANK.filter(c=>sexOk(c)&&c.tier==='winner').length +
+  ', style ' + BANK.filter(c=>sexOk(c)&&c.tier==='style').length + ')');
 const PL4 = ['AA','JP','JJ','JB'];
 const byId = id => BANK.find(x => x.id === id) || null;
 
@@ -42,32 +59,33 @@ function computeBoard(L, fanOrder){
   const wornElsewhere=(seat,id)=>!!id && Object.keys(L.seen||{}).some(q=>q!==seat && ((L.seen[q])||[]).indexOf(id)>=0);
   const usedByAnother=(seat,id)=>wornElsewhere(seat,id)||heldTwice(id);
   const retiring = !Object.keys(L.by||{}).length && Object.keys(L.seen||{}).length>0;
-  const frozen={}, dupes=[], movers=[];
+  const frozen={}, dupes=[], wrongSexed=[], movers=[];
   PL4.forEach(p=>{
     if(assigned[p]) return;
     const prevId=(L.by||{})[p]; const prev=prevId?byId(prevId):null;
     const wantTier=(p===leader)?'winner':'style';
     const dupe=usedByAnother(p,prevId); if(dupe) dupes.push(p);
-    const mustMove = retiring || orderChanged || dupe || !prev || prev.tier!==wantTier;
+    const wrongSex=!!prev && !sexOk(prev); if(wrongSex) wrongSexed.push(p);
+    const mustMove = retiring || orderChanged || dupe || wrongSex || !prev || prev.tier!==wantTier;
     if(!mustMove){ assigned[p]=prev; used[prevId]=1; } else movers.push(p);
   });
   movers.sort((a,b)=>curPos[a]-curPos[b]);
   movers.forEach(p=>{
     const tier=(p===leader)?'winner':'style';
-    const pool=BANK.filter(c=>c.tier===tier && !used[c.id] && !everWorn.has(c.id))
+    const pool=BANK.filter(c=>c.tier===tier && sexOk(c) && !used[c.id] && !everWorn.has(c.id))
       .sort((a,b)=>b.fit(PSTATS[p])-a.fit(PSTATS[p]));
     const pick=pool[0];
     if(pick){ assigned[p]=pick; used[pick.id]=1; return; }
     const keepId=(L.by||{})[p], keep=keepId?byId(keepId):null;
-    if(keep && !used[keepId]){ assigned[p]=keep; used[keepId]=1; frozen[p]='exhausted'; }
+    if(keep && sexOk(keep) && !used[keepId]){ assigned[p]=keep; used[keepId]=1; frozen[p]='exhausted'; }
     else { frozen[p]='none'; }
   });
   PL4.forEach(p=>{ if(assigned[p]) return; const tier=(p===leader)?'winner':'style';
-    const pool=BANK.filter(c=>c.tier===tier && !used[c.id] && !everWorn.has(c.id))
+    const pool=BANK.filter(c=>c.tier===tier && sexOk(c) && !used[c.id] && !everWorn.has(c.id))
       .sort((a,b)=>b.fit(PSTATS[p])-a.fit(PSTATS[p]));
     const pick=pool[0];
     if(pick){ assigned[p]=pick; used[pick.id]=1; } else { frozen[p]=frozen[p]||'none'; } });
-  return {assigned, frozen, dupes, movers, everWorn, retiring, orderChanged};
+  return {assigned, frozen, dupes, wrongSexed, movers, everWorn, retiring, orderChanged};
 }
 
 // the shipped persistence: order, by and seen advance together
@@ -115,7 +133,15 @@ for(const o of orders){
 }
 const wSpent=Array.from(everSeen).filter(id=>byId(id)&&byId(id).tier==='winner').length;
 const sSpent=Array.from(everSeen).filter(id=>byId(id)&&byId(id).tier==='style').length;
-console.log('  winners spent '+wSpent+' of 12, styles spent '+sSpent+' of 44');
+/* Capacities are COUNTED from the drawable bank, not typed. The old line said "of 12"
+   and "of 44", the pre-fill sizes, so after the bank grew it reported spending more
+   than existed. A hardcoded denominator is the same defect as the hardcoded row count
+   above: it goes wrong exactly when the thing it describes improves. */
+const wCap=BANK.filter(c=>sexOk(c)&&c.tier==='winner').length;
+const sCap=BANK.filter(c=>sexOk(c)&&c.tier==='style').length;
+console.log('  winners spent '+wSpent+' of '+wCap+', styles spent '+sSpent+' of '+sCap);
+check(wSpent<=wCap, 'winner tier overspent: '+wSpent+' of '+wCap);
+check(sSpent<=sCap, 'style tier overspent: '+sSpent+' of '+sCap);
 
 console.log('');
 console.log('=== TEST 2: winner tier exhausted, engine must KEEP not repeat ===');
