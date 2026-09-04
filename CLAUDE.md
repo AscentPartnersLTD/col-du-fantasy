@@ -2718,14 +2718,27 @@ beneath them. Both were built to expose engine state. Neither was asked for.
 - Allegiances has no per-team official links; lavuelta has no per-team pages.
 - The Vuelta reskin change list lives in Allen's Claude project knowledge rather
   than in this repo. Commit it here so it survives a lost conversation.
-- Persona bank expansion, 27 rows to 56: BLOCKED 2026-08-11. Needs
-  `persona-bank-additions.js` (29 rows: 4 winner, 25 style). It does not exist
-  anywhere on Dragon. This is the third file in three sessions reported as saved
-  from chat that never landed, after `vuelta-og.png` and `make_vuelta_og.py`. The
-  bank cannot be written from scratch here: every row carries a `/* src: URL */`
-  citation that has to be fetched and checked, and inventing either the blurb or
-  the citation would violate the never-invent rule above. Ask Allen to confirm the
-  file is on disk before starting.
+- Persona bank expansion: CLOSED 2026-09-03, at 92 rows, 36 winner and 56 style. The old
+  blocked entry waited on a `persona-bank-additions.js` that never existed; the rows were
+  written here instead, which was always possible, the citation rule just makes it slow
+  rather than impossible. Every new row carries a `/* src: URL */` that was FETCHED in the
+  session that added it and read for the specific claim in its blurb. Two things that check
+  caught and would otherwise have shipped: `Pierre_Rolland` on Wikipedia is a DISAMBIGUATION
+  page, not the cyclist, and several claims only appeared under en dash spellings of race
+  names such as Paris-Roubaix and Paris-Nice, so a hyphen grep reported them missing when
+  they were there. Verify the page you cite is about the person you mean, and remember that
+  the source may spell a race name with a character this repo does not allow in its own files.
+  WHY IT HAD TO HAPPEN: the bank hit 56 of 56 worn with nine stages left, so both tiers were
+  empty, every seat was holding, and the exhausted-tier badge was rendering on the board.
+  The 24 new winners span the 1940s to the present and include eight women, which the old
+  bank had almost none of, having carried exactly one.
+  ART parity is asserted, not assumed: 92 ids, 92 emblems, no duplicates and no orphans on
+  either side. Every new emblem was rendered at 54px, the size the card actually draws, and
+  LOOKED AT. Five were redrawn after that look rather than shipped: Coppi read as a white
+  blob, Hampsten was pale blue on pale grey and vanished, Stybar read as a pair of
+  spectacles, van Moorsel read as a letter U, and Roche's three small crowns read as grass.
+  Detail that survives at 108px can disappear entirely at 54px, so check at the render size,
+  which is the same rule already recorded for `loading="lazy"`.
 - `MER` cannot be added to `PSTATS` as written. `PSTATS` is an IIFE at
   vuelta.src.html:2772 and builds `S[p]` at :2785. Every `MER` is declared later
   and in a narrower scope: :2966 inside the palmares-cards IIFE that opens at
