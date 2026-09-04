@@ -45,6 +45,70 @@ Supporting: `operator.html` (owner console), `pools.html` (member router),
 `21.jpg` (Vuelta), team kit PNGs, jersey art, Cloudflare worker files
 `worker3.js`, `worker4.js`, `wrangler.toml`.
 
+## Session preflight, and ALWAYS FETCH BEFORE CONCLUDING
+
+Added 2026-09-04. Run `tools-preflight.js` FIRST, every session, before any other work.
+
+```
+node tools-preflight.js
+```
+
+It checks, and names a remedy for each: which machine this is, that `git fetch` ran and
+how many commits behind the clone is, that the official feed answers, that `CDF_KEY` is
+set and `/api/pool-state` returns 200, the pool's current `startStage` and order, and
+which stage closer is actually on disk. Any FAIL exits non-zero and the session stops
+there. Thirteen closes have produced thirteen different failures, and the close was
+never the fragile part: a clone somebody remembered to fetch, a key that is set on this
+machine, and a reachable feed are three separate things, and a different one breaks on a
+different night.
+
+### A stale clone reports absence, not staleness
+
+THE RULE. ALWAYS `git fetch` BEFORE CONCLUDING A FILE DOES NOT EXIST. `git log --all`,
+`git cat-file` and a filesystem search all answer from what has been fetched, so on a
+stale clone they report a file as missing with complete confidence and no warning.
+
+A STALE CLONE DOES NOT REPORT STALENESS. IT REPORTS ABSENCE, AND ABSENCE IS WHAT A
+READER ACTS ON. That is the whole failure in one sentence.
+
+It produced BOTH false alarms of the 2026-09-04 session, from one cause:
+
+- `tools-combatif-gate.js` was reported missing, and `git log --all --diff-filter=A` was
+  run to confirm it. The clone was 18 commits behind. The file had been committed three
+  days earlier as `ed6d169` with 16 passing self-tests, and it resolved instantly after a
+  fetch. The close was nearly done by hand around a tool that was sitting in the repo.
+- A roster-floor cliff was reported as urgent, computed against `__ROSTER_MIN_FRACTION`
+  0.9 in the stale working copy. Commit `293dde3`, titled "Lower the roster floor before
+  it silently disabled the greyout", had already moved it to 0.75. The alarm was a
+  diagnosis of a fix that had already shipped.
+
+This is the same shape the repo already records about the col-break Worker, where
+`wrangler.toml` claimed a push deployed it and the provider had never been asked. A local
+artifact is not evidence about the remote. Ask the provider.
+
+### CLAUDE.md is the cold-start authority, so a wrong entry is worse than none
+
+THE BIGGER FINDING, and it is the reason the above cost a whole session rather than a
+minute. A session invented a `tools/` subdirectory layout, wrote 111 lines of this file
+describing it as built and working, and never pushed. A later session read those lines as
+fact and planned a live stage close around them.
+
+Those 111 lines were dropped on 2026-09-04 rather than merged, because origin already
+recorded the same lessons and named the real files. Their replacements are the sections
+this file already carries: the path gate is `tools-claudemd-paths.js` at ROOT, the
+close-stage lesson is recorded under its own heading below, and the completeness baseline
+lives with the roster floor.
+
+EVERY FILE PATH A SESSION WRITES INTO THIS FILE MUST BE VERIFIED TO EXIST AT ORIGIN, NOT
+ON LOCAL DISK, BEFORE IT IS COMMITTED. A file that exists only in an uncommitted working
+tree is invisible to every other machine and every other session, so documenting it here
+as real is the same failure as a config flag with no consumer, one level up.
+
+`tools-claudemd-paths.js` already enforces this, and it was not the thing that failed: it
+passes on origin because the wrong lines were never pushed. The gate can only check what
+is committed, so the discipline has to hold at the moment of writing, which is why this
+is a rule and not only a test.
+
 ## Build
 
 ```
@@ -1494,7 +1558,7 @@ Three options if it binds, none of them chosen yet:
 
 ### Verified, by simulation rather than by reading
 
-`scratchpad/sim.js` runs the real 56-row bank through the shipped rules. Twelve
+`tools-persona-sim.js` runs the real 56-row bank through the shipped rules. Twelve
 consecutive rotations with the leadership moving between all four seats: zero repeats,
 zero names on two seats at once, the used list growing 16 to 56 and both tiers reaching
 exactly full. With all 12 winners worn, the leader holds its champion and is flagged
@@ -1595,6 +1659,58 @@ Filtering the void stage drops JJ from 8 to 6 and erases his entire Arlequin lea
 tying him with JP. That is exactly the wrong answer that was reached once by hand.
 
 The tally site carries the same warning in a comment. Do not "fix" it.
+
+## Draft slot: what it does and does not explain
+
+FINDING, 2026-09-01. Measured over the ten drafted stages of Vuelta 2026, joining each
+`drafts/{n}` document, which is the only place the SLOT and the TEAM of a pick are
+recorded, to each `stages/{n}` document, which holds the finish. Stage documents order
+a seat's two picks BY FINISH, not by draft order, so the slot is not recoverable from
+the stage document alone. That is why this had never been measured.
+
+THE ROTATION IS A FIXED 4-CYCLE, SO SLOT CANNOT BE A SEASON-LONG EDGE. The leadoff runs
+JJ, JP, JB, AA and repeats; over ten stages every seat has held every order position two
+or three times. Whatever a slot is worth, all four seats collect it equally by the end
+of a race. It is a PER-STAGE effect only. Allen and I both had this wrong, in the same
+direction, and the analysis was started to explain a season-long standing by it.
+
+LEADING OFF IS STRONG ON PLACEMENT, and it is not close. Placement day totals, the sum
+of a seat's two picks, lowest leads:
+
+| Pair | Avg day | Median | Days won of 8 | Distinct teams |
+|---|---|---|---|---|
+| 1+8 | 44.0 | 24.0 | 4 | 10 |
+| 2+7 | 70.6 | 52.5 | 0 | 11 |
+| 3+6 | 102.5 | 83.0 | 1 | 8 |
+| 4+5 | 137.8 | 126.0 | 3 | 16 |
+
+Pair 2+7 has never won a day all race.
+
+SPOT 8 IS NOT A SCRAP HEAP, which is the part that surprises people. Median finish 12th
+and a 75 percent top-30 rate, second only to spots 1 and 2. Eight picks removes 4
+percent of a 184-rider field, so the eighth-best rider still available is excellent and
+draft position barely constrains QUALITY here the way it does in a deep-roster league.
+What position controls is which NAMED FAVOURITES are gone, and that only bites a seat
+that was going to take one.
+
+THE VARIETY HALF OF THE THEORY SURVIVES. Pair 4+5 has drafted 16 distinct teams against
+10 for pair 1+8, and spot 4 has produced ten picks from ten different teams, the only
+spot on the board with no repeat at all.
+
+THE "WITHOUT GIVING UP MUCH SCORING" HALF IS DEAD. That variety is bought at 94
+placement points a day against leading off. On Fantasy Points the same gap is 22.7 to
+16.0 per pick, which was arguable; on Placement, the board the variety leader actually
+leads, it is not.
+
+JJ'S ARLEQUIN LEAD COMES FROM WHAT HE PICKS, NOT WHERE. Fifteen distinct teams from
+twenty picks against JP's eight, five repeats against JP's twelve, and 15 percent of his
+picks from Visma, UAE or Lidl-Trek against 45 to 58 percent for everyone else. Same
+slots, same rotation, different choices. It costs him little on the primary board: 19.1
+Fantasy Points per scored pick against AA's 20.6.
+
+CAVEAT, and it is a real one. Eight scored stages, eight picks per spot. The 4+5 mean is
+dragged by a single 344 day. The medians agree with every direction above, so trust the
+DIRECTION and not the exact size, and re-measure before any of this becomes board copy.
 
 ## Every ordinal names its board
 

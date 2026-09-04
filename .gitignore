@@ -1,0 +1,4 @@
+# Paste-in close artifacts. A one-time snippet carrying a stage's picks and the whole
+# race calendar, regenerated on demand and never committed. The generator that writes
+# these is not in the repo; see the close-stage section in CLAUDE.md.
+close-stage-*.snippet.js

@@ -30,8 +30,6 @@ const EXTERNAL = {
     'the primary proxy, in the coldufantasy-login repo with its own Vercel deploy',
   'persona-bank-additions.js':
     'documented in Open items as BLOCKED and never delivered; its absence IS the record',
-  'scratchpad/sim.js':
-    'session scratchpad, deliberately outside the repo',
   '2026/icg.png':
     'a path on lavuelta.es, not a local file',
   'giro.src.html':
