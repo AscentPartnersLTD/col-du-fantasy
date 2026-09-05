@@ -416,11 +416,6 @@ async function main() {
   console.log('  extra       the race-row note for the board');
 
   if (args.includes('--emit')) {
-    const out = path.join(REPO, 'close-stage-' + stage + '.snippet.js');
-    fs.writeFileSync(out, snippet(pool, stage, stageDoc, ps));
-    console.log('\nwrote ' + path.relative(REPO, out));
-    console.log('Paste it into a signed-in board tab as the owner. Read the values back after.');
-
     /* The same values, machine-readable, so a writer consumes the numbers the gates
        checked rather than a re-typed copy of them. ONE computation, per the standard
        rule. The rotation is derived here and not by the caller: pool.order is the
@@ -428,19 +423,75 @@ async function main() {
        seat, which is what every drafts/{n}.order in the season already shows. */
     const curOrder = Array.isArray(ps.poolDoc.order) ? ps.poolDoc.order.slice() : [];
     const nextOrder = curOrder.length ? curOrder.slice(1).concat(curOrder.slice(0, 1)) : [];
+
+    /* THE ROTATION IS COMPUTED, NEVER TYPED, and then CHECKED, because "computed" only
+       means the arithmetic was not hand-done: it does not mean the result is right.
+       The rotation is a fixed one-seat advance, so the new leadoff is by definition the
+       SECOND seat of the order that just drafted. Assert that rather than trusting the
+       slice, which is the one line that could silently rotate the wrong way or by the
+       wrong amount and would look entirely plausible on the board. */
+    if (curOrder.length < 2)
+      throw new Error('pool.order has fewer than two seats, cannot rotate: ' + JSON.stringify(curOrder));
+    if (nextOrder[0] !== curOrder[1])
+      throw new Error('rotation is wrong: new leadoff ' + nextOrder[0] +
+        ' is not the previous order second seat ' + curOrder[1] +
+        '  (' + JSON.stringify(curOrder) + ' -> ' + JSON.stringify(nextOrder) + ')');
+    if (nextOrder.length !== curOrder.length ||
+        nextOrder.slice().sort().join() !== curOrder.slice().sort().join())
+      throw new Error('rotation changed the seat set: ' +
+        JSON.stringify(curOrder) + ' -> ' + JSON.stringify(nextOrder));
+
+    /* THE NEXT DRAFT MUST BE UNSTARTED. Writing order, snake and queue onto a draft that
+       already holds picks would renumber a draft in progress, which is the one write here
+       that could destroy something a player did rather than merely be wrong. Refuse.
+       An ABSENT document is the normal case and is fine: the board creates it from
+       draftInit() the first time somebody opens the stage. */
+    const nextPs = await getJson('https://api.coldufantasy.com/api/pool-state?pool=' + pool +
+      '&stage=' + (stage + 1), { 'x-cdf-key': KEY });
+    const nextDraft = nextPs.draft;
+    const nextPicks = (nextDraft && Array.isArray(nextDraft.picks)) ? nextDraft.picks.length : 0;
+    if (nextPicks > 0)
+      throw new Error('drafts/' + (stage + 1) + ' already holds ' + nextPicks +
+        ' pick(s). REFUSING to rewrite a draft that is under way.');
+
+    /* snake and queue come from the SAME nextOrder, derived exactly as draftInit() does
+       on the board, so the document this writes and the document the board would have
+       created are the same document. Do not re-derive the order here. */
+    const nextSnake = nextOrder.concat(nextOrder.slice().reverse());
+    const nextDraftDoc = {
+      n: stage + 1,
+      order: nextOrder,
+      snake: nextSnake,
+      queue: nextSnake.slice(),
+      picks: [],
+      status: 'pending'
+    };
+
     const payload = {
       pool: pool,
       stage: stage,
       data: stageDoc,
       advance: { startStage: stage + 1, order: nextOrder },
+      nextDraft: nextDraftDoc,
+      nextDraftExists: !!nextDraft,
       race: ((ps.poolDoc.boardConfig || {}).race || []).map(r =>
         r && r.n === stage ? Object.assign({}, r, { upcoming: false, win: stageDoc.win }) : r)
     };
+    /* The snippet is written LAST, from the same computed values, so it cannot describe
+       a rotation the payload does not carry. */
+    const out = path.join(REPO, 'close-stage-' + stage + '.snippet.js');
+    fs.writeFileSync(out, snippet(pool, stage, stageDoc, ps, nextOrder, nextDraftDoc, nextPicks));
+    console.log('\nwrote ' + path.relative(REPO, out));
+    console.log('Paste it into a signed-in board tab as the owner. Read the values back after.');
+
     const jout = path.join(REPO, 'close-stage-' + stage + '.payload.json');
     fs.writeFileSync(jout, JSON.stringify(payload, null, 2));
     console.log('wrote ' + path.relative(REPO, jout));
     console.log('  order rotates ' + JSON.stringify(curOrder) + ' -> ' + JSON.stringify(nextOrder) +
       ', startStage ' + stage + ' -> ' + (stage + 1));
+    console.log('  new leadoff ' + nextOrder[0] + ' is the previous order second seat, checked');
+    console.log('  drafts/' + (stage + 1) + ': ' + (nextDraft ? 'exists, ' + nextPicks + ' picks' : 'absent') +
+      ', snake ' + JSON.stringify(nextSnake));
   } else {
     console.log('\nRe-run with --emit to write the paste-in snippet.');
   }
@@ -449,7 +500,7 @@ async function main() {
 /* The snippet is generated rather than hand-written so the values cannot drift from
    the ones the gates just checked. It deliberately does NOT touch next2: leaving
    that field unset is what keeps the Stats card deriving the next stage correctly. */
-function snippet(pool, stage, stageDoc, ps) {
+function snippet(pool, stage, stageDoc, ps, nextOrder, nextDraftDoc, nextPicks) {
   /* Set only what the close knows. `extra` is LEFT AS IT IS rather than filled with a
      placeholder: a placeholder that survives a paste publishes itself to the board,
      and blanking it silently would drop a note somebody wrote. Edit it deliberately
@@ -464,14 +515,39 @@ function snippet(pool, stage, stageDoc, ps) {
   const stageDoc = ${JSON.stringify(stageDoc, null, 2)};
 
   await db.doc('pools/${pool}/stages/${stage}').set(stageDoc);
-  await db.doc('pools/${pool}').update({ startStage: ${stage + 1} });
 
   /* config.race is an ARRAY and replaces wholesale, so all ${race.length} rows go back. */
   await db.doc('pools/${pool}').update({ 'boardConfig.race': ${JSON.stringify(race)} });
 
+  /* THE ROTATION GOES FIRST, AND IS CONFIRMED, BEFORE THE NEXT DRAFT IS TOUCHED.
+     pool.order is a LIVE value that open boards hold copies of, and drafts/${stage + 1}
+     is derived from it. Writing the draft first would seed it from an order the pool doc
+     did not yet agree with, and every open session would then fight the difference. */
+  await db.doc('pools/${pool}').update({
+    startStage: ${stage + 1},
+    order: ${JSON.stringify(nextOrder)}
+  });
+
+  const poolBack = (await db.doc('pools/${pool}').get()).data();
+  console.log('startStage:', poolBack.startStage, ' order:', poolBack.order);
+  if (String(poolBack.order) !== String(${JSON.stringify(nextOrder)}))
+    throw new Error('pool.order did not land; STOPPING before drafts/${stage + 1}');
+  if (poolBack.startStage !== ${stage + 1})
+    throw new Error('startStage did not land; STOPPING before drafts/${stage + 1}');
+
+  /* Only now, and only onto a draft with no picks. Re-checked HERE as well as in the
+     tool, because the tool read the state minutes ago and this runs later. */
+  const nref = db.doc('pools/${pool}/drafts/${stage + 1}');
+  const nsnap = await nref.get();
+  const existing = nsnap.exists ? (nsnap.data().picks || []) : [];
+  if (existing.length) throw new Error('drafts/${stage + 1} already holds ' + existing.length +
+    ' pick(s); REFUSING to rewrite a draft that is under way');
+  await nref.set(Object.assign(${JSON.stringify(nextDraftDoc)},
+    { createdAt: firebase.firestore.FieldValue.serverTimestamp() }), { merge: true });
+
   const back = await db.doc('pools/${pool}/stages/${stage}').get();
   console.log('stored:', back.data());
-  console.log('startStage:', (await db.doc('pools/${pool}').get()).data().startStage);
+  console.log('drafts/${stage + 1}:', (await nref.get()).data());
 })();
 `;
 }
