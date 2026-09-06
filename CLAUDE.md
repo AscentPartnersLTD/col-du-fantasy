@@ -772,6 +772,33 @@ first swallowed the stage 4 Andorra intel: seven facts written, zero rendered, a
 card showed only "Short, savage Andorran day". Clear the race row's `extra` when the
 intel lives in `sharedUpcoming`.
 
+### A shortened stage: the calendar must follow the stage doc, and 110.2 is NOT a typo
+
+STOP if stage 15 looks wrong at 110.2 km. IT IS CORRECT. The official 2026 route for
+Palma del Rio to Cordoba is 189.7 km. The stage was CUT to 110.2 km on the day under the
+extreme temperatures protocol, and 110.2 is the distance that was actually raced. Anyone
+checking the calendar against lavuelta.es or a route archive will find 189.7 and read the
+repo as stale. Do not "restore" it.
+
+Corrected 2026-09-06. The stage doc `pools/vuelta-2026/stages/15` had carried 110.2 since
+the close; the `boardConfig.race` row still held 189.7, because a shortened stage changes
+the result and nobody thinks to change the calendar.
+
+THE SHAPE, and it is the reason this is written down rather than just fixed: TWO RECORDS
+OF THE SAME FACT, and only one of them got the correction. It is the `FP_SCALE` pattern
+in data rather than in code. The stage doc is what the scored stage card reads, so the
+board showed 110.2 and looked entirely right; the calendar row is read by Road Ahead,
+which excludes scored stages, and by the results table, which does not print km. So the
+wrong number was INVISIBLE on every surface. Measured 2026-09-06 on the live board:
+`189.7` appeared zero times in the whole DOM, `110.2` once.
+
+An invisible wrong number is not a harmless one. It surfaces the moment anything reads the
+CALENDAR rather than the stage doc, and a season summary or an archive is exactly that.
+
+WHEN A STAGE IS SHORTENED OR REROUTED, both records change in the same pass: the stage doc
+and the `boardConfig.race` row. Neither is derivable from the other, and the board will
+not tell you they disagree.
+
 ## ASO rider images
 
 STOP if bibs 103 and 104 look swapped in `ASO_PORTRAIT`. THEY ARE CORRECT. The URL for
@@ -1296,6 +1323,36 @@ stages" over a rest-day card is a small lie.
 STILL TRUE, and unchanged by any of this: do NOT write `boardConfig.next2`. The rest day
 comes out of the same derivation that the next stage does, and a written `next2` kills
 both.
+
+#### The card lives on OVERVIEW, moved 2026-09-06
+
+It was on Stats. That meant the board could not tell a reader that tomorrow is a rest day
+until they navigated away from the tab they land on, and OVERVIEW IS THE TAB EVERYONE
+LANDS ON. A card that only appears after you go looking for it is effectively not shipped.
+Allen's framing, and it is the right test to apply to any card: Overview is where you
+learn what is coming, Stats is where you go to look something up.
+
+It sits immediately after `#draftMount`, so the most-read card on the board keeps the top
+slot and the road ahead follows it.
+
+THERE IS STILL EXACTLY ONE OF IT, and that is the part to protect. One mount, `#nsBody`,
+one renderer, one `REST_DAYS` derivation. Rendering the same card on two tabs to save a
+reader a click is the FP_SCALE mistake in its original form, and the copy that drifts is
+always the one nobody is looking at.
+
+Moving it left NO HOLE in Stats. The card was a full-width `.metricbox` sitting BELOW the
+`.metricwrap` grid, not a column inside it, so the grid closes and the next full-width
+card follows directly. `.metricbox`, `.mh` and `.msub` are global rules and the card's own
+`<style>` is scoped by `#nextStageBox`, so the styling travelled with the markup and
+nothing needed reflowing.
+
+WHAT PROMPTED IT is worth keeping, because the report was right and the diagnosis in it
+was not. The card was reported MISSING from Overview and present on Ledger and Stats. It
+had never been on Overview, and it was never on Ledger either: a case-insensitive search
+for "rest day" matched three lines of stage 16's `intel` PROSE on the Road Ahead card,
+which is editorial copy and not a card at all. Walking the live DOM for the matching text
+nodes settled in one pass what grepping the rendered text could not. A TEXT MATCH IS NOT A
+COMPONENT.
 
 ## Stage facts: ONE test set, two surfaces
 

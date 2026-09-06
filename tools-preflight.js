@@ -131,9 +131,23 @@ function checkGit() {
       '         working tree exactly as stale as it was. Reconcile, do not just look.\n' +
       '         A stale clone reports ABSENCE, not staleness, and absence is what you act on.');
 
-  let dirty = '';
-  try { dirty = sh('git status --porcelain'); } catch (e) { }
-  const modified = dirty.split('\n').filter(l => l.trim() && !l.startsWith('??'));
+  /* DIRTINESS IS CONTENT-AWARE, and that is not a refinement. This read
+     `git status --porcelain` and counted every non-`??` line as a modification, which
+     reports a file whose CONTENT IS IDENTICAL TO HEAD: a touched mtime leaves a stale
+     stat-cache entry, porcelain prints ` M`, and `git diff` on the same file is empty.
+     On 2026-09-06 that halted a session on tools-combatif-gate.js, whose blob hash
+     matched HEAD exactly, while the clone sat one commit behind. The fast-forward was
+     available the whole time and the stop was pure noise.
+
+     A GATE THAT STOPS WORK ON A PHANTOM TRAINS PEOPLE TO OVERRIDE IT, which is worse
+     than not having the gate at all. So ask git what actually DIFFERS from HEAD, staged
+     or unstaged, and let a stat artifact resolve to clean. */
+  let modified = [];
+  try { modified = sh('git diff --name-only HEAD').split('\n').filter(l => l.trim()); }
+  catch (e) { }
+  let untracked = [];
+  try { untracked = sh('git ls-files --others --exclude-standard').split('\n').filter(l => l.trim()); }
+  catch (e) { }
   /* A dirty tree on a CURRENT clone is ordinary working state and passes. Dirty AND
      behind is the one combination that must STOP: a fast-forward is not available, and
      merging or resetting on Allen's behalf is exactly the destructive guess this check
@@ -143,10 +157,11 @@ function checkGit() {
   const blocked = modified.length > 0 && behind > 0;
   record(!blocked, 'working tree',
     (modified.length ? modified.length + ' modified' : 'clean') +
-    ', ' + dirty.split('\n').filter(l => l.startsWith('??')).length + ' untracked' +
+    ', ' + untracked.length + ' untracked' +
     (blocked ? ', and ' + behind + ' behind' : ''),
     blocked ? 'DIRTY TREE AND ' + behind + ' COMMIT(S) BEHIND. STOP and report to Allen.\n' +
-      '         Do NOT merge, do NOT reset, and do NOT work on top of it.' : null);
+      '         Do NOT merge, do NOT reset, and do NOT work on top of it.\n' +
+      '         Modified: ' + modified.join(', ') : null);
 
   return { behind: behind, ahead: ahead, head: head };
 }

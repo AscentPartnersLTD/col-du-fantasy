@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260904-192220Z -->
+<head><!-- build:20260906-171037Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -1160,6 +1160,49 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
     </a>
     <div id="restSummary"></div>
     <div id="draftMount"></div>
+    <div class="metricbox" id="nextStageBox" style="margin-top:14px">
+      <style>
+        #nextStageBox .ns-num{font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:var(--gold-d)}
+        #nextStageBox .ns-route{font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;margin-top:2px;color:var(--ink)}
+        #nextStageBox .ns-chips{display:flex;gap:7px;margin-top:8px;flex-wrap:wrap}
+        #nextStageBox .ns-chip{font-family:'Montserrat',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.03em;background:var(--paper2);border:1px solid var(--line2);border-radius:999px;padding:2px 10px;color:var(--ink)}
+        #nextStageBox .ns-profile{margin-top:10px}
+        #nextStageBox .ns-profile img{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:8px;background:#fff}
+        #nextStageBox .ns-proflink{display:inline-block;margin-top:10px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--gold-d);text-decoration:none;border:1px solid var(--line2);border-radius:999px;padding:4px 11px}
+        #nextStageBox .ns-proflink:hover{border-color:var(--gold-d)}
+        #nextStageBox .ns-profcap{font-size:10px;color:var(--mute);margin-top:5px;font-family:'Montserrat',sans-serif;letter-spacing:.02em}
+        #nextStageBox .ns-line{font-size:12px;color:var(--mute);margin-top:9px;line-height:1.5}
+        #nextStageBox .ns-order{font-size:12px;color:var(--ink2);margin-top:9px}
+        #nextStageBox .ns-order .ns-lab{font-family:'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:var(--mute);margin-right:7px}
+        #nextStageBox .ns-order b{font-family:'Montserrat',sans-serif}
+        #nextStageBox .ns-muted{color:var(--mute);font-size:12.5px}
+        /* Rest day slot. Deliberately the same .ns-block shell as a stage so it reads as
+           part of the rotation rather than as an interruption, with the race mark and the
+           words where the elevation profile would be. */
+        #nextStageBox .ns-rest{text-align:center}
+        #nextStageBox .ns-rest .ns-route{color:var(--mute);font-weight:700;font-size:13px}
+        #nextStageBox .ns-restlogo{margin:14px 0 10px}
+        #nextStageBox .ns-restlogo img{width:64px;height:64px;object-fit:contain;border-radius:14px;display:block;margin:0 auto;opacity:.92}
+        #nextStageBox .ns-restword{font-family:'Montserrat',sans-serif;font-weight:900;letter-spacing:.16em;font-size:15px;color:var(--ink);text-transform:uppercase}
+        #nextStageBox .ns-rest .ns-line{margin-top:10px}
+        @media(max-width:640px){
+          #nextStageBox .ns-restlogo{margin:11px 0 8px}
+          #nextStageBox .ns-restlogo img{width:54px;height:54px}
+          #nextStageBox .ns-restword{font-size:13.5px;letter-spacing:.13em}
+        }
+        /* Desktop: the two stages sit side by side across the full width. Mobile: they stack (kept vertical). */
+        #nextStageBox #nsBody{display:grid;grid-template-columns:1fr 1fr;gap:0 32px}
+        #nextStageBox .ns-block{padding-top:0;margin-top:8px;border-top:none}
+        #nextStageBox .ns-block:nth-child(2){border-left:1px solid var(--line);padding-left:32px}
+        @media(max-width:640px){
+          #nextStageBox #nsBody{grid-template-columns:1fr;gap:0}
+          #nextStageBox .ns-block:nth-child(2){border-left:none;padding-left:0;border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+        }
+      </style>
+      <div class="mh">Next two stages</div>
+      <div class="msub">The road ahead, and who leads off</div>
+      <div id="nsBody"></div>
+    </div>
     <div class="break-card" id="breakWidget" style="display:none">
       <style>
         .break-card{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:15px 17px;margin:0 0 20px}
@@ -1371,49 +1414,6 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
         </div>
       </div>
       <div class="metricbox" id="sigBox"><div class="mh">Signature rider and the damage</div><div class="msub">Most-loved rider and what the loyalty cost</div><div id="mSig"></div></div>
-    </div>
-    <div class="metricbox" id="nextStageBox" style="margin-top:14px">
-      <style>
-        #nextStageBox .ns-num{font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:var(--gold-d)}
-        #nextStageBox .ns-route{font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;margin-top:2px;color:var(--ink)}
-        #nextStageBox .ns-chips{display:flex;gap:7px;margin-top:8px;flex-wrap:wrap}
-        #nextStageBox .ns-chip{font-family:'Montserrat',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.03em;background:var(--paper2);border:1px solid var(--line2);border-radius:999px;padding:2px 10px;color:var(--ink)}
-        #nextStageBox .ns-profile{margin-top:10px}
-        #nextStageBox .ns-profile img{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:8px;background:#fff}
-        #nextStageBox .ns-proflink{display:inline-block;margin-top:10px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--gold-d);text-decoration:none;border:1px solid var(--line2);border-radius:999px;padding:4px 11px}
-        #nextStageBox .ns-proflink:hover{border-color:var(--gold-d)}
-        #nextStageBox .ns-profcap{font-size:10px;color:var(--mute);margin-top:5px;font-family:'Montserrat',sans-serif;letter-spacing:.02em}
-        #nextStageBox .ns-line{font-size:12px;color:var(--mute);margin-top:9px;line-height:1.5}
-        #nextStageBox .ns-order{font-size:12px;color:var(--ink2);margin-top:9px}
-        #nextStageBox .ns-order .ns-lab{font-family:'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:var(--mute);margin-right:7px}
-        #nextStageBox .ns-order b{font-family:'Montserrat',sans-serif}
-        #nextStageBox .ns-muted{color:var(--mute);font-size:12.5px}
-        /* Rest day slot. Deliberately the same .ns-block shell as a stage so it reads as
-           part of the rotation rather than as an interruption, with the race mark and the
-           words where the elevation profile would be. */
-        #nextStageBox .ns-rest{text-align:center}
-        #nextStageBox .ns-rest .ns-route{color:var(--mute);font-weight:700;font-size:13px}
-        #nextStageBox .ns-restlogo{margin:14px 0 10px}
-        #nextStageBox .ns-restlogo img{width:64px;height:64px;object-fit:contain;border-radius:14px;display:block;margin:0 auto;opacity:.92}
-        #nextStageBox .ns-restword{font-family:'Montserrat',sans-serif;font-weight:900;letter-spacing:.16em;font-size:15px;color:var(--ink);text-transform:uppercase}
-        #nextStageBox .ns-rest .ns-line{margin-top:10px}
-        @media(max-width:640px){
-          #nextStageBox .ns-restlogo{margin:11px 0 8px}
-          #nextStageBox .ns-restlogo img{width:54px;height:54px}
-          #nextStageBox .ns-restword{font-size:13.5px;letter-spacing:.13em}
-        }
-        /* Desktop: the two stages sit side by side across the full width. Mobile: they stack (kept vertical). */
-        #nextStageBox #nsBody{display:grid;grid-template-columns:1fr 1fr;gap:0 32px}
-        #nextStageBox .ns-block{padding-top:0;margin-top:8px;border-top:none}
-        #nextStageBox .ns-block:nth-child(2){border-left:1px solid var(--line);padding-left:32px}
-        @media(max-width:640px){
-          #nextStageBox #nsBody{grid-template-columns:1fr;gap:0}
-          #nextStageBox .ns-block:nth-child(2){border-left:none;padding-left:0;border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
-        }
-      </style>
-      <div class="mh">Next two stages</div>
-      <div class="msub">The road ahead, and who leads off</div>
-      <div id="nsBody"></div>
     </div>
     <div class="metricbox" style="margin-top:14px">
       <div class="mh">Placement race, stage by stage</div><div class="msub">Cumulative total, lower line is ahead</div>
@@ -7674,7 +7674,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 
 ;
 
-/* Next two stages card (Stats tab, column 2). Two slots, filled from a CHRONOLOGICAL
+/* Next two stages card (OVERVIEW). Two slots, filled from a CHRONOLOGICAL
    timeline of what is coming rather than from stage numbers, so a rest day takes its
    place in the rotation instead of being skipped.
 
@@ -7686,7 +7686,17 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 
    The clock is used for ONE decision only: whether a rest day sitting before the
    upcoming stage has already passed. Everything else comes off the calendar. A rest day
-   after the upcoming stage is always still ahead and needs no clock. */
+   after the upcoming stage is always still ahead and needs no clock.
+
+   IT LIVES ON OVERVIEW, moved there 2026-09-06 at Allen's request. It was on Stats,
+   which meant the board could not tell a reader that tomorrow is a rest day until they
+   navigated away from the tab they land on. A card that only appears after you go
+   looking for it is effectively not shipped. Overview is where you learn what is
+   coming; Stats is where you go to look something up.
+
+   THERE IS STILL EXACTLY ONE OF IT. Rendering the same card on two tabs would be the
+   FP_SCALE mistake in its original form, and the copy that drifts is always the one
+   nobody is looking at. One mount, one id, one renderer. */
 (function(){
   const el=document.getElementById('nsBody'); if(!el) return;
   const U=(typeof UPCOMING!=='undefined')?UPCOMING:null;
