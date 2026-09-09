@@ -2531,6 +2531,101 @@ so neither copy is trusted:
 Both SKIP loudly rather than passing when the sibling clone is absent. A gate that quietly
 passes when it cannot find what it is checking is the fail-open shape, one level up.
 
+## The operator close card, and the write path behind it
+
+Added 2026-09-09. THREE TAPS: Close it, Confirm, done.
+
+The preview endpoint alone was NOT the feature and should not have been offered as one.
+It returns JSON, which is useful to a machine and useless on a phone. The feature is a
+button.
+
+WHERE IT LIVES: the top of the Overview tab on the Vuelta board, above everything.
+
+IT IS NEVER RENDERED FOR A PLAYER. The guard is `if(!isOwner) return;` before a single
+node exists, NOT a CSS rule. A `display:none` widget is still in the DOM and one
+stylesheet mistake away from being visible to JJ, JP and JB, and there is no markup for
+this card in the served HTML at all until the owner session builds it. The only thing in
+the file is an empty `<div id="opClose">`.
+
+Allen asked for this surface explicitly, so it is not the unprompted player-facing widget
+the writing conventions forbid. That rule is unchanged and still absolute.
+
+THE CARD COMPUTES NOTHING. Every number, ruling and refusal comes from the endpoint. If
+it ever starts deriving its own, that is the FP_SCALE mistake with a person in the middle
+of it, confirming a screen that is not what lands. `tools-opcard-verify.js` asserts it:
+every number on screen must appear in the payload.
+
+NO JSON REACHES THE SCREEN, and that is tested rather than intended. The rendered text is
+scanned for braces, `[object Object]`, and the literal words undefined, null and NaN.
+
+### One computation, two callers
+
+`computeClose` in `lib/compute-close.js` is THE close computation. `/api/close-preview`
+returns what it computed; `/api/close-stage` returns the same thing and, when nothing
+refused, writes exactly that. The operator therefore confirms the screen that lands.
+
+A preview that computed one thing while the write computed another would be the worst
+version of the duplication this file keeps recording, because a person would be pressing
+Confirm on it.
+
+### What the transaction covers
+
+ONE Firestore transaction, all or nothing: the stage doc, `startStage`, `pool.order` and
+`boardConfig.race`.
+
+`sharedUpcoming` and `weather` are NOT rewritten when no patch is sent, and that is
+deliberate rather than a gap. The pool document is READ inside the transaction, so a
+concurrent change to either ABORTS this write instead of silently clobbering it. They are
+covered by the transaction without being overwritten by it, which is strictly safer than
+reading them and writing them back.
+
+Dotted field paths throughout, so `boardConfig` siblings survive. Writing `boardConfig`
+wholesale would drop `predictionsThroughStage`, `sharedUpcoming` and `weather` in one
+stroke. `next2` is NEVER written.
+
+THE ROTATION IS RECOMPUTED INSIDE THE TRANSACTION, from the order read there, never
+carried in from the earlier read, and then asserted: a one-seat advance means the new
+leadoff IS the previous order second seat.
+
+THE NEXT DRAFT IS NOT WRITTEN. The board creates it from `draftInit()` off the rotated
+order, which is the same document this would have produced, and writing it is the one
+write that could destroy something a player did. The close REFUSES if that draft already
+holds picks, rather than rotating the order out from under a draft in progress.
+
+Every write reads back afterwards. A write that returned without throwing is not the same
+claim as a write that landed.
+
+### Safe defaults, and what force does NOT do
+
+`dryRun` DEFAULTS TO TRUE. A caller that forgets the flag, or sends a malformed body, gets
+a computation and not a write. The destructive direction is never the default.
+
+`force` clears ONLY the already-closed refusal. It has never cleared a gate and must not:
+a failing gate means the INPUT is wrong, and forcing past that writes a wrong result with
+full confidence, which is the entire failure mode this repo exists to prevent.
+
+`breakThru` is still never guessed. On a breakaway stage the close REFUSES until the
+operator supplies it, because the Seleccion is computed from it and the largest-split
+heuristic reproduces the stored value on only 2 of 4 historical breakaway stages. That
+prompt fires on roughly one stage in six, and only where the award exists.
+
+### grep CANNOT check for en dashes on this machine
+
+Validation step 1 in this file says zero U+2013 and zero U+2014. Doing that with
+`grep "[<en><em>]"` in Git Bash on Dragon MATCHES BYTES, not characters, so it reports a
+false positive on every non-ASCII character whose UTF-8 encoding shares a byte with those
+dashes. On 2026-09-09 it claimed four dash lines in `vuelta.src.html`; a codepoint scan
+found ZERO. The four lines contain A-grave, Y-diaeresis, ae and combining marks, all
+inside regex character classes.
+
+THIS MATTERS BECAUSE THE FIX WOULD HAVE BEEN THE BUG. Anyone "correcting" those four
+lines would be editing `normName` and the accent-folding table, both of which decide
+whether a rider name matches, on the strength of a dash that is not there.
+
+Scan CODEPOINTS. The validator that does it is in the scratch tooling used for the card
+build; the one-liner is a loop over the string comparing each character against
+the two dash codepoints, never a grep bracket expression.
+
 ## Values read once in loadPool are STALE-SESSION HAZARDS
 
 Added 2026-09-01, after `ORDER` cost a day.

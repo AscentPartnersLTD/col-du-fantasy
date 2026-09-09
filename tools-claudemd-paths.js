@@ -46,6 +46,8 @@ const EXTERNAL = {
     'the read-only close preview, in the coldufantasy-login repo with its own Vercel deploy',
   'api/startlist.js':
     'the cached startlist write, in the coldufantasy-login repo with its own Vercel deploy',
+  'lib/compute-close.js':
+    'THE close computation, in the coldufantasy-login repo; both the preview and the write endpoint are thin wrappers over it',
   'lib/close.js':
     'the server port of the close computation, in the coldufantasy-login repo; checked by tools-close-port-verify.js',
   'lib/combatif-gate.js':

@@ -1153,6 +1153,46 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
       .tm-chip .tm-badge svg{width:17px;height:17px;color:#fff}
       @media(max-width:520px){ .tm-link{display:flex} .tm-chip{display:none} }
     </style>
+    <style>
+      /* Operator close card. Owner-only, and never rendered for anyone else: the guard
+         is a `return` in JS before any node exists, not a CSS rule, so there is no
+         markup here to leak. Built for 375px first; the desktop widths are the
+         afterthought, not the other way round. */
+      #opClose{margin:0 0 18px}
+      #opClose:empty{display:none}
+      .opc{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--gold-d);border-radius:14px;box-shadow:var(--sh);padding:15px 16px}
+      .opc.opc-ok{border-left-color:#1d7a44}
+      .opc-tag{font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:.09em;font-size:9.5px;color:var(--gold-d)}
+      .opc.opc-ok .opc-tag{color:#1d7a44}
+      .opc-h{font-family:'Montserrat',sans-serif;font-weight:800;font-size:19px;line-height:1.2;margin-top:3px;color:var(--ink)}
+      .opc-p{font-size:13.5px;line-height:1.6;color:var(--ink);margin-top:8px}
+      .opc-p.opc-tight{margin-top:6px}
+      .opc-mute{color:var(--mute);font-size:12.5px}
+      .opc-sec{font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:.07em;font-size:10px;color:var(--mute);margin-top:16px;padding-top:11px;border-top:1px solid var(--line)}
+      .opc-seat{margin-top:10px}
+      .opc-seat-top{display:flex;align-items:baseline;gap:7px}
+      .opc-seat-top b{font-family:'Montserrat',sans-serif;font-weight:800;font-size:14px}
+      .opc-nm{font-size:12.5px;color:var(--mute);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .opc-fp{font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:var(--gold-d);flex:none}
+      .opc-picks{font-size:13px;line-height:1.5;margin-top:2px}
+      .opc-sub{font-size:11.5px;color:var(--mute);margin-top:2px}
+      .opc-warn{margin-top:11px;padding:11px 12px;border-radius:10px;background:rgba(178,31,43,.08);border:1px solid rgba(178,31,43,.35);font-size:13px;line-height:1.55;color:var(--ink)}
+      .opc-actions{margin-top:18px;display:flex;flex-direction:column;gap:9px}
+      .opc-btn{width:100%;min-height:48px;border-radius:11px;border:none;background:var(--gold-d);color:#1b1a17;font-family:'Montserrat',sans-serif;font-weight:800;font-size:14.5px;letter-spacing:.02em;cursor:pointer;padding:12px 14px;margin-top:14px}
+      .opc-actions .opc-btn{margin-top:0}
+      .opc-btn:disabled{opacity:.6;cursor:default}
+      .opc-btn.opc-ghost{background:transparent;border:1px solid var(--line2);color:var(--ink)}
+      .opc-flip{min-height:40px;border-radius:9px;border:1px solid var(--line2);background:transparent;color:var(--ink);font-family:'Montserrat',sans-serif;font-weight:700;font-size:12.5px;cursor:pointer;padding:9px 13px;margin-top:9px}
+      .opc-flip.opc-inline{margin-top:0;margin-left:7px;min-height:34px;padding:6px 12px}
+      .opc-in{width:100%;box-sizing:border-box;margin-top:11px;padding:12px;border-radius:10px;border:1px solid var(--line2);background:var(--paper2);color:var(--ink);font-size:16px}
+      .opc-num{width:74px;padding:7px 9px;border-radius:8px;border:1px solid var(--line2);background:var(--paper2);color:var(--ink);font-size:16px;margin:0 2px}
+      @media(min-width:560px){
+        .opc-actions{flex-direction:row-reverse;justify-content:flex-end}
+        .opc-actions .opc-btn{width:auto;min-width:200px}
+        .opc-actions .opc-btn.opc-ghost{min-width:110px}
+      }
+    </style>
+    <div id="opClose"></div>
     <a class="tm-link" href="https://wedu.team/blogs/the-move" target="_blank" rel="noopener noreferrer" aria-label="Listen to The Move podcast">
       <span class="tm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M18 12h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1z"/><path d="M6 12H5a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h1z"/></svg></span>
       <span class="tm-txt"><b>Listen to The Move</b><span>The stage recap podcast, after the racing</span></span>
@@ -2288,6 +2328,7 @@ auth.onAuthStateChanged(async user=>{
     }
     subscribePool();  // keep ORDER and friends current, see watchPool
     subscribe();     // live draft into #draftMount
+    try{ window.__opCloseBoot(); }catch(e){ console.error('operator close card', e); }
   }catch(e){ console.error(e);
     diag('BOARD LOAD FAILED: '+(e&&(e.code||e.message||e)));
     if(e && (e.code==='permission-denied' || /insufficient permissions/i.test(e.message||''))){
@@ -3528,6 +3569,241 @@ async function submitPick(forCode,label){ if(!chosen) return; const code=forCode
   try{ await db.runTransaction(async tx=>{ const d=(await tx.get(ref)).data(); if(d.status==='complete') throw new Error('draft closed'); if(d.queue[0]!==code) throw new Error('not your turn'); if((d.picks||[]).some(p=>p.rider===picked.r)) throw new Error('already taken'); const pnum=(d.picks||[]).length+1; const pick={n:pnum,player:code,rider:picked.r,team:picked.t,photo:picked.p||'',color:picked.c||'',by:myEmail,admin:code!==myCode}; const queue=d.queue.slice(1); const upd={picks:(d.picks||[]).concat([pick]),queue,status:queue.length?'live':'complete'}; upd['lockAt.'+pnum]=FV.serverTimestamp(); tx.update(ref,upd); }); }
   catch(e){ alert('Could not lock pick: '+(e.message||e)); const l=$('lock'); if(l){l.disabled=false;l.textContent=label||'Lock pick';} } }
 async function doBump(){ const ref=draftRef(); try{ await db.runTransaction(async tx=>{ const d=(await tx.get(ref)).data(); if(!d.queue.length) return; const q=d.queue.slice(); q.push(q.shift()); tx.update(ref,{queue:q,bumpedAt:FV.serverTimestamp()}); }); }catch(e){ alert('Bump failed: '+(e.message||e)); } }
+
+
+/* ================= OPERATOR CLOSE CARD =================================
+   Owner-only. Three taps: Close it, Confirm, done.
+
+   IT IS NEVER RENDERED FOR A PLAYER. The guard is `if(!isOwner) return;` before a
+   single node is created, not a CSS rule, because a display:none widget is still in
+   the DOM and one stylesheet mistake away from being visible to JJ, JP and JB. There
+   is no markup for this card anywhere in the served HTML until the owner's own
+   session builds it.
+
+   Allen asked for this surface explicitly, so it is not the unprompted player-facing
+   widget the writing conventions forbid. It is an operator surface and it stays one.
+
+   NO JSON REACHES THE SCREEN. The endpoint returns structure; this turns it into
+   sentences and a table. Anything the reader would have to parse is a bug.
+
+   The card computes NOTHING. Every number, ruling and refusal comes from
+   /api/close-preview, which runs the same computeClose the write path runs, so the
+   screen the operator confirms is the screen that lands. Re-deriving anything here
+   would be the FP_SCALE mistake with a person in the middle of it. */
+(function(){
+  var KEY_LS='cdf_op_key';
+  var st={ stage:null, data:null, view:'idle', busy:false, breakaway:null, breakThru:null, err:null };
+
+  function api(){ return (typeof AUTH_API!=='undefined'?AUTH_API:'https://api.coldufantasy.com'); }
+  function key(){ try{ return localStorage.getItem(KEY_LS)||''; }catch(e){ return ''; } }
+  function setKey(v){ try{ localStorage.setItem(KEY_LS,v); }catch(e){} }
+  function mount(){ return document.getElementById('opClose'); }
+  function ord(n){ var s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+
+  function paint(html){ var m=mount(); if(m) m.innerHTML=html; }
+
+  /* ---- fetching ---- */
+  async function preview(over){
+    var q='?stage='+encodeURIComponent(st.stage)+'&pool='+encodeURIComponent(poolId);
+    if(over&&over.breakaway!=null) q+='&breakaway='+(over.breakaway?'true':'false');
+    if(over&&over.breakThru!=null) q+='&breakThru='+encodeURIComponent(over.breakThru);
+    var r=await fetch(api()+'/api/close-preview'+q,{headers:{'x-cdf-key':key()}});
+    if(r.status===403) throw new Error('The operator key was refused. Paste it again.');
+    if(!r.ok) throw new Error('The preview could not be read (HTTP '+r.status+').');
+    return await r.json();
+  }
+  async function commit(){
+    var body={ key:key(), stage:st.stage, pool:poolId, dryRun:false };
+    if(st.breakaway!=null) body.breakaway=st.breakaway;
+    if(st.breakThru!=null) body.breakThru=st.breakThru;
+    var r=await fetch(api()+'/api/close-stage',{method:'POST',
+      headers:{'content-type':'application/json'}, body:JSON.stringify(body)});
+    var j=null; try{ j=await r.json(); }catch(e){}
+    if(!j) throw new Error('The close did not answer (HTTP '+r.status+').');
+    return j;
+  }
+
+  /* ---- views ---- */
+  function keyPrompt(){
+    return '<div class="opc"><div class="opc-tag">Operator</div>'
+      +'<div class="opc-h">Paste your operator key</div>'
+      +'<div class="opc-p">Once, on this device. It is kept in this browser and nowhere else.</div>'
+      +'<input id="opcKey" class="opc-in" type="password" autocomplete="off" placeholder="operator key">'
+      +'<button class="opc-btn" id="opcKeySave">Save the key</button></div>';
+  }
+
+  function idle(d){
+    var i=d.stageInfo||{}, bits=[];
+    if(i.route) bits.push(esc(i.route));
+    if(i.type) bits.push(esc(String(i.type).toLowerCase()));
+    var line=bits.join(', ');
+    var fin=(d.official&&d.official.classified)||0;
+    var sub=line+(line?'. ':'')+fin+' finishers, classification complete.';
+    var blocked=(d.refusals||[]).length&&!d.notPublished;
+    return '<div class="opc"><div class="opc-tag">Operator</div>'
+      +'<div class="opc-h">Close stage '+esc(st.stage)+'</div>'
+      +'<div class="opc-p">'+sub+'</div>'
+      +(blocked?'<div class="opc-warn">'+(d.refusals||[]).map(function(r){return esc(r.msg);}).join('<br>')+'</div>':'')
+      +'<button class="opc-btn" id="opcOpen">'+(blocked?'See what is blocking it':'Close it')+'</button></div>';
+  }
+
+  function seatRow(c){
+    var picks=(c.picks||[]).map(function(p){
+      return esc(p.r)+' '+(p.dnf?'did not finish':ord(p.f)); }).join(', ');
+    /* pool.names is empty on this pool, so PMETA falls back to the seat code and the
+       server does the same. Printing both then reads "JJ JJ". Show the name only when
+       it is actually a different string, which keeps this correct for a pool that does
+       carry real names without special-casing either. */
+    var nm=(c.name&&c.name!==c.seat)?c.name:'';
+    return '<div class="opc-seat"><div class="opc-seat-top"><b>'+esc(c.seat)+'</b>'
+      +(nm?'<span class="opc-nm">'+esc(nm)+'</span>':'<span class="opc-nm"></span>')
+      +'<span class="opc-fp">'+c.fantasy+' FP</span></div>'
+      +'<div class="opc-picks">'+picks+'</div>'
+      +'<div class="opc-sub">Placement '+c.placement+' &middot; Rank '+c.rank+'</div></div>';
+  }
+
+  function review(d){
+    var h=[];
+    h.push('<div class="opc"><div class="opc-tag">Review before it lands</div>');
+    h.push('<div class="opc-h">Stage '+esc(st.stage)+'</div>');
+    h.push('<div class="opc-p"><b>'+esc(d.stageDoc.win)+'</b> won the stage.'
+      +(d.combatif&&d.combatif.ok?' The combativity award went to <b>'+esc(d.combatif.value)+'</b>.'
+        :' The combativity award could not be read from the official classification, so it is left unset and can be added later.')+'</div>');
+
+    h.push('<div class="opc-sec">The four cards, best first</div>');
+    (d.cards||[]).forEach(function(c){ h.push(seatRow(c)); });
+
+    h.push('<div class="opc-sec">Kasseistampers</div>');
+    h.push('<div class="opc-p">'+esc((d.kassei&&d.kassei.ruling)||'')+'</div>');
+
+    h.push('<div class="opc-sec">Awards</div>');
+    h.push('<div class="opc-p">'+esc(d.awards.seleccion.text)+'<br>'+esc(d.awards.premio.text)
+      +((d.awards.doubleGoose||[]).length?'<br>Double Goose: '+esc(d.awards.doubleGoose.join(', ')):'')+'</div>');
+
+    var b=d.breakaway||{};
+    h.push('<div class="opc-sec">Breakaway</div>');
+    h.push('<div class="opc-p">'+(b.value?'Judged a breakaway stage.':'Not judged a breakaway stage.')
+      +' '+esc(b.reason||'')
+      +(b.overridden?' <b>You changed this from the automatic call.</b>':
+        (b.confident?' This call is confident.':' <b>This one is not certain</b>, so check it.'))
+      +'</div>');
+    h.push('<button class="opc-flip" id="opcFlip">'+(b.value?'It was not a breakaway':'It was a breakaway')+'</button>');
+    if(b.value){
+      h.push('<div class="opc-p opc-tight">The break came in by position '
+        +'<input id="opcThru" class="opc-num" type="number" min="1" inputmode="numeric" value="'
+        +(st.breakThru!=null?esc(st.breakThru):(b.suggestedBreakThru!=null?esc(b.suggestedBreakThru):''))+'">'
+        +'<button class="opc-flip opc-inline" id="opcThruSet">Set</button></div>');
+      h.push('<div class="opc-p opc-tight opc-mute">This is never guessed. The Seleccion is worked out from it.</div>');
+    }
+
+    if(d.rotation&&d.rotation.to){
+      h.push('<div class="opc-sec">Next stage</div>');
+      h.push('<div class="opc-p"><b>'+esc(d.rotation.leadoffName||d.rotation.leadoff)
+        +'</b> leads off stage '+esc(st.stage+1)+'. The order becomes '
+        +esc((d.rotation.to||[]).join(', '))+'.</div>');
+    }
+
+    if((d.refusals||[]).length){
+      h.push('<div class="opc-warn"><b>This cannot be closed yet.</b><br>'
+        +(d.refusals||[]).map(function(r){return esc(r.msg);}).join('<br>')+'</div>');
+    }
+
+    h.push('<div class="opc-actions">');
+    if(!(d.refusals||[]).length) h.push('<button class="opc-btn" id="opcConfirm">Confirm and close stage '+esc(st.stage)+'</button>');
+    h.push('<button class="opc-btn opc-ghost" id="opcCancel">Cancel</button>');
+    h.push('</div></div>');
+    return h.join('');
+  }
+
+  function done(j){
+    var v=j.verified||{}, a=j.applied||{};
+    return '<div class="opc opc-ok"><div class="opc-tag">Closed</div>'
+      +'<div class="opc-h">Stage '+esc(st.stage)+' is closed</div>'
+      +'<div class="opc-p"><b>'+esc((j.rotation&&(j.rotation.leadoffName||j.rotation.leadoff))||'')
+      +'</b> leads off stage '+esc(st.stage+1)+'.</div>'
+      +'<div class="opc-p opc-mute">Stored: the stage result, the calendar row, the pick order '
+      +esc((a.order&&a.order.to||[]).join(', '))+', and stage '+esc(v.startStage)+' opened. '
+      +'Read back and confirmed.</div>'
+      +'<div class="opc-p opc-mute" id="opcReload">Refreshing the board...</div></div>';
+  }
+
+  function fail(msg){
+    return '<div class="opc"><div class="opc-tag">Operator</div>'
+      +'<div class="opc-h">Stage '+esc(st.stage)+'</div>'
+      +'<div class="opc-warn">'+esc(msg)+'</div>'
+      +'<button class="opc-btn opc-ghost" id="opcRetry">Try again</button></div>';
+  }
+
+  /* ---- wiring ---- */
+  function on(id,fn){ var e=document.getElementById(id); if(e) e.addEventListener('click',fn); }
+
+  function bind(){
+    on('opcKeySave',function(){ var v=document.getElementById('opcKey'); if(v&&v.value.trim()){ setKey(v.value.trim()); boot(); } });
+    on('opcOpen',function(){ st.view='review'; render(); });
+    on('opcCancel',function(){ st.view='idle'; st.err=null; render(); });
+    on('opcRetry',function(){ st.err=null; boot(); });
+    on('opcFlip',function(){
+      var cur=(st.data&&st.data.breakaway&&st.data.breakaway.value)||false;
+      st.breakaway=!cur;
+      if(!st.breakaway) st.breakThru=null;
+      reload();
+    });
+    on('opcThruSet',function(){
+      var e=document.getElementById('opcThru');
+      var n=e?Number(e.value):0;
+      if(n>0){ st.breakThru=n; reload(); }
+    });
+    on('opcConfirm',function(){
+      if(st.busy) return;
+      st.busy=true;
+      var b=document.getElementById('opcConfirm');
+      if(b){ b.disabled=true; b.textContent='Closing...'; }
+      commit().then(function(j){
+        st.busy=false;
+        if(!j.wrote){
+          st.err=(j.refusals&&j.refusals.length)?j.refusals.map(function(r){return r.msg;}).join(' ')
+                 :(j.detail||'The close was refused and nothing was written.');
+          st.view='review'; render(); return;
+        }
+        paint(done(j));
+        setTimeout(function(){ location.reload(); }, 5000);
+      }).catch(function(e){
+        st.busy=false; st.err=e.message; st.view='review'; render();
+      });
+    });
+  }
+
+  function render(){
+    if(!key()){ paint(keyPrompt()); bind(); return; }
+    if(st.err){ paint(fail(st.err)); bind(); return; }
+    if(!st.data){ paint(''); return; }
+    if(st.data.notPublished){ paint(''); return; }   /* nothing to close, no card at all */
+    paint(st.view==='review'?review(st.data):idle(st.data));
+    bind();
+  }
+
+  function reload(){
+    paint('<div class="opc"><div class="opc-p opc-mute">Working...</div></div>');
+    preview({breakaway:st.breakaway, breakThru:st.breakThru}).then(function(d){
+      st.data=d; st.view='review'; render();
+    }).catch(function(e){ st.err=e.message; render(); });
+  }
+
+  function boot(){
+    if(!key()){ render(); return; }
+    preview({breakaway:st.breakaway, breakThru:st.breakThru}).then(function(d){
+      st.data=d; render();
+    }).catch(function(e){ st.err=e.message; render(); });
+  }
+
+  window.__opCloseBoot=function(){
+    /* NOT RENDERED for anyone but the owner. No node is created at all. */
+    if(!isOwner) return;
+    if(!mount()) return;
+    st.stage=STAGE;
+    boot();
+  };
+})();
 
 </script>
 
