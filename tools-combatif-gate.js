@@ -72,9 +72,28 @@ function combatifFromBind(bind) {
   if (Number(top.position) !== 1)
     return { ok: false, why: 'no-winner', msg: 'the ice bind has no rider in first place' };
   var name = top.name || top.lastname || '';
-  if (!String(name).trim())
-    return { ok: false, why: 'no-winner', msg: 'the top row of the ice bind carries no name' };
-  return { ok: true, name: String(name), bib: top.bib == null ? null : top.bib };
+  var bib = top.bib == null ? null : top.bib;
+
+  /* THE ICE BIND IS BIB-ONLY BY CONTRACT, and this gate refused every real stage until
+     2026-09-09 because it demanded a name the bind has never carried. Measured on the
+     live feed for stages 13 to 17: one row, position 1, fields bib/absolute/relative/
+     bonus/penality/position/$rider, and NO name of any kind. The second hop to
+     rankingType-{year}-{stage}:{_id} returns the identical row, so this is the contract
+     and not the truncation the summary document carries.
+
+     A nameless row is therefore NOT a failure. It is the normal shape, and the bib is a
+     STRONGER identity than a name would be: it is what scores everywhere else in this
+     repo. Resolution happens in the gate, which is where the startlist is available.
+
+     Refusing here is what made the gate fail CLOSED on every stage, which looks like
+     caution and is actually the gate never running at all. */
+  if (!String(name).trim()) {
+    if (bib == null)
+      return { ok: false, why: 'no-winner',
+        msg: 'the top row of the ice bind carries neither a name nor a bib' };
+    return { ok: true, name: null, bib: bib };
+  }
+  return { ok: true, name: String(name), bib: bib };
 }
 
 /* THE GATE.
@@ -101,22 +120,37 @@ function combatifGate(opts) {
   var got = combatifFromBind(opts.bind);
   if (!got.ok) return got;
 
+  /* Resolve the bind's rider to a NAME before anything is compared against it. On a
+     bib-only bind that resolution needs the startlist, and without one the gate has no
+     way to say who the bind named, which is a refusal and never a pass. */
+  var bindName = got.name;
+  if (bindName == null) {
+    if (!(Array.isArray(opts.riders) && opts.riders.length))
+      return { ok: false, why: 'bib-only-no-startlist',
+        msg: 'the ice bind names only bib ' + got.bib + ' and no startlist was supplied to resolve it' };
+    var brow = opts.riders.filter(function (r) { return r && String(r.b) === String(got.bib); })[0];
+    if (!brow)
+      return { ok: false, why: 'unknown-bib',
+        msg: 'the ice bind names bib ' + got.bib + ', which is not on the startlist' };
+    bindName = brow.r;
+  }
+
   /* No proposed value: the gate supplies the bind's answer, which is the only source it
      is ever allowed to come from. */
   var proposed = opts.proposed == null ? null : String(opts.proposed).trim();
   if (proposed === '') proposed = null;
 
-  if (proposed !== null && !sameRider(proposed, got.name)) {
+  if (proposed !== null && !sameRider(proposed, bindName)) {
     /* Name the failure that actually happened. A proposed value that matches the previous
        stage and NOT the bind is the copy-forward, and calling it "not from the bind" would
        be true but would not tell the operator what they are looking at. */
     if (opts.prevCombatif != null && sameRider(proposed, opts.prevCombatif))
       return { ok: false, why: 'copy-forward',
         msg: 'the proposed combatif "' + proposed + '" is the previous stage\'s value and the '
-           + 'ice bind for stage ' + stage + ' names "' + got.name + '" instead' };
+           + 'ice bind for stage ' + stage + ' names "' + bindName + '" instead' };
     return { ok: false, why: 'not-from-bind',
       msg: 'the proposed combatif "' + proposed + '" is not what the ice bind for stage '
-         + stage + ' names, which is "' + got.name + '"' };
+         + stage + ' names, which is "' + bindName + '"' };
   }
 
   /* The bib check, when a startlist is supplied. A name attached to the wrong bib does not
@@ -128,14 +162,14 @@ function combatifGate(opts) {
     if (!row)
       return { ok: false, why: 'unknown-bib',
         msg: 'the ice bind names bib ' + bib + ', which is not on the startlist' };
-    if (!sameRider(row.r, got.name))
+    if (!sameRider(row.r, bindName))
       return { ok: false, why: 'bib-name-mismatch',
-        msg: 'the ice bind names "' + got.name + '" at bib ' + bib + ', which the startlist '
+        msg: 'the ice bind names "' + bindName + '" at bib ' + bib + ', which the startlist '
            + 'holds as "' + row.r + '"' };
     return { ok: true, value: row.r, bib: bib };
   }
 
-  return { ok: true, value: proposed !== null ? proposed : got.name, bib: bib };
+  return { ok: true, value: proposed !== null ? proposed : bindName, bib: bib };
 }
 
 module.exports = { combatifGate: combatifGate, combatifFromBind: combatifFromBind, sameRider: sameRider };
@@ -213,6 +247,44 @@ if (require.main === module) {
   check('a name on the wrong bib is refused', !badbib.ok && badbib.why === 'bib-name-mismatch');
   var nobib = combatifGate({ stage: 7, bind: bind(7, [row(1, 'VAN AERT Wout', 999)]), bindStage: 7, proposed: null, riders: RIDERS });
   check('a bib that is not on the startlist is refused', !nobib.ok && nobib.why === 'unknown-bib');
+  /* ---- THE LIVE BIB-ONLY SHAPE, measured 2026-09-09 on stages 13 to 17 ----
+     The ice bind carries ONE row with a bib and NO name of any kind, and the second hop
+     returns the identical row, so this is the contract and not a truncation. Until this
+     was fixed the gate refused every real stage with 'no-winner', which is a guard that
+     fails CLOSED and therefore never runs: close-stage.js was resolving the bib itself
+     and the gate was never in the path. Identity resolves through the BIB, which is the
+     stronger check and the one the rest of this repo scores by. */
+  var RID = [{ b: 96, r: 'E. Paleni' }, { b: 17, r: 'K. Vermaerke' }, { b: 136, r: 'A. Leknessund' }];
+  function bibrow(pos, bib) { return { position: pos, bib: bib, absolute: 0, relative: 0, bonus: 0, penality: 0 }; }
+
+  var bo = combatifGate({ stage: 17, bind: bind(17, [bibrow(1, 96)]), bindStage: 17, proposed: null, riders: RID });
+  check('a bib-only bind resolves through the startlist', bo.ok && bo.value === 'E. Paleni' && bo.bib === 96);
+
+  var bons = combatifGate({ stage: 17, bind: bind(17, [bibrow(1, 96)]), bindStage: 17, proposed: null });
+  check('a bib-only bind with no startlist refuses rather than passing', !bons.ok && bons.why === 'bib-only-no-startlist');
+
+  var bunk = combatifGate({ stage: 17, bind: bind(17, [bibrow(1, 999)]), bindStage: 17, proposed: null, riders: RID });
+  check('a bib-only bind on an unknown bib is refused', !bunk.ok && bunk.why === 'unknown-bib');
+
+  /* The copy-forward refusal must still fire when the bind is bib-only. This is the
+     failure the whole file exists for and it must not be lost to the new path. */
+  var bcf = combatifGate({ stage: 17, bind: bind(17, [bibrow(1, 96)]), bindStage: 17,
+    proposed: 'K. Vermaerke', prevCombatif: 'K. Vermaerke', riders: RID });
+  check('a bib-only bind still refuses a copy-forward', !bcf.ok && bcf.why === 'copy-forward');
+  check('the bib-only copy-forward names the bind winner', /Paleni/.test(bcf.msg));
+
+  /* Stage 16 is a genuine repeat of stage 14, two stages apart, and the bind says so.
+     The rule compares against the PREVIOUS stage only, which was Leknessund. */
+  var s16 = combatifGate({ stage: 16, bind: bind(16, [bibrow(1, 17)]), bindStage: 16,
+    proposed: null, prevCombatif: 'A. Leknessund', riders: RID });
+  check('stage 16 bib 17 resolves to Vermaerke against a Leknessund previous', s16.ok && s16.value === 'K. Vermaerke');
+
+  var nb = combatifGate({ stage: 17, bind: bind(17, [{ position: 1, absolute: 0 }]), bindStage: 17, riders: RID });
+  check('a row with neither name nor bib is still no-winner', !nb.ok && nb.why === 'no-winner');
+
+  var neg = combatifGate({ stage: 17, bind: bind(17, [bibrow(-1, 17), bibrow(1, 96)]), bindStage: 17, proposed: null, riders: RID });
+  check('a negative position never wins a bib-only bind', neg.ok && neg.value === 'E. Paleni');
+
 
   console.log('\n' + (ran - fails) + '/' + ran + ' checks passed');
   process.exit(fails ? 1 : 0);

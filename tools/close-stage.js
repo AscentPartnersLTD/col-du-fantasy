@@ -29,6 +29,12 @@ const path = require('path');
 
 const REPO = path.resolve(__dirname, '..');
 
+/* The combatif is NOT resolved here. It goes through the gate, which is the only thing
+   allowed to say who the ice bind named. This tool used to map the bind's bib straight
+   through nameByBib, which meant the gate existed, passed its own self-tests, and was
+   never once in the path of a real close. */
+const { combatifGate } = require(path.join(REPO, 'tools-combatif-gate.js'));
+
 /* ------------------------------------------------------------------ config -- */
 
 const RACES = {
@@ -152,11 +158,24 @@ async function officialResult(race, stage) {
   }
 
   const rows = bind.rankings.map(r => ({ bib: r.bib, pos: Number(r.position) }));
+
+  /* The ice bind is handed on WHOLE, so the gate sees what the feed actually sent. The
+     stage it answers for is read off its own $cp reference, "checkpointList-{year}-{n}",
+     which makes the wrong-stage audit a real check rather than a parameter this tool
+     supplies to itself. */
+  const ice = bindsOfType(doc, 'ice')[0] || null;
+  let iceStage = null;
+  if (ice && typeof ice.$cp === 'string') {
+    const m = ice.$cp.match(/checkpointList-\d+-(\d+)[:\-]/);
+    if (m) iceStage = Number(m[1]);
+  }
+
   return {
     started: rows.length,
     classified: rows.filter(r => r.pos >= 1).sort((a, b) => a.pos - b.pos),
     withdrawn: rows.filter(r => r.pos < 1),
-    combativity: (bindsOfType(doc, 'ice')[0] || { rankings: [] }).rankings
+    iceBind: ice,
+    iceStage: iceStage
   };
 }
 
@@ -277,7 +296,25 @@ function nationalityGame(draft, tables, scored) {
     const tb = named.map(s => ({ s, f: finOf(kassei[s][1]) }))
       .map(x => ({ s: x.s, f: x.f == null ? Infinity : x.f }))
       .sort((a, b) => a.f - b.f);
-    correct = tb.length && tb[0].f !== Infinity ? [tb[0].s] : [];
+
+    /* A TIE ON THE TIEBREAKER IS SHARED. This read [tb[0].s], which takes exactly ONE
+       seat off a STABLE sort, so when two seats named the same tiebreaker the cobble went
+       to whichever of them appears first in SEATS. That is the FAN_STANDING failure
+       exactly, one game over: Array.prototype.sort is stable, so equal keys fall back to
+       the order of the list being sorted, and SEATS is a fixed alphabetical constant.
+
+       It is not hypothetical. On stage 17 AA, JJ and JP all named J. Meeus first and all
+       three named W. van Aert as tiebreaker, finishing 19th. The old line awarded the
+       cobble to AA alone, and the only thing that made it AA was the letter A.
+
+       The tiebreaker SEPARATES EQUALS. When it does not separate them, they are still
+       equal, and the ruling has to say so rather than let a sort invent a winner.
+
+       A best of Infinity still yields nobody: that is the case where no named seat's
+       tiebreaker finished at all, so the tiebreaker resolved nothing and the existing
+       behaviour is left untouched. */
+    const best = tb.length ? tb[0].f : Infinity;
+    correct = best === Infinity ? [] : tb.filter(x => x.f === best).map(x => x.s);
   }
   return { top: top.n, f: top.f, correct, ranked: ranked.slice(0, 5), named };
 }
@@ -336,6 +373,30 @@ async function main() {
   const nat = nationalityGame(draft, tables, scored);
   const winBib = res.classified[0].bib;
 
+  /* THE COMBATIF, THROUGH THE GATE AND NOWHERE ELSE. The previous SCORED stage's stored
+     value is what the copy-forward test compares against, so it is read from the pool
+     rather than assumed absent. A refusal STOPS the close: a missing combatif is
+     recoverable and a wrong one is awarded. */
+  const prevStored = prevN ? ((ps.stages || []).find(x => x && x.n === prevN) || {}).combatif || null : null;
+  const cg = combatifGate({
+    stage: stage,
+    bind: res.iceBind,
+    bindStage: res.iceStage,
+    proposed: null,
+    prevCombatif: prevStored,
+    riders: tables.RIDERS
+  });
+  console.log('\nCOMBATIF GATE');
+  console.log('  ice bind answers for stage ' + (res.iceStage == null ? 'unstated' : res.iceStage) +
+    ', previous scored stage ' + prevN + ' stored ' + JSON.stringify(prevStored));
+  if (!cg.ok) {
+    console.log('  [FAIL] ' + cg.why + ': ' + cg.msg);
+    console.error('\nThe combatif gate refused. Nothing is written. A missing combatif is ' +
+      'recoverable; a wrong one is awarded.');
+    process.exit(1);
+  }
+  console.log('  [PASS] ' + cg.value + '  (bib ' + cg.bib + ', resolved from the ice bind)');
+
   /* route and type come from the CALENDAR, boardConfig.race, which is the source of
      truth for them. They are NOT decorative: stageCard prints st.route directly and
      st.type drives the profile art, the archetype buckets and the sprint-wins test,
@@ -356,7 +417,7 @@ async function main() {
     route: raceRow.route || null,
     type: raceRow.type || null,
     win: tables.nameByBib[winBib] || String(winBib),
-    combatif: res.combativity.length ? (tables.nameByBib[res.combativity[0].bib] || null) : null,
+    combatif: cg.value,
     breakaway: breakaway,
     breakThru: breakaway ? breakThru : null,
     voidStage: false,

@@ -5,3 +5,6 @@ close-stage-*.snippet.js
 
 # Local wrangler cache. Created by `npx wrangler deploy`, machine-specific, never committed.
 .wrangler/
+
+# Machine-readable close payloads, regenerated on demand alongside the snippet.
+close-stage-*.payload.json

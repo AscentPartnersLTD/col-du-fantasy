@@ -2552,6 +2552,84 @@ THE THREE CORRECTIONS, applied 2026-09-01: stage 7 set to "W. van Aert", stage 9
 from "S. Fernandez" to "P. Sivakov", stage 10 set to "M. Gogl". No Premio moved on any of
 them, checked rather than assumed: nobody drafted any of the three riders.
 
+### The ice bind is BIB-ONLY, and the gate refused every real stage until 2026-09-09
+
+The gate above was written to read a NAME off the ice bind. The bind has never carried one.
+
+Measured on stages 13 to 17: the ice bind is ONE row, position 1, with fields bib,
+absolute, relative, bonus, penality, position and $rider. No name, no lastname. The second
+hop to `rankingType-{year}-{stage}:{_id}` returns the IDENTICAL row, so this is the
+contract and NOT the truncation the summary document carries one section up.
+
+So `combatifFromBind` refused every live stage with `no-winner`. That is a guard failing
+CLOSED, which looks like caution and is actually the guard NEVER RUNNING. And the reason
+nobody noticed is the second half: `tools/close-stage.js` WAS NOT CALLING THE GATE AT ALL.
+It mapped `res.combativity[0].bib` straight through `nameByBib` and wrote the result. The
+gate existed, passed 16 self-tests, was documented as the rule, and was not in the path of
+a single close. Same shape as `sideGames.merica`: a thing that looks executable, that
+nothing executes.
+
+BOTH HALVES ARE FIXED. The bind resolves through the BIB, which is the stronger identity
+and the one the rest of this repo scores by, and `tools/close-stage.js` now calls the gate and
+STOPS on a refusal. The bind's own `$cp`, `checkpointList-{year}-{n}`, supplies
+`bindStage`, so the wrong-stage audit is a real check rather than a value the caller hands
+itself. 24 self-tests, 8 of them the bib-only shape including a bib-only copy-forward.
+
+INDEPENDENT CONFIRMATION that bib-only resolution is right, rather than a convenient
+reading: stage 13 ice bib 135 is A. Kron, stage 14 bib 17 is K. Vermaerke and stage 15 bib
+136 is A. Leknessund, and those are exactly the three values already stored for those
+stages. Three for three against closes made before this code existed.
+
+Stage 16 carried no combatif and was filled on 2026-09-09 from its own bind, bib 17,
+K. Vermaerke. It is a genuine repeat of stage 14, two stages apart; the copy-forward rule
+compares against the PREVIOUS stage, which was Leknessund, so it is not a copy-forward. No
+Premio moved: nobody drafted him. Stage 12 is still null and is the last one outstanding.
+
+## Closing a stage WITHOUT a browser, and the two endpoint contracts
+
+Stage 17 on 2026-09-09 was the first close WRITTEN from the command line. Every stage
+before it went through a paste into a signed-in browser tab.
+
+The write path is two POSTs to `api.coldufantasy.com`, both in the coldufantasy-login
+repo, both gated by ONE shared secret `SCORE_KEY` that is a constant in that private repo.
+It is NOT `CDF_KEY`, which is the read key for `/api/pool-state`. Read it from the repo,
+never retype it.
+
+`POST /api/score-stage` writes `pools/{pool}/stages/{stage}` and then applies
+`advance:{startStage, order}` to the pool doc. Three things worth knowing:
+
+- IT WRITES THE STAGE DOC WITH `merge:false`. The doc is REPLACED. Any field not in the
+  payload is deleted.
+- It is IDEMPOTENT by default: an existing stage doc returns `{ok:true,
+  skipped:'already_scored'}` and nothing is written. `force:true` overrides that.
+- IT EMAILS THE POOL if and only if `email.leadoffName` is present. OMIT the `email` key
+  and nothing is sent. The reply reports `emailed:0`, which is the thing to check.
+
+`POST /api/board-config` writes `boardConfig`. It does `set({boardConfig: config},
+{merge:true})`, so sub-keys not sent SURVIVE, while `race` is an array and replaces
+wholesale. ALWAYS send `pools:["vuelta-2026"]`: the every-pool default is still there.
+
+ORDER THE CALLS board-config FIRST, THEN score-stage. The rotation is the broadcast value
+that open boards hold copies of, and score-stage applies it last, so the calendar is
+already correct before the stage doc appears and the advance is the final write.
+
+### merge:false plus a PROJECTION is how a closed stage loses fields
+
+`/api/pool-state` does not return raw stage docs. It returns a PROJECTION of thirteen
+named fields, and the board also reads `st.note`, `st.reads` and `st.km`, which are NOT
+in it. So rebuilding a doc from pool-state and sending it with `force:true` would silently
+DELETE any of those three the stage happened to carry, and nothing would error.
+
+Stage 16 was only safe to rewrite because it carries `route` and `type`, which ONLY the
+current `tools/close-stage.js` emits: the older hand snippets do not have them. That makes
+its raw doc exactly that generator's thirteen fields, all of which the projection returns,
+so the rebuild is lossless by evidence rather than by hope. The write asserted that exactly
+one field differed from the stored projection before sending, and read back afterwards to
+confirm nothing else drifted.
+
+DO NOT force-rewrite a stage doc closed before stage 13 without a raw read. There is no
+endpoint that returns one, and there is no merge-write for a single stage field.
+
 ## An abandoned rider is not a missed pick
 
 Added 2026-08-29, on Pogacar crashing out of stage 8 while drafted by JP.
@@ -2605,6 +2683,30 @@ applied and they do different jobs:
 Stage 8: AA, JJ and JB all named Meeus (P3). Tiebreakers were van Aert P22, Braet P11 and
 de Schuyteneer P106, so JJ took it. `correct: ["JJ"]`.
 
+
+### A TIE ON THE TIEBREAKER IS SHARED
+
+Added 2026-09-09. The tiebreaker separates equals. WHEN IT DOES NOT SEPARATE THEM THEY ARE
+STILL EQUAL, and the ruling says so.
+
+`nationalityGame` in `tools/close-stage.js` read `[tb[0].s]`, which takes exactly ONE seat
+off a STABLE sort. `Array.prototype.sort` is stable, so equal keys fall back to the order
+of the list being sorted, and that list is `SEATS`, a fixed alphabetical constant. THIS IS
+THE `FAN_STANDING` FAILURE, one game over: an accidental tiebreak nobody chose, decided by
+a letter.
+
+Stage 17 is the live case. AA, JJ and JP all named J. Meeus first, and ALL THREE named
+W. van Aert as tiebreaker, 19th. The old line gave the cobble to AA alone, and the only
+thing that made it AA was the A.
+
+THE HAND CLOSES ALREADY DID THIS CORRECTLY, which is what settles it. Stage 11 stored
+`["JB","AA"]`, both on van Aert 5th, and stage 15 stored `["AA","JJ"]`, both on T. Nys
+3rd. Sharing is the established ruling and the tool was the regression, not the rule.
+
+A best of Infinity, meaning no named seat's tiebreaker finished at all, still yields
+nobody. That branch is UNCHANGED and is arguably inconsistent with the rule above: stage 1
+predates tiebreakers entirely and stored all four seats as correct. It has no modern live
+case. Decide it deliberately before it gets one.
 
 ## A PARTIAL FEED IS NOT A FEED
 
