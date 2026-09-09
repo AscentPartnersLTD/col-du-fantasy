@@ -2412,6 +2412,125 @@ WHAT TO KNOW WHEN THE CLOSE IS AUTOMATED:
 - Do the rotation and the stage advance as CLOSE TOGETHER as possible. A gap between them
   is a window in which sessions hold a new order against an old stage.
 
+## /api/close-preview, the read that takes the laptop out of a close
+
+Added 2026-09-09, in the coldufantasy-login repo, deployed and confirmed live.
+
+    GET https://api.coldufantasy.com/api/close-preview?stage=18
+        header x-cdf-key: <the same secret CDF_KEY holds>
+
+READ-ONLY, and that is structural rather than a promise: there is no Firestore write
+anywhere in `api/close-preview.js` or `lib/close.js`. The write path is a separate
+endpoint that deliberately DOES NOT EXIST YET, and is the after-the-race job.
+
+It returns every gate with its verdict, the four cards, the Kasseistampers ruling with all
+four seats and both finishes each, the combatif through the gate, the breakaway judgement,
+the rotation with its assertions, the season standings including the stage, and the RAW
+stored stage doc when the stage is already closed.
+
+WHY IT MATTERS MORE THAN IT LOOKS: it removes the CLONE from the diagnosis half of a
+close. `tools/close-stage.js` reads the bib table off local disk, so it cannot run without
+a current checkout, and a stale one does not report staleness, it reports a DIFFERENT
+startlist. The endpoint reads the startlist from Firestore instead.
+
+VERCEL DEPLOYS THIS REPO FROM GIT, CONFIRMED 2026-09-09 by pushing and then polling
+production until the new route stopped answering 404. It took about forty seconds. That is
+now known rather than assumed, which is the col-break lesson applied rather than repeated:
+a comment in a repo is not evidence that a pipeline exists, so ask the provider, and
+production IS the provider.
+
+### The startlist is CACHED IN FIRESTORE at races/{raceId}
+
+Seeded by `tools-seed-startlist.js`, which is the only thing that ever reads the board for
+it. `RIDERS` stays inline in `vuelta.src.html` and stays the source; this publishes it,
+with its `captured` and `audited` dates so the age of the CHECK travels with the data.
+Re-run it whenever `RIDERS` changes, which for a grand tour is once at launch plus any
+correction like the 103/104 bib swap.
+
+The seeder refuses to publish a startlist whose size disagrees with
+`RACE_PROFILE.startlist.count`, whose bibs are not unique, or whose national roster holds a
+name that does not resolve against `RIDERS`. That last one is the copy-hazard check from
+"Copying a board to start a new race", run at the moment the data leaves the repo.
+
+A MISSING CACHE IS A REFUSAL, never an empty startlist. An empty one would make the
+partial-feed gate, the race audit and the pick-resolution gate all pass VACUOUSLY, which is
+the fail-open shape this file keeps recording.
+
+### SCORE_KEY and CDF_KEY are the SAME SECRET
+
+Worth knowing before hunting for a second one. `/api/pool-state` compares an `x-cdf-key`
+header against `SCORE_KEY`, and it works, because there is one secret.
+
+It was a literal in FOUR files. That is not much of a secrecy problem in a private repo
+whose history already carries it; the real cost is that the value could not be ROTATED
+without editing four files. `lib/secret.js` is now the one place and it has NO fallback
+literal, because a fallback there would be the fifth copy of the thing it exists to remove.
+
+An UNSET variable returns `503 server_key_unset`, never `403`. A wrong key and an
+unconfigured server are different faults and must not look the same, which is the same rule
+as "no riders and wrong URL must not look the same".
+
+OUTSTANDING, and the preview endpoint is blocked on it: `SCORE_KEY` is NOT yet set in
+Vercel. Set it in the coldufantasy-login project, Settings, Environment Variables, for
+Production and Preview, then redeploy. The four older endpoints keep their own literal
+fallback so nothing breaks meanwhile; the follow-up commit deletes those four fallbacks
+once the variable exists.
+
+### The breakaway is JUDGED, the break-through position is NOT
+
+Measured 2026-09-09 over all sixteen scored stages.
+
+A pure time-gap rule gets 11 of 16. Every miss is a summit finish where a GC rider soloed,
+which is shaped EXACTLY like a fuga in the classification: one rider on the winner time,
+minutes clear of the bunch. The gap cannot tell those apart.
+
+Adding "was the winner a GC contender before this stage" gets 15 of 16 with NO false
+negatives, and every CONFIDENT call is correct. The single miss is stage 14, and it lands
+in the uncertain band, so it is flagged rather than decided. An individual time trial is
+short-circuited to false by type, because there is no bunch to escape and stage 1 finished
+56s clear of the largest cluster, one threshold away from being called a fuga.
+
+`breakThru` IS NEVER DERIVED. Taking it from the largest time split reproduces the stored
+value on only 2 of the 4 breakaway stages, giving 36 against a stored 3 on stage 7 and 24
+against 5 on stage 12. The Seleccion award is computed from it, so a wrong one awards the
+wrong seat, silently. The judgement returns a labelled SUGGESTION and the operator confirms
+it, and that prompt fires only on a breakaway stage, roughly one stage in six.
+
+### WHAT COUNTS AS A FUGA
+
+Allen's ruling, 2026-09-09: A RIDER WHO STARTS OR JOINS THE DAY'S MOVE AND WINS FROM IT IS
+A FUGA, REGARDLESS OF WHETHER HE IS A GC CONTENDER.
+
+Stage 13 is the case that settled it. Van Aert was 45th on GC and won from the move, and
+the stored flag correctly says `breakaway: true`. An earlier reading of the ground truth
+called it not a fuga; that was wrong and the stored flag was right, so the flag STANDS and
+nothing was rewritten.
+
+The GC-contender test in the rule above is a PROXY for this definition, not the definition
+itself. It is a good proxy, and it is the reason the rule flags rather than decides in the
+band where it is only a proxy. Stage 14 is where the proxy and the stored flag disagree
+today: a rider 42nd on GC won a summit finish 32 minutes clear of the bunch, the rule calls
+it a fuga, and the stored flag says false. NOT rewritten, because that is a race-reading
+call and not a computation. Worth deciding deliberately before it decides itself.
+
+### Two duplicated computations, both ASSERTED rather than trusted
+
+The gate and the scoring arithmetic now exist in two repos, because they run in two deploy
+targets that cannot share a file. This project has been bitten by duplication repeatedly,
+so neither copy is trusted:
+
+- `tools-api-parity.js` fails if the shared core of `tools-combatif-gate.js` and the API
+  repo's `lib/combatif-gate.js` diverges by one byte. It compares everything above the
+  module epilogue, since CommonJS versus ESM exports are the one legitimate difference.
+- `tools-close-port-verify.js` runs the SERVER port against the live official feed and
+  asserts it reproduces the stage 17 close exactly: the winner, all four seats on all three
+  boards, the rank total of 36, the three-way shared cobble, and the combatif through the
+  gate. It also runs the breakaway rule over every scored stage and asserts no false
+  negatives and no wrong confident call.
+
+Both SKIP loudly rather than passing when the sibling clone is absent. A gate that quietly
+passes when it cannot find what it is checking is the fail-open shape, one level up.
+
 ## Values read once in loadPool are STALE-SESSION HAZARDS
 
 Added 2026-09-01, after `ORDER` cost a day.
@@ -3035,6 +3154,30 @@ beneath them. Both were built to expose engine state. Neither was asked for.
   a landmine only if someone flips `sideGames.merica` true on this board without
   reading this line. Close it by shipping the computed roster, or by deleting the
   array outright if the generalization slips.
+- Stage 12 has NO combatif, and it is the last one outstanding. The value is computed and
+  GATED: the stage 12 ice bind names bib 31, W. van Aert, the bind answers for stage 12,
+  and stage 11 stored E. Hayter so it is not a copy-forward. Nobody drafted van Aert that
+  day, so no Premio moves either way. It was deliberately NOT written on 2026-09-09,
+  because /api/score-stage replaces the doc with merge:false and rebuilding stage 12 from
+  the pool-state PROJECTION would silently drop `note`, `reads` or `km` if it carries any,
+  and this file's own rule says not to force-rewrite a pre-stage-13 doc without a raw read.
+  Two ways to close it, both safe. A browser console `.update({combatif: ...})` on
+  `pools/vuelta-2026/stages/12`, which MERGES and therefore cannot drop a field; or set
+  SCORE_KEY in Vercel and read the raw doc from `/api/close-preview?stage=12`, which
+  returns `storedStageDoc`, then write it back in full.
+- THE STYLE TIER IS EXHAUSTED, and `tools-persona-sex-gate.js` FAILS on it as of
+  2026-09-09: everWorn 74 of 84 drawable, leaving winner 13 and style 0. Nothing is
+  broken and no seat holds a bad persona; the engine degrades exactly as designed, by
+  HOLDING rather than repeating, and the exhausted-tier announcement was taken off the
+  board on 2026-09-03 so players see nothing. The practical effect is that the three
+  style seats will not rotate again this race whatever the standings do.
+  WORTH NOTING BECAUSE IT INVERTS WHAT THIS FILE PREDICTS. The capacity note above says
+  "winner tier is the binding constraint" and "winners bind first". That was true of the
+  56-row bank. It is false of the 92-row one: a rotation burns ONE winner and THREE
+  styles, so style burns three times faster, and the 2026-09-03 refill added 24 winners
+  against far fewer styles. Style now binds and winners have headroom. Fix it by adding
+  STYLE rows, not winner rows, each with its fetched `/* src: */` citation, and correct
+  the capacity paragraph in the same commit.
 - The Giro host `racecenter.giroditalia.it` in the Adding the Giro checklist is a
   GUESS and has never been checked. Verify it, and verify that the bind names
   match the ASO shape, before writing it into a profile. A wrong host is exactly

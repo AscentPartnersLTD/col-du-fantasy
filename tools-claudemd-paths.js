@@ -36,6 +36,22 @@ const EXTERNAL = {
     'planned, in the Adding the Giro checklist; not yet created',
   'giro-og.png':
     'planned, in the Adding the Giro checklist; not yet created',
+
+  /* The close endpoint and its library. These run on Vercel, in the coldufantasy-login
+     repo, which is a separate deploy target and cannot share a file with this one. The
+     duplication that creates is not trusted: tools-api-parity.js asserts the gate copy is
+     byte-identical, and tools-close-port-verify.js asserts the ported arithmetic
+     reproduces a stored close. */
+  'api/close-preview.js':
+    'the read-only close preview, in the coldufantasy-login repo with its own Vercel deploy',
+  'api/startlist.js':
+    'the cached startlist write, in the coldufantasy-login repo with its own Vercel deploy',
+  'lib/close.js':
+    'the server port of the close computation, in the coldufantasy-login repo; checked by tools-close-port-verify.js',
+  'lib/combatif-gate.js':
+    'the API copy of tools-combatif-gate.js; byte-parity is asserted by tools-api-parity.js',
+  'lib/secret.js':
+    'the one place SCORE_KEY resolves, in the coldufantasy-login repo',
 };
 
 /* Extensions that name a real artifact. Anything else in backticks is prose or code. */
