@@ -4866,6 +4866,68 @@ const ART = {
     <circle cx="50" cy="50" r="35" fill="#f4f6f9"/>
     <text x="50" y="71" text-anchor="middle" font-family="Georgia, serif" font-weight="900" font-size="56" fill="#c8102e">G</text>
   </svg>`,
+  /* Mathieu van der Poel "The Grandson", Dutch orange: a bike at full tilt, which is
+     the thing he does that nobody else does. Poulidor is his grandfather and is in
+     this bank as eternalsecond. */
+  mvdp:`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#f4801f"/>
+    <g stroke="#1a1a1a" stroke-width="7" fill="none" stroke-linecap="round" transform="rotate(-14 50 50)">
+      <circle cx="27" cy="66" r="17"/><circle cx="73" cy="52" r="17"/>
+      <path d="M27 66 L48 40 L73 52"/><path d="M48 40 L40 30"/>
+    </g>
+  </svg>`,
+  /* Djamolidine Abdoujaparov "The Tashkent Terror": a sprint line that will not stay
+     straight, into the red of the finish. */
+  abdou:`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#12508f"/>
+    <rect x="78" y="0" width="22" height="100" fill="#d42a2a"/>
+    <path d="M2 78 L26 40 L38 66 L58 22 L70 52 L82 30" stroke="#ffffff" stroke-width="9" fill="none" stroke-linejoin="miter" stroke-linecap="butt"/>
+  </svg>`,
+  /* Gianni Bugno "Wire to Wire", maglia rosa: one unbroken line from edge to edge,
+     with the marker at both ends. He led the 1990 Giro from day one to the finish. */
+  bugno:`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#e88bb0"/>
+    <rect x="0" y="44" width="100" height="12" fill="#ffffff"/>
+    <rect x="19" y="22" width="9" height="56" fill="#5d1836"/>
+    <rect x="72" y="22" width="9" height="56" fill="#5d1836"/>
+  </svg>`,
+  /* Filippo Ganna "The Hour", Italian blue: the velodrome itself, seen from above. */
+  ganna:`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#0b2f6b"/>
+    <rect x="10" y="26" width="80" height="48" rx="24" fill="none" stroke="#f2f4f8" stroke-width="9"/>
+    <path d="M28 26 H72 M28 74 H72" stroke="#f2f4f8" stroke-width="9"/>
+    <rect x="46" y="17" width="8" height="18" fill="#d42a2a"/>
+  </svg>`,
+  /* Remco Evenepoel "The Long Raid", Vuelta red: one figure and the whole road behind
+     it. Deliberately NOT a lone rider clear of a dotted bunch, which degendt and
+     terpstra both already are. */
+  evenepoel:`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#c4161c"/>
+    <rect x="0" y="43" width="72" height="14" fill="#ffffff" opacity=".5"/>
+    <circle cx="74" cy="50" r="19" fill="#ffffff"/>
+  </svg>`,
+  /* Tom Pidcock "The All-Rounder", British racing green: three gold rings, one for
+     each discipline he has won a title in. */
+  pidcock:`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#12503a"/>
+    <g fill="none" stroke="#e8b833" stroke-width="8">
+      <circle cx="24" cy="50" r="15"/><circle cx="50" cy="50" r="15"/><circle cx="76" cy="50" r="15"/>
+    </g>
+  </svg>`,
+  /* Michal Kwiatkowski "Kwiato", the Polish flag with a rider's line drawn straight
+     through it. */
+  kwiatkowski:`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#dfe3ea"/>
+    <rect x="0" y="50" width="100" height="50" fill="#d3143f"/>
+    <path d="M6 82 L94 18" stroke="#16233d" stroke-width="11" stroke-linecap="round" fill="none"/>
+  </svg>`,
+  /* Dan Martin "The Puncheur", Irish green: ONE laurel crown, where his uncle Stephen
+     Roche carries three in this same bank. */
+  danmartin:`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#0f7a45"/>
+    <path d="M22 66 L30 34 L42 52 L50 26 L58 52 L70 34 L78 66 z" fill="#f0e3a8"/>
+    <rect x="22" y="70" width="56" height="9" rx="4" fill="#f0e3a8"/>
+  </svg>`,
   /* Johan Bruyneel "The Man Who Beat Indurain": the yellow jersey taken in Liege,
      on Belgian black and red, over a finish line. Checked at 54px. */
   bruyneel:`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
@@ -6265,6 +6327,57 @@ const PERSONA_BANK = [
     fit:S=> S.nonSprintWins*50 + S.aggro*30 + (S.burial?25:0) + 12,
     blurb:"Pinot won the young rider classification at the 2014 Tour de France and rode with everything visible on his face, which is exactly why France took him to heart.",
     why:S=> `${S.k} is having a race of highs and lows, and hiding none of it.` },
+  /* ---- Style refill, 2026-09-10. The tier stood at ZERO unworn rows, so the three
+     style seats could not rotate again whatever the standings did. Every row below
+     carries a citation fetched and read the day it was written. ---- */
+
+  /* src: https://en.wikipedia.org/wiki/Mathieu_van_der_Poel */
+  { id:"mvdp", tier:"style", sex:"m", rider:"Mathieu van der Poel", epithet:"The Grandson",
+    fit:S=> S.aggro*45 + S.nonSprintWins*40 + S.sprintWins*30 + 14,
+    blurb:"Van der Poel has won the Tour of Flanders and Paris-Roubaix three times each, Milan-San Remo twice and the road world title in 2023, on top of eight cyclo-cross world championships. His grandfather is Raymond Poulidor.",
+    why:S=> `${S.k} wins in more than one way, which is the hardest thing on this board to plan against.` },
+
+  /* src: https://en.wikipedia.org/wiki/Djamolidine_Abdoujaparov */
+  { id:"abdou", tier:"style", sex:"m", rider:"Djamolidine Abdoujaparov", epithet:"The Tashkent Terror",
+    fit:S=> S.sprintWins*80 + (S.burial>=120?70:0) + 12,
+    blurb:"Abdoujaparov took three Tour de France green jerseys with a sprint nobody wanted to be near. On the Champs-Elysees in 1991 he hit the barriers a hundred metres from the line and somersaulted, got back on his bike, finished the stage and kept the jersey.",
+    why:S=> `${S.k} takes the fast finishes and accepts the wild days that come with them${S.sprintWins?`, ${S.sprintWins} so far`:''}.` },
+
+  /* src: https://en.wikipedia.org/wiki/Gianni_Bugno */
+  { id:"bugno", tier:"style", sex:"m", rider:"Gianni Bugno", epithet:"Wire to Wire",
+    fit:S=> (S.placePos===1?130:0) + (S.consPos===1?70:0) + 10,
+    blurb:"Bugno took the maglia rosa on the first day of the 1990 Giro d'Italia and never gave it up, winning by six and a half minutes. He was world road champion in 1991 and again in 1992.",
+    why:S=> `${S.k} has been in front and stayed there, which is a different job from getting there.` },
+
+  /* src: https://en.wikipedia.org/wiki/Filippo_Ganna */
+  { id:"ganna", tier:"style", sex:"m", rider:"Filippo Ganna", epithet:"The Hour",
+    fit:S=> (5-S.consPos)*40 + (S.sprintWins===0?70:0) + 12,
+    blurb:"Ganna is a six-time world individual pursuit champion, a double world time trial champion, and holds the UCI Hour record at 56.792 kilometres, set in Grenchen in 2022.",
+    why:S=> `${S.k} scores by holding a level rather than by landing a strike - the engine, not the spark.` },
+
+  /* src: https://en.wikipedia.org/wiki/Remco_Evenepoel */
+  { id:"evenepoel", tier:"style", sex:"m", rider:"Remco Evenepoel", epithet:"The Long Raid",
+    fit:S=> S.nonSprintWins*85 + (S.wins>=2?60:0) + 12,
+    blurb:"Evenepoel won the 2022 Vuelta a Espana, the first Belgian to take a Grand Tour since 1978, and the world road title the same year. He wins one-day races by going alone from absurd range, once soloing the last forty-four kilometres at San Sebastian.",
+    why:S=> `${S.k} goes early and long rather than waiting for the finish to sort itself out.` },
+
+  /* src: https://en.wikipedia.org/wiki/Tom_Pidcock */
+  { id:"pidcock", tier:"style", sex:"m", rider:"Tom Pidcock", epithet:"The All-Rounder",
+    fit:S=> S.wins*35 + S.aggro*35 + (S.loyC<=1?50:0) + 12,
+    blurb:"Pidcock has won Olympic cross-country mountain bike gold twice, the cyclo-cross world title and the mountain bike world title, and on the road he took Strade Bianche and Amstel Gold and became the youngest rider ever to win on Alpe d'Huez.",
+    why:S=> `${S.k} spreads picks across the whole field rather than going back to the same names.` },
+
+  /* src: https://en.wikipedia.org/wiki/Micha%C5%82_Kwiatkowski */
+  { id:"kwiatkowski", tier:"style", sex:"m", rider:"Michal Kwiatkowski", epithet:"Kwiato",
+    fit:S=> (S.consPos<=2?90:0) + S.aggro*30 + 12,
+    blurb:"Kwiatkowski became the first Polish world road champion in 2014, and has won Milan-San Remo, Amstel Gold twice and Strade Bianche twice - a rider who turns up in the finale of races that look nothing like each other.",
+    why:S=> `${S.k} is in the mix on days of every shape, which is a harder card to read than a specialist.` },
+
+  /* src: https://en.wikipedia.org/wiki/Dan_Martin_(cyclist) */
+  { id:"danmartin", tier:"style", sex:"m", rider:"Dan Martin", epithet:"The Puncheur",
+    fit:S=> S.nonSprintWins*90 + (S.placePos<=2?50:0) + 12,
+    blurb:"Martin won Liege-Bastogne-Liege in 2013 and Il Lombardia in 2014, and took two Tour de France stages by attacking on a steep finish rather than waiting for a sprint. Stephen Roche is his uncle.",
+    why:S=> `${S.k} scores on the days that kick up at the end${S.nonSprintWins?`, ${S.nonSprintWins} of them so far`:''}.` },
 ];
 
 /* Assignment: the placement leader takes the best-fitting WINNER; everyone else takes

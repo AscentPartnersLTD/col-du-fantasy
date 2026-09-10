@@ -1772,11 +1772,21 @@ so `seen` is always a superset of `by`.
 
     db.doc('pools/vuelta-2026').update({'personaLedger.by': {}})
 
-### CAPACITY, and winner tier is the binding constraint
+### CAPACITY, and STYLE is the binding constraint
 
-The bank is 12 winner rows and 44 style rows. A rotation burns one winner and three
-styles, so the bank is worth roughly 12 winner-tier rotations and 14 style-tier ones.
-Winners bind first, and not by much.
+CORRECTED 2026-09-10. This section said "winner tier is the binding constraint" and
+"winners bind first" from 2026-08-28 until the style tier ran to zero and proved it
+backwards. THE ARITHMETIC IS THE WHOLE POINT AND IT IS ONE LINE: A ROTATION BURNS ONE
+WINNER AND THREE STYLES. Style therefore burns three times faster, and any refill that
+adds winners and styles in equal numbers makes the imbalance worse rather than better.
+The 2026-09-03 fill added 24 winners against far fewer styles, which is exactly how the
+92-row bank ended with 13 winners free and 0 styles.
+
+As of 2026-09-10 the bank is 101 rows: 29 drawable winners and 64 drawable styles, plus
+8 women retained and unreachable in a men's race. Against a worn list of 74 that leaves
+13 winner and 9 style, which is three full rotations. WHEN THIS BINDS AGAIN, ADD STYLE
+ROWS. The paragraph below is the ORIGINAL 56-row reasoning, kept because its options are
+still the right options, but its "winners bind first" conclusion is dead.
 
 Measured by simulation against the real bank, 2026-08-28, from a used list of 16: the
 winner tier empties on the eighth further rotation and the style tier on the tenth. Four
@@ -3334,19 +3344,32 @@ beneath them. Both were built to expose engine state. Neither was asked for.
   `pools/vuelta-2026/stages/12`, which MERGES and therefore cannot drop a field; or set
   SCORE_KEY in Vercel and read the raw doc from `/api/close-preview?stage=12`, which
   returns `storedStageDoc`, then write it back in full.
-- THE STYLE TIER IS EXHAUSTED, and `tools-persona-sex-gate.js` FAILS on it as of
-  2026-09-09: everWorn 74 of 84 drawable, leaving winner 13 and style 0. Nothing is
-  broken and no seat holds a bad persona; the engine degrades exactly as designed, by
-  HOLDING rather than repeating, and the exhausted-tier announcement was taken off the
-  board on 2026-09-03 so players see nothing. The practical effect is that the three
-  style seats will not rotate again this race whatever the standings do.
-  WORTH NOTING BECAUSE IT INVERTS WHAT THIS FILE PREDICTS. The capacity note above says
-  "winner tier is the binding constraint" and "winners bind first". That was true of the
-  56-row bank. It is false of the 92-row one: a rotation burns ONE winner and THREE
-  styles, so style burns three times faster, and the 2026-09-03 refill added 24 winners
-  against far fewer styles. Style now binds and winners have headroom. Fix it by adding
-  STYLE rows, not winner rows, each with its fetched `/* src: */` citation, and correct
-  the capacity paragraph in the same commit.
+- Style tier exhaustion: CLOSED 2026-09-10, by adding EIGHT style rows and `bruyneel`,
+  taking the bank from 92 to 101 and the style tier from 0 unworn to 9, which is three
+  full rotations against the stages that remain. The capacity paragraph was corrected in
+  the same commit, as that entry demanded.
+  Every row carries a `/* src: */` fetched and read the day it was written, and two rows
+  were reshaped by what the fetch actually said rather than by what was assumed: Bugno is
+  documented as an introverted all-rounder and NOT as a stylist, so the drafted epithet
+  "The Elegant One" was unsupported and became "Wire to Wire", off leading the 1990 Giro
+  from day one; and Evenepoel's "Wolfpack" association is not in the source, so nothing
+  leans on it.
+  MUSEEUW WAS CUT, and the reason generalizes: `magni` already holds the epithet "The
+  Lion of Flanders" AND a black lion rampant emblem, which are Museeuw's nickname and his
+  obvious emblem both. CHECK THE EPITHET AND THE VISUAL BEFORE FETCHING A CITATION, not
+  after. The same check is why `wiggins` and `hincapie` were not added twice.
+  The visual space is now genuinely crowded and that is the real cost of growth. Already
+  spent: polka dots (`barguil`), rainbow bands (`bettini`, `freire`, `sagan`, `vos`,
+  `nicolecooke`), cobbles (`boonen`, `devlaeminck`, `degenkolb`, `deignan`), crowns
+  (`ullrich`, `kelly`, `roche`, `cunego`), stopwatches (`boardman`, `anquetil`), a rocket
+  (`cavendish`), and a lone rider clear of a dotted bunch (`degendt`, `terpstra`).
+  FOUR OF THE EIGHT EMBLEMS WERE REDRAWN AFTER LOOKING AT THEM AT 54px, which is the rule
+  working rather than the rule being expensive. Two were outright misreads: a bar between
+  two discs is a DUMBBELL, not a wire-to-wire line, and a ring on a dark ground is an EYE,
+  not a velodrome. One was legible but generic, an upright bicycle, fixed by tilting it.
+  The fourth is a trap worth naming on its own: a PURE WHITE field dissolves into the
+  off-white page and the avatar loses its circular edge, so a flag with a white half needs
+  that half darkened to about `#dfe3ea`. None of this is visible at 108px.
 - The Giro host `racecenter.giroditalia.it` in the Adding the Giro checklist is a
   GUESS and has never been checked. Verify it, and verify that the bind names
   match the ASO shape, before writing it into a profile. A wrong host is exactly
