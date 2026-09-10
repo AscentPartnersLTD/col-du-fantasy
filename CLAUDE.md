@@ -3388,6 +3388,156 @@ name those five jobs; get the list from Allen before assuming what they are.
 positional-ambiguity audit that is only partly done and the automation phases. Delete
 that file once its items close.
 
+## Guest access, and the cutover order that must not be improvised
+
+Built on the `guest-access` branch 2026-09-10, NOT deployed. It goes out after Granada.
+Allen is showing the board to the hosts of THEMOVE, so this is a showcase and the whole
+point is that a guest reads as invited rather than tolerated.
+
+A GUEST IS AN OBSERVER, NOT A READ-ONLY USER. They get the full run of the reading
+experience: the anthem, every chart and toggle, See Placement, tabs, panels, rider bios,
+every stage, the locked predictions matrix. What they cannot do is change the GAME for
+AA, JB, JJ or JP. That distinction is the feature; "read-only" was the first spec and it
+would have produced a locked screen, which is the opposite of a welcome.
+
+### CAN_PLAY, and why it is not called CAN_WRITE
+
+ONE predicate, `CAN_PLAY() { return !!myCode || isOwner; }`, and it gates exactly one
+question: CAN THIS SESSION CHANGE THE GAME. A chart toggle writes to localStorage and is
+nobody else's business, so it never asks. Every game write and every pick-entry surface
+does. The owner is inside it because the owner enters picks for players.
+
+It is a FUNCTION, not a constant, because `myCode` is now resolved asynchronously and a
+constant captured at parse time would be false forever.
+
+THE BOARD ALREADY HAD MOST OF THIS AND NOBODY HAD NOTICED. `myCode === null` was a
+designed state: the Kasseistampers card already said "Watching only - pool seats make the
+calls. Tap a rider to read the bio", both side-game cards already opened a bio instead of
+writing on a tap from a seatless viewer, and the locked predictions matrix already
+rendered above the seat check. The work was far smaller than the first estimate because
+the observer mode existed; it had simply never had a user.
+
+### The blocker was TWO leaks, not one
+
+Firestore rules cannot hide a field, so any rule letting a guest read `pools/{poolId}`
+hands them every member address. That was the known one, and the fix is the subcollection:
+`pools/{poolId}/members/{email}` -> `{seat}`, readable only by the owner and by that same
+address. A player can no longer read the other three either, which is a tightening.
+
+THE SECOND WAS `config/roster`, and it is the one that would have shipped. It holds
+`players` and `reviewers`, BOTH KEYED BY EMAIL, under a blanket `allow read: if
+signedIn()`. A guest is signed in. Moving members and stopping there would have closed the
+front door and left that one open. `config` and the legacy `race` tree now exclude guests
+explicitly. WHEN A FEATURE TURNS ON HIDING SOMETHING, ENUMERATE EVERY PLACE IT LIVES;
+there were two copies of the addresses on the pool document alone, `members` and
+`memberEmails`.
+
+### THE CUTOVER ORDER. Every other ordering locks all four players out
+
+Data, rules, board, scrub, guests. This is not a preference:
+
+1. WRITE the member documents. Additive, reversible, nothing reads them yet.
+2. DEPLOY THE RULES. `inPool()` now needs those documents, and they exist.
+3. DEPLOY THE BOARD. It now reads the subcollection, which the rules now permit.
+4. SCRUB `members` and `memberEmails` off the pool document.
+5. ONLY THEN invite a guest.
+
+RULES FIRST LOCKS EVERYONE OUT: `inPool()` looks for member documents that do not exist,
+so every player fails the read on the pool doc. BOARD FIRST DOES THE SAME by a different
+route: it reads a subcollection the old rules do not mention, denied by default, so every
+seat resolves to null and all four become watchers of their own pool.
+
+NO GUEST MAY EXIST BEFORE STEP 4 COMPLETES. Between the rules deploy and the scrub, the
+pool document still carries the addresses and the new rules let a guest read it. The
+window is harmless only because no guest exists yet, and that is a sequencing promise, not
+a property of the code.
+
+The runbook is `guest-cutover.js`, kept OUT of the repo like the close snippets, with a
+read-back after every write.
+
+### What a guest can reach, and the one thing accepted rather than solved
+
+Granted, scoped by `guestOf(poolId)`: the pool document, its stages, its drafts, and its
+predictions ONLY once `predictionsLocked`. Nothing else, and not one write clause mentions
+a guest.
+
+`guestOf` requires THREE things: a server-minted `guest` claim, the pool NAMED in that
+claim, and the `guests/{email}` record still existing. The claim cannot be forged and it
+scopes access, so editing `?pool=` cannot reach the Tour pool. The record makes revocation
+IMMEDIATE rather than one token lifetime, because `/auth/token` re-mints the claim on
+every refresh from the guest record.
+
+NO CHANGE TO THE LOGIN API WAS NEEDED. `isMember()` already returns true for any email
+with a non-empty `userPools/{email}`, so writing that entry is what gets a guest a sign-in
+code. The same door, a different claim.
+
+ACCEPTED, NOT SOLVED: the live draft and the locked draft are the SAME DOCUMENT. A guest
+who opens devtools can read picks before they lock. The board never renders them, and no
+rule can separate the two states without splitting the document. In a private pool with
+five invited guests that is a reasonable trade, but it is a trade, and it is written into
+`firestore.rules` next to the clause that makes it so.
+
+ALSO NOT AN ESCALATION, worth knowing before someone finds it: `isOwner` is client side,
+so a guest can set it in devtools and make the operator close card RENDER. It cannot do
+anything. The card's every action needs the operator key, which lives only in Allen's
+localStorage, and every write is refused by the rules. Client `isOwner` is a rendering
+flag; the real gates are the rules and the key.
+
+### Verified
+
+`tools-guest-verify.js`, 26 checks over the BUILT board, and `tools-rules-guard.js`, 20
+invariants over `firestore.rules`. Both were proved to FAIL on injected regressions rather
+than merely passing: removing the guest draft suppression, restoring the members-map read,
+restoring the "Available" sponsor tiles, reopening `config/roster`, widening `poolReader`
+to a bare `isGuest()`, and letting a guest read the members subcollection.
+
+THE HALF THAT IS EASY TO FORGET IS THE PRESENCE HALF. A verifier that only checks for
+absence passes on a board where a guest cannot change a chart type, which is the exact
+failure this feature exists to avoid. So the anthem, the See Placement toggle, the tabs,
+the unpicked-teams explorer and the locked predictions matrix are all asserted PRESENT and
+asserted not to consult `CAN_PLAY`.
+
+BOTH GATES HAD A BUG OF THE SAME FAMILY AND BOTH ARE RECORDED IN THEIR OWN SOURCE. The
+rules gate counted `!isGuest()` as a grant, so it failed on the very clauses that keep
+guests out, and it read allow clauses line by line when they span five rows, so it found
+zero scoped updates while two sat in the file. The guest gate matched its own explanatory
+comment, "pool.members is GONE", and called that evidence the board still read the map. A
+GATE THAT READS ITS OWN PROSE IS THE SAME MISTAKE AS A TEXT MATCH STANDING IN FOR A
+COMPONENT.
+
+NOT DONE, and it needs saying plainly: THERE ARE NO RULES UNIT TESTS AND THE RULES HAVE
+NOT BEEN COMPILED. Real tests need the Firestore emulator, the emulator needs Java, and
+there is no Java on Gerald. `firebase deploy --only firestore:rules` compiles server side,
+so THE DEPLOY IS THE COMPILE STEP and a syntax error surfaces there. Do step 2 of the
+cutover with a player available to confirm they can still open the board.
+
+### The sponsor band
+
+`boardConfig.sponsors` is empty, so the band drew "This space is available." over three
+tiles reading "Available". That is unsold advertising inventory directly below the
+analysis, and it was the worst thing on the page for a visitor. An empty list now removes
+the section entirely. Adding a sponsor brings it back with no rebuild, which is what makes
+this safe.
+
+### The welcome line, PROPOSED and not built
+
+One line, guest only, under the masthead, with the name from the guest record so it is
+data rather than code. Recommended:
+
+    George is riding along. Guest of the pool, Vuelta 2026.
+
+It makes a guest a participant rather than a spectator and sits in the same register as
+the rest of the board. Two alternates: "The Move is in the house. Welcome, George." names
+the show and pairs with the masthead link; "Welcome, George. Pull up a chair - this is the
+whole Vuelta, four managers deep."
+
+THE BETTER IDEA IS BLOCKED BY THE LEDGER AND THAT IS WORTH KNOWING. Three of the five are
+IN the persona bank, so the warmest possible greeting names the seat that wore them. But
+every one is already SPENT this race: `wiggins` by JJ, `hincapie` and `professor` by JP,
+`armstrong` by JJ. A line like "JB wore Big George on stage 9" would be true and specific
+today; it cannot be generated for a future race without checking the ledger first, and
+under "Personas never repeat within a race" none of them can be drawn again this Vuelta.
+
 ## Per-race scoring profiles
 
 The two races do NOT score the same way. Never apply one race's rule to the other.

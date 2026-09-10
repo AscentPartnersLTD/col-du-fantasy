@@ -32,6 +32,9 @@ const EXTERNAL = {
     'documented in Open items as BLOCKED and never delivered; its absence IS the record',
   '2026/icg.png':
     'a path on lavuelta.es, not a local file',
+  'guest-cutover.js':
+    'owner-only console runbook carrying pool member addresses; gitignored on purpose, ' +
+    'the same call as the close-stage snippets, and regenerated on demand',
   'giro.src.html':
     'planned, in the Adding the Giro checklist; not yet created',
   'giro-og.png':

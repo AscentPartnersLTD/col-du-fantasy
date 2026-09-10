@@ -8,3 +8,7 @@ close-stage-*.snippet.js
 
 # Machine-readable close payloads, regenerated on demand alongside the snippet.
 close-stage-*.payload.json
+
+# Guest access cutover runbook. Owner-only console steps carrying pool member
+# addresses; regenerated on demand and never committed, like the close snippets.
+guest-cutover.js
