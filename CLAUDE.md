@@ -2883,6 +2883,47 @@ K. Vermaerke. It is a genuine repeat of stage 14, two stages apart; the copy-for
 compares against the PREVIOUS stage, which was Leknessund, so it is not a copy-forward. No
 Premio moved: nobody drafted him. Stage 12 is still null and is the last one outstanding.
 
+## A FALLBACK CHAIN NEEDS A TERMINAL GUARD
+
+Added 2026-09-10. Recorded separately from the reads defect that produced it, because it
+is not about reads and will not next appear on reads.
+
+THE RULE. AN ABSENT FIELD FALLING BACK TO A SECOND ABSENT FIELD PRINTS "undefined", NOT
+NOTHING. Any `a || b` or `a ? a : b` that ends in a raw value rather than in a guard will
+render the word `undefined` the first time BOTH sides are missing. The last link in a
+fallback chain must be a literal, an empty string, or a branch that emits nothing at all.
+
+THE LIVE CASE. The scored stage card read:
+
+    <div class="note">...The read${readRows!==null ? readRows : st.note}</div>
+
+`readRows` is null when the stage has no `reads`. `st.note` is undefined when it has no
+`note`. Every stage closed by the tool carries NEITHER, so the board printed:
+
+    The read undefined
+
+on FIVE cards, stages 8, 13, 14, 16 and 17, and it shipped unnoticed for about two weeks
+on the most-read card on the board. It is now a `readBlock` that returns an empty string
+when there is nothing to say, so the heading disappears with the content.
+
+IT IS THE SAME SHAPE AS "Winner: undefined", already recorded under Void stages, where an
+absent `win` prints the word into the card head. That one was found because somebody was
+looking at a void stage on purpose. This one was found because it was reported as missing
+CONTENT, and the broken rendering was discovered while checking the report. Neither was
+found by a test, and that is the pattern worth noticing: this class of defect is invisible
+to every structural check, because the markup is perfectly well formed and the template did
+exactly what it was told.
+
+WHAT WOULD HAVE CAUGHT IT. `tools-opcard-verify.js` already scans its rendered output for
+the literal words undefined, null and NaN, and that check exists because a wall of JSON
+once reached the screen. THE BOARD ITSELF HAS NO SUCH SCAN. A render-time sweep of the
+built board for those three words is the obvious next gate and is NOT yet written.
+
+WHY THIS BITES HERE SPECIFICALLY: the board renders from JavaScript into template literals,
+where `undefined` stringifies silently instead of throwing. A missing field is not an error
+in this codebase, it is a five-letter word on a card, which is the fail-open shape this file
+keeps recording, one layer down in the view.
+
 ## Automating a manual process drops whatever that process carried in a head
 
 Added 2026-09-10, after the close tool silently stopped writing the reads.
@@ -2926,10 +2967,20 @@ The stages actually missing `reads`, from `pools/vuelta-2026/stages`:
 | 16 | close-stage.js | `note`, `km` |
 | 17 | close-stage.js | `note`, `km` |
 
-FOUR OF FOUR TOOL CLOSES, which is the tool. Plus stage 8, a HAND close from 2026-08-29,
-which is the more interesting one: the gap predates the tool, so "the tool did it" is a
-tidier story than the truth. A hand process skips a step sometimes; a tool skips it every
-single time. Stage 15 was also closed by hand and carries all three fields.
+FOUR OF FOUR TOOL CLOSES. Plus stage 8, a HAND close from 2026-08-29, and that one is the
+whole point: THE GAP PREDATES THE TOOL. Stage 15 was also closed by hand and carries all
+three fields.
+
+SO THE LESSON IS NOT "THE TOOL BROKE IT". A hand process skips a step occasionally; a tool
+skips it every single time. The tool did not introduce the failure, it made an existing and
+intermittent one total and reliable. THE GATE THEREFORE MATTERS MORE THAN THE CAUSE: hunting
+for who dropped the field would have fixed stage 17 and left the next twenty stages exactly
+as exposed, because no gate existed in either path, by hand or by tool.
+
+THE BRIEF SAID "STAGES 17 AND 18" AND BOTH HALVES WERE WRONG, which is why the first move
+was a query rather than an edit. 18 had no document because it was the OPEN stage; 17 was
+one of five. A report of an extent is a symptom, and a measured symptom is not a diagnosis:
+the same rule this file already carries about the moving pill applies to a bug report.
 
 `km` is absent on the same five and is NOT a defect: the renderer already guards it and
 prints a dash. `note` is unused whenever `reads` is present. Only `reads` needed a gate.
@@ -3471,6 +3522,17 @@ beneath them. Both were built to expose engine state. Neither was asked for.
   The fourth is a trap worth naming on its own: a PURE WHITE field dissolves into the
   off-white page and the avatar loses its circular edge, so a flag with a white half needs
   that half darkened to about `#dfe3ea`. None of this is visible at 108px.
+- A RENDER-TIME SWEEP of the built board for the literal words undefined, null and NaN
+  is NOT written, and it is the gate that would have caught "The read undefined" two
+  weeks earlier. `tools-opcard-verify.js` already does exactly this for the operator
+  card and it is the reason that card has never leaked one.
+  WHY IT IS NOT A ONE-LINER, and this is the part to read before attempting it: a STATIC
+  grep of `vuelta.html` is useless, because the file legitimately contains `typeof x ===
+  'undefined'` and similar, and because the defect does not exist in the source at all.
+  It only appears once a template literal is evaluated against a document that is missing
+  a field. So the gate has to RENDER, which means either a DOM walk on a signed-in board
+  (what found this one, by hand) or a fixture-driven render under a shim the way the
+  opcard verifier works. The second is the right shape and needs stage docs as fixtures.
 - The Giro host `racecenter.giroditalia.it` in the Adding the Giro checklist is a
   GUESS and has never been checked. Verify it, and verify that the bind names
   match the ASO shape, before writing it into a profile. A wrong host is exactly
