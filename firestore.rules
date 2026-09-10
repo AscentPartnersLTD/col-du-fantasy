@@ -2,10 +2,35 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    /* =====================================================================
+       WHO IS ASKING
+       ===================================================================== */
     function signedIn() { return request.auth != null; }
     function em() { return request.auth.token.email; }
     function owner() { return signedIn() && em() == 'allen@ascentpartnersltd.com'; }
 
+    /* A GUEST is an OBSERVER: full run of the reading experience, and no way to
+       change the game for AA, JB, JJ or JP. The claim is minted server side by
+       /auth/verify and re-minted by /auth/token on every refresh, so deleting the
+       guests/{email} document revokes access within one token lifetime, and the
+       exists() below makes it immediate. Both are required on purpose: the claim
+       cannot be forged, and the document makes revocation instant. */
+    function isGuest() { return signedIn() && request.auth.token.get('guest', false) == true; }
+    function guestDoc() { return /databases/$(database)/documents/guests/$(em()); }
+    function guestOf(poolId) {
+      return isGuest()
+        && (poolId in request.auth.token.get('guestPools', []))
+        && exists(guestDoc());
+    }
+
+    /* =====================================================================
+       LEGACY SINGLE-POOL COLLECTIONS
+       config/roster holds `players` and `reviewers`, both keyed by EMAIL, so a
+       blanket `signedIn()` read here hands every player's address to any guest.
+       That is a SECOND leak path, entirely separate from pool membership, and
+       moving members into a subcollection does nothing about it. Guests are
+       excluded explicitly rather than by assuming they never look.
+       ===================================================================== */
     function hasRoster() { return exists(/databases/$(database)/documents/config/roster); }
     function roster()    { return get(/databases/$(database)/documents/config/roster).data; }
     function isPlayer()   { return signedIn() && hasRoster() && (em() in roster().players); }
@@ -13,7 +38,7 @@ service cloud.firestore {
     function isMember()   { return owner() || isPlayer() || isReviewer(); }
 
     match /config/{doc} {
-      allow read:  if signedIn();
+      allow read:  if signedIn() && !isGuest();
       allow write: if owner();
     }
     match /drafts/{stage} {
@@ -25,29 +50,71 @@ service cloud.firestore {
       allow create, update: if signedIn() && doc == em();
       allow delete:        if owner();
     }
+    match /race/{doc=**} {
+      allow read:  if signedIn() && !isGuest();
+      allow write: if owner();
+    }
 
-    function poolCfg(poolId)    { return get(/databases/$(database)/documents/pools/$(poolId)).data; }
+    /* =====================================================================
+       POOLS
+       MEMBER EMAILS LIVE IN A SUBCOLLECTION, NOT ON THE POOL DOCUMENT.
+       Firestore rules cannot hide a field, so any rule that lets a guest read
+       pools/{poolId} would hand them every player's address. pools/{poolId}/
+       members/{email} -> {seat} is readable ONLY by the owner and by that same
+       email, which also means a player can no longer read the other three
+       addresses either. That is a tightening, not a side effect.
+       ===================================================================== */
+    function memberDoc(poolId) {
+      return /databases/$(database)/documents/pools/$(poolId)/members/$(em());
+    }
     function poolExists(poolId) { return exists(/databases/$(database)/documents/pools/$(poolId)); }
-    function inPool(poolId)     { return signedIn() && poolExists(poolId) && (em() in poolCfg(poolId).members); }
+    function inPool(poolId)     { return signedIn() && poolExists(poolId) && exists(memberDoc(poolId)); }
     function poolMember(poolId) { return owner() || inPool(poolId); }
-    function poolSeat(poolId)    { return poolCfg(poolId).members[em()]; }
-    function predsLocked(poolId) { return poolCfg(poolId).predictionsLocked == true; }
+    function poolReader(poolId) { return poolMember(poolId) || guestOf(poolId); }
+    function poolSeat(poolId)   { return get(memberDoc(poolId)).data.seat; }
+    function predsLocked(poolId) {
+      return get(/databases/$(database)/documents/pools/$(poolId)).data.predictionsLocked == true;
+    }
 
     match /pools/{poolId} {
-      allow read:  if owner() || (signedIn() && em() in resource.data.members);
+      allow read:  if poolReader(poolId);
       allow write: if owner();
-      allow update: if inPool(poolId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['predictionsLocked']) && request.resource.data.predictionsLocked == true && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JJ) && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JB) && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JP) && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/AA);
-      allow update: if inPool(poolId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personaLedger'])
+
+      /* Two scoped member updates. Multiple `allow update` statements are ORed,
+         which is why these sit alongside `allow write: if owner()` without either
+         weakening the other. A GUEST satisfies neither: guestOf() is not inPool(). */
+      allow update: if inPool(poolId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['predictionsLocked'])
+        && request.resource.data.predictionsLocked == true
+        && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JJ)
+        && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JB)
+        && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JP)
+        && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/AA);
+      allow update: if inPool(poolId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personaLedger'])
         && request.resource.data.personaLedger.keys().hasOnly(['order','by','seen'])
         && request.resource.data.personaLedger.order is list
         && request.resource.data.personaLedger.by is map
         && request.resource.data.personaLedger.seen is map;
+
+      /* THE ADDRESSES. Owner, or the one person whose address it is. Never a
+         guest, and never another player. */
+      match /members/{email} {
+        allow read:  if owner() || (signedIn() && email == em());
+        allow write: if owner();
+      }
+
+      /* A guest reads the draft because the LOCKED strip is built from it, and it
+         is the best surface on the board. KNOWN AND ACCEPTED: the live and the
+         locked draft are the SAME DOCUMENT, so a guest who opens devtools can read
+         picks before they are locked. The board never renders them, but the rule
+         cannot separate the two states. Stated rather than glossed. */
       match /drafts/{stage} {
-        allow read:  if poolMember(poolId);
+        allow read:  if poolReader(poolId);
         allow write: if poolMember(poolId);
       }
       match /stages/{stage} {
-        allow read:  if poolMember(poolId);
+        allow read:  if poolReader(poolId);
         allow write: if owner();
       }
       match /engagement/{doc} {
@@ -55,20 +122,31 @@ service cloud.firestore {
         allow create, update: if inPool(poolId) && doc == em();
         allow delete:         if owner();
       }
+      /* A guest sees the jersey predictions ONLY once they are locked, which is
+         when they stop being anyone's private picks and become a finished side
+         game. A blank panel where a finished game should be is the locked-screen
+         failure this whole feature exists to avoid. */
       match /predictions/{seat} {
-      allow read:  if poolMember(poolId) && ( poolSeat(poolId) == seat || predsLocked(poolId) );
-      allow write: if inPool(poolId) && poolSeat(poolId) == seat && !predsLocked(poolId);
+        allow read:  if (poolMember(poolId) && (poolSeat(poolId) == seat || predsLocked(poolId)))
+                     || (guestOf(poolId) && predsLocked(poolId));
+        allow write: if inPool(poolId) && poolSeat(poolId) == seat && !predsLocked(poolId);
       }
-          }
+    }
+
+    /* =====================================================================
+       GUESTS
+       One document per invited guest, owner-written. Its existence IS the
+       access: delete it and guestOf() fails on the next request. A guest may
+       read their own so the board can greet them by name.
+       ===================================================================== */
+    match /guests/{email} {
+      allow read:  if owner() || (signedIn() && email == em());
+      allow write: if owner();
+    }
 
     match /userPools/{uid} {
       allow read:  if signedIn() && (uid == em() || owner());
       allow write: if owner() || (signedIn() && uid == em());
-    }
-
-    match /race/{doc=**} {
-      allow read:  if signedIn();
-      allow write: if owner();
     }
 
   }
