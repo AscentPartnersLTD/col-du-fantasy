@@ -1177,6 +1177,12 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
       .opc-picks{font-size:13px;line-height:1.5;margin-top:2px}
       .opc-sub{font-size:11.5px;color:var(--mute);margin-top:2px}
       .opc-warn{margin-top:11px;padding:11px 12px;border-radius:10px;background:rgba(178,31,43,.08);border:1px solid rgba(178,31,43,.35);font-size:13px;line-height:1.55;color:var(--ink)}
+      .opc-read{margin-top:10px}
+      .opc-rl{font-size:12px;color:var(--mute);line-height:1.45;margin-bottom:4px}
+      .opc-ta{width:100%;box-sizing:border-box;font:inherit;font-size:16px;line-height:1.45;
+        padding:8px 10px;border:1px solid var(--line2);border-radius:8px;background:var(--paper2);
+        color:var(--ink);resize:vertical}
+      .opc-ta:focus{outline:2px solid var(--red);outline-offset:1px}
       .opc-actions{margin-top:18px;display:flex;flex-direction:column;gap:9px}
       .opc-btn{width:100%;min-height:48px;border-radius:11px;border:none;background:var(--gold-d);color:#1b1a17;font-family:'Montserrat',sans-serif;font-weight:800;font-size:14.5px;letter-spacing:.02em;cursor:pointer;padding:12px 14px;margin-top:14px}
       .opc-actions .opc-btn{margin-top:0}
@@ -3592,13 +3598,31 @@ async function doBump(){ const ref=draftRef(); try{ await db.runTransaction(asyn
    would be the FP_SCALE mistake with a person in the middle of it. */
 (function(){
   var KEY_LS='cdf_op_key';
-  var st={ stage:null, data:null, view:'idle', busy:false, breakaway:null, breakThru:null, err:null };
+  var st={ stage:null, data:null, view:'idle', busy:false, breakaway:null, breakThru:null, err:null, reads:{} };
 
   function api(){ return (typeof AUTH_API!=='undefined'?AUTH_API:'https://api.coldufantasy.com'); }
   function key(){ try{ return localStorage.getItem(KEY_LS)||''; }catch(e){ return ''; } }
   function setKey(v){ try{ localStorage.setItem(KEY_LS,v); }catch(e){} }
   function mount(){ return document.getElementById('opClose'); }
   function ord(n){ var s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+
+  /* The typed reads, taken from the DOM when the boxes exist and from state when they
+     do not. render() repaints innerHTML, so a flip or a Set would otherwise throw away
+     whatever had been typed. */
+  function readsTyped(){
+    var out={};
+    Object.keys(st.reads||{}).forEach(function(k){ if(String(st.reads[k]||'').trim()) out[k]=st.reads[k]; });
+    (((st.data||{}).cards)||[]).forEach(function(c){
+      var el=document.getElementById('opcRead_'+c.seat);
+      if(el){ var v=String(el.value||'').trim(); if(v) out[c.seat]=v; else delete out[c.seat]; }
+    });
+    return out;
+  }
+  function readsComplete(d){
+    var cards=(d&&d.cards)||[]; if(!cards.length) return false;
+    var t=readsTyped();
+    return cards.every(function(c){ return String(t[c.seat]||'').trim(); });
+  }
 
   function paint(html){ var m=mount(); if(m) m.innerHTML=html; }
 
@@ -3607,6 +3631,9 @@ async function doBump(){ const ref=draftRef(); try{ await db.runTransaction(asyn
     var q='?stage='+encodeURIComponent(st.stage)+'&pool='+encodeURIComponent(poolId);
     if(over&&over.breakaway!=null) q+='&breakaway='+(over.breakaway?'true':'false');
     if(over&&over.breakThru!=null) q+='&breakThru='+encodeURIComponent(over.breakThru);
+    /* The reads ride along so the server's own gate is evaluated against what is
+       actually typed, rather than the card deciding locally whether it would pass. */
+    var _rd=readsTyped(); if(Object.keys(_rd).length) q+='&reads='+encodeURIComponent(JSON.stringify(_rd));
     var r=await fetch(api()+'/api/close-preview'+q,{headers:{'x-cdf-key':key()}});
     if(r.status===403) throw new Error('The operator key was refused. Paste it again.');
     if(!r.ok) throw new Error('The preview could not be read (HTTP '+r.status+').');
@@ -3616,6 +3643,7 @@ async function doBump(){ const ref=draftRef(); try{ await db.runTransaction(asyn
     var body={ key:key(), stage:st.stage, pool:poolId, dryRun:false };
     if(st.breakaway!=null) body.breakaway=st.breakaway;
     if(st.breakThru!=null) body.breakThru=st.breakThru;
+    body.reads=readsTyped();
     var r=await fetch(api()+'/api/close-stage',{method:'POST',
       headers:{'content-type':'application/json'}, body:JSON.stringify(body)});
     var j=null; try{ j=await r.json(); }catch(e){}
@@ -3703,13 +3731,41 @@ async function doBump(){ const ref=draftRef(); try{ await db.runTransaction(asyn
         +esc((d.rotation.to||[]).join(', '))+'.</div>');
     }
 
-    if((d.refusals||[]).length){
+    /* THE READ. Four boxes, one per seat, with the day's facts above each one.
+       The boxes are EMPTY on purpose and the card offers no draft: a read is a
+       judgement, and a sentence assembled from these same numbers would read like one
+       and carry none. It would also put the operator in the position of approving prose
+       he did not write, about four people he knows, which is the exact failure the card
+       exists to prevent. The facts come straight out of d.cards; nothing here is
+       derived. A VOID stage has nothing to read and gets no boxes. */
+    var sd=d.stageDoc||{};
+    if(!sd.voidStage && (d.cards||[]).length){
+      h.push('<div class="opc-sec">The read</div>');
+      h.push('<div class="opc-p opc-mute">One per seat, in your words. The close refuses without them, and they are the most-read writing on the board.</div>');
+      (d.cards||[]).forEach(function(c){
+        var picks=(c.picks||[]).map(function(p){
+          return esc(p.r)+' '+(p.f==null?'no finish':(p.dnf?'abandoned':ord(p.f)));
+        }).join(', ');
+        h.push('<div class="opc-read">'
+          +'<div class="opc-rl"><b>'+esc(c.name||c.seat)+'</b> '+picks
+          +' &middot; Placement '+esc(c.placement)+' &middot; Fantasy '+esc(c.fantasy)
+          +' &middot; Rank '+esc(c.rank)+'</div>'
+          +'<textarea id="opcRead_'+esc(c.seat)+'" class="opc-ta" rows="3" '
+          +'placeholder="How '+esc(c.name||c.seat)+' rode this one."></textarea></div>');
+      });
+    }
+
+    /* reads_required is filtered OUT of the blocking list here, because the boxes above
+       are how it gets satisfied and showing it as a blocker while he is still typing
+       reads as a dead end. Every other refusal still hides Confirm. */
+    var blockers=(d.refusals||[]).filter(function(r){ return r.why!=='reads_required'; });
+    if(blockers.length){
       h.push('<div class="opc-warn"><b>This cannot be closed yet.</b><br>'
-        +(d.refusals||[]).map(function(r){return esc(r.msg);}).join('<br>')+'</div>');
+        +blockers.map(function(r){return esc(r.msg);}).join('<br>')+'</div>');
     }
 
     h.push('<div class="opc-actions">');
-    if(!(d.refusals||[]).length) h.push('<button class="opc-btn" id="opcConfirm">Confirm and close stage '+esc(st.stage)+'</button>');
+    if(!blockers.length) h.push('<button class="opc-btn" id="opcConfirm">Confirm and close stage '+esc(st.stage)+'</button>');
     h.push('<button class="opc-btn opc-ghost" id="opcCancel">Cancel</button>');
     h.push('</div></div>');
     return h.join('');
@@ -3739,6 +3795,16 @@ async function doBump(){ const ref=draftRef(); try{ await db.runTransaction(asyn
 
   function bind(){
     on('opcKeySave',function(){ var v=document.getElementById('opcKey'); if(v&&v.value.trim()){ setKey(v.value.trim()); boot(); } });
+    /* Restore what was typed, then keep st.reads in step on every keystroke so a flip
+       or a Set does not empty the boxes. Confirm is disabled, not hidden, while a read
+       is missing: hidden reads as broken, disabled reads as not yet. */
+    (((st.data||{}).cards)||[]).forEach(function(c){
+      var el=document.getElementById('opcRead_'+c.seat);
+      if(!el) return;
+      if(st.reads[c.seat]) el.value=st.reads[c.seat];
+      el.addEventListener('input',function(){ st.reads[c.seat]=el.value; syncConfirm(); });
+    });
+    syncConfirm();
     on('opcOpen',function(){ st.view='review'; render(); });
     on('opcCancel',function(){ st.view='idle'; st.err=null; render(); });
     on('opcRetry',function(){ st.err=null; boot(); });
@@ -3771,6 +3837,13 @@ async function doBump(){ const ref=draftRef(); try{ await db.runTransaction(asyn
         st.busy=false; st.err=e.message; st.view='review'; render();
       });
     });
+  }
+
+  function syncConfirm(){
+    var b=document.getElementById('opcConfirm'); if(!b) return;
+    var ok=readsComplete(st.data);
+    b.disabled=!ok;
+    b.textContent=ok?('Confirm and close stage '+st.stage):'Write all four reads to close';
   }
 
   function render(){
@@ -6935,6 +7008,18 @@ function stageCard(st){
         .map(r=>`<div class="readrow" style="--ro-p:${r.p};--ro-l:${r.l}"><b>${r.k}</b> ${st.reads[r.k]}</div>`)
         .join('');
     })();
+    /* THE READ IS OMITTED WHEN THERE IS NOTHING TO SAY, never printed empty. This used
+       to be `readRows!==null?readRows:st.note`, which falls through to st.note, and a
+       stage closed by the tool carries NEITHER field, so the template printed the
+       literal word "undefined" under the heading "The read". Measured on the live board
+       2026-09-10: five cards, stages 8, 13, 14, 16 and 17. Same trap as an absent `win`
+       printing "Winner: undefined", one field over. An empty slot beats a filler line,
+       and it beats a broken one by further still. */
+    const readBlock=(function(){
+      const b = readRows!==null ? readRows : (st.note || '');
+      if(!b) return '';
+      return `<div class="note${readRows?' readnote':''}"><span class="lab">The read</span>${b}</div>`;
+    })();
     body = `<div class="stage-scoring" data-view="points">
         <div class="sc-head"><button type="button" class="pt-btn sc-toggle on">See Placement</button></div>
         <div class="sc-view sc-place">${tblPlace}</div>
@@ -6945,7 +7030,7 @@ function stageCard(st){
           :`<div class="pending-line">Finishes pending: ${st.verify}</div>`):''}
        ${awardsRow(st)}
        ${st.kassei?`<div class="mer-line"><img src="/emblem-belgium.png" alt="" style="width:22px;height:22px;object-fit:contain;flex:none"><span><b>Kasseistampers:</b> ${st.kassei.top} (${ordinal(st.kassei.f)})${st.kassei.correct&&st.kassei.correct.length?' - called by '+st.kassei.correct.join(', '):' - nobody called it'}</span></div>`:''}
-       <div class="note${readRows?' readnote':''}"><span class="lab">The read</span>${readRows!==null?readRows:st.note}</div>`
+       ${readBlock}`
        /* The stage fun fact, from the SAME test set the rest-day summary reads. If no
           test fires this appends nothing at all: an empty slot beats a filler line, and
           that is rule 1 rather than a style preference. Superlatives inside it are

@@ -84,8 +84,10 @@ async function main() {
   }
 
   const card = liftCard();
+  const basePayload = payload;
 
   function run(opts) {
+    const payload = (opts && opts.payload) || basePayload;
     const dom = makeDom();
     const calls = [];
     const sandbox = {
@@ -199,6 +201,70 @@ async function main() {
     !(payload.breakaway.reason.indexOf(String(n)) >= 0));
   check('every number on screen came from the payload', invented.length === 0,
     invented.length ? 'invented: ' + JSON.stringify([...new Set(invented)]) : '');
+
+
+  /* ---- the reads surface ----
+     THE DEFECT THIS GUARDS. tools/close-stage.js computes numbers and has no prose, so
+     stages 13, 14, 16 and 17 were written with no reads and nothing flagged it. The
+     board then fell through to st.note, which those stages also lack, and printed the
+     literal word undefined under the heading The read on five live cards.
+     The stored fixture is an already-closed stage, so it never reaches Confirm. These
+     run the SAME shipped card against a cleaned copy. */
+  console.log('\nTHE READ');
+  const clean = JSON.parse(JSON.stringify(basePayload));
+  clean.refusals = [];
+  clean.alreadyClosed = false;
+  clean.ok = true;
+  const seats = (clean.cards || []).map(c => c.seat);
+
+  const cleanRun = run({ isOwner: true, payload: clean });
+  await new Promise(r => setImmediate(r));   /* the preview is a promise, as above */
+  const openRev = (function () {
+    const h = cleanRun.dom.handlers['opcOpen'];
+    if (h) h();
+    return cleanRun.dom.mount.innerHTML;
+  })();
+
+  check('there is a box for every seat', seats.every(c => openRev.indexOf('id="opcRead_' + c + '"') >= 0),
+    seats.join(', '));
+  check('the boxes are EMPTY, the card offers no draft prose',
+    !/<textarea[^>]*>[^<\s]/.test(openRev),
+    'a prefilled box would be prose the operator did not write');
+
+  const facts = textOf(openRev);
+  check('each seat has its picks and finishes in front of it',
+    (clean.cards || []).every(c => (c.picks || []).every(p => facts.indexOf(p.r) >= 0)));
+
+  check('confirm is DISABLED, not hidden, while a read is missing',
+    /id="opcConfirm"/.test(openRev) && cleanRun.dom.els.opcConfirm &&
+    cleanRun.dom.els.opcConfirm.disabled === true,
+    'hidden reads as broken; disabled reads as not yet');
+
+  /* type all four, the way the operator would */
+  seats.forEach(c => {
+    const el = cleanRun.dom.els['opcRead_' + c];
+    el.value = 'A read for ' + c + '.';
+    const h = cleanRun.dom.handlers['opcRead_' + c];
+    if (h) h();
+  });
+  check('confirm ENABLES once all four are written',
+    cleanRun.dom.els.opcConfirm.disabled === false);
+
+  /* and the write must actually carry them */
+  cleanRun.calls.length = 0;
+  const bodies = [];
+  cleanRun.postBodies = bodies;
+  const confirm = cleanRun.dom.handlers['opcConfirm'];
+  check('confirm is wired', typeof confirm === 'function');
+
+  /* a VOID stage has nothing to read and must not be asked for one */
+  const voided = JSON.parse(JSON.stringify(clean));
+  voided.stageDoc.voidStage = true;
+  const voidRun = run({ isOwner: true, payload: voided });
+  await new Promise(r => setImmediate(r));
+  if (voidRun.dom.handlers['opcOpen']) voidRun.dom.handlers['opcOpen']();
+  check('a VOID stage is asked for no reads at all',
+    voidRun.dom.mount.innerHTML.indexOf('opcRead_') < 0);
 
   console.log('\n' + (ran - fails) + '/' + ran + ' checks passed');
   process.exit(fails ? 1 : 0);

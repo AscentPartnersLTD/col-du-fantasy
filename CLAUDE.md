@@ -2883,6 +2883,107 @@ K. Vermaerke. It is a genuine repeat of stage 14, two stages apart; the copy-for
 compares against the PREVIOUS stage, which was Leknessund, so it is not a copy-forward. No
 Premio moved: nobody drafted him. Stage 12 is still null and is the last one outstanding.
 
+## Automating a manual process drops whatever that process carried in a head
+
+Added 2026-09-10, after the close tool silently stopped writing the reads.
+
+THE READS ARE THE PER-SEAT PROSE on a scored stage card, `reads` on the stage doc, a map
+of seat code to a paragraph. They are the most-read writing on the board. They were never
+a field anyone typed into a form: they were something Allen wrote every night, by hand, in
+the console snippet. `tools/close-stage.js` replaced that snippet, computes numbers, has no
+prose, AND DID NOT KNOW THEY EXISTED.
+
+THE GENERAL SHAPE, which is the reason this is a section and not a bug entry: A MANUAL
+PROCESS CARRIES THINGS THAT ARE NOWHERE IN ITS OUTPUT. The snippet's SCHEMA was reproduced
+faithfully; what was lost was a step that only ever lived in the operator's habits. Nothing
+in the repo recorded that a stage doc ought to have reads, so nothing could notice they had
+stopped arriving. When you automate a person, enumerate what the person did, not what their
+artifact contained.
+
+IT FAILED SILENTLY AND THEN FAILED VISIBLY, which is the part that makes it worth the
+space. The renderer was `readRows!==null?readRows:st.note`, so an absent `reads` fell
+through to `st.note`, and a tool-closed stage carries NEITHER field, so the template
+printed the literal word `undefined` under the heading "The read". Measured on the live
+board 2026-09-10: FIVE cards. Same trap as an absent `win` printing "Winner: undefined",
+one field over, and the same fix: render nothing rather than something broken. An empty
+slot beats a filler line, and it beats a broken one by further still.
+
+### The extent, measured rather than reported
+
+Reported as "stages 17 and 18". Neither half was right, and checking took one query.
+
+STAGE 18 HAS NO DOCUMENT AT ALL. `startStage` is 18, so 18 is the stage currently OPEN and
+has never been closed. There was nothing wrong with it.
+
+The stages actually missing `reads`, from `pools/vuelta-2026/stages`:
+
+| Stage | Closed by | Also missing |
+|---|---|---|
+| 3 | n/a, VOID | correctly has none, nothing was raced |
+| 8 | by hand | `note`, `km` |
+| 13 | close-stage.js | `note`, `km` |
+| 14 | close-stage.js | `note`, `km` |
+| 16 | close-stage.js | `note`, `km` |
+| 17 | close-stage.js | `note`, `km` |
+
+FOUR OF FOUR TOOL CLOSES, which is the tool. Plus stage 8, a HAND close from 2026-08-29,
+which is the more interesting one: the gap predates the tool, so "the tool did it" is a
+tidier story than the truth. A hand process skips a step sometimes; a tool skips it every
+single time. Stage 15 was also closed by hand and carries all three fields.
+
+`km` is absent on the same five and is NOT a defect: the renderer already guards it and
+prints a dash. `note` is unused whenever `reads` is present. Only `reads` needed a gate.
+
+### The gate, in all three places
+
+A missing read is a missing field, not a style preference, so it REFUSES rather than warns.
+A VOID STAGE IS EXEMPT everywhere: nothing was raced, so there is nothing to read.
+
+- `tools/close-stage.js` takes `--reads <file.json>`, a JSON object keyed by seat. Reads
+  come from a FILE and not the command line because they are paragraphs and a shell mangles
+  the punctuation. The file is parsed at the TOP of `main()`, ahead of every network call,
+  so a bad path or a stray seat code fails in a second rather than after the whole compute.
+- `lib/compute-close.js` refuses with `reads_required`. That is the one computation BOTH
+  endpoints run, so the preview and the write agree by construction. `force` does not clear
+  it: `force` only ever clears `already_closed`.
+- The operator card grew a fourth surface, below.
+
+### The card collects them, and offers NO draft
+
+Four boxes, one per seat, with the day's facts read-only above each: both picks and their
+finishes, and the day's Placement, Fantasy and Rank. Every one of those comes straight out
+of `d.cards` in the payload, so `tools-opcard-verify.js` still passes its "the card computes
+nothing" check.
+
+THE BOXES START EMPTY AND THAT IS A DECISION, not a shortcut. A generated draft was
+considered and rejected: a read is a JUDGEMENT about how a seat's day went, and a sentence
+assembled from those same numbers would read exactly like one while carrying none. Worse,
+it would put the operator in the position of approving prose he did not write about four
+people he knows, which is precisely the failure the card was built to prevent. The facts
+are the help; the sentence is his.
+
+Confirm is DISABLED, not hidden, until all four are written. Hidden reads as broken;
+disabled reads as not yet. `reads_required` is filtered out of the displayed blocker list
+for the same reason, since the boxes above it are how it gets satisfied.
+
+Still three taps when the reads are ready. It is four surfaces, not four taps.
+
+### Verified
+
+`tools-opcard-verify.js` is 34 checks, seven of them new, and they run the SHIPPED card:
+a box per seat, the boxes EMPTY (a prefilled box would fail this on purpose), each seat's
+picks in front of it, Confirm disabled while a read is missing and enabled once all four
+are written, and a VOID stage asked for none.
+
+The stored fixture is an already-closed stage and never reaches Confirm, so those checks
+run against a CLEANED COPY of it. A verifier that only ever sees the blocked path cannot
+test the path the operator actually walks.
+
+NOT EXERCISED END TO END: the refusal branch inside `tools/close-stage.js` needs `CDF_KEY`,
+which is on Dragon and not on Gerald. Its four argument-parsing refusals were each run and
+each gives a distinct named reason. Run the closer once against a real stage before relying
+on it.
+
 ## Closing a stage WITHOUT a browser, and the two endpoint contracts
 
 Stage 17 on 2026-09-09 was the first close WRITTEN from the command line. Every stage

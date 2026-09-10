@@ -3,6 +3,7 @@
  *
  *   node tools/close-stage.js 10
  *   node tools/close-stage.js 10 --emit          also writes the paste-in snippet
+ *   node tools/close-stage.js 10 --reads r10.json   REQUIRED, the four seat reads
  *   node tools/close-stage.js 10 --pool vuelta-2026 --race vuelta
  *
  * THIS TOOL NEVER WRITES TO FIRESTORE. It computes the stage document, runs every
@@ -324,11 +325,28 @@ function nationalityGame(draft, tables, scored) {
 async function main() {
   const args = process.argv.slice(2);
   const stage = Number(args[0]);
-  if (!stage) { console.error('usage: node tools/close-stage.js <stage> [--race vuelta] [--breakaway --break-thru N] [--emit]'); process.exit(2); }
+  if (!stage) { console.error('usage: node tools/close-stage.js <stage> --reads <file.json> [--race vuelta] [--breakaway --break-thru N] [--emit]'); process.exit(2); }
   const raceKey = (args.includes('--race') ? args[args.indexOf('--race') + 1] : 'vuelta');
   const race = RACES[raceKey];
   if (!race) { console.error('unknown race ' + raceKey); process.exit(2); }
   const pool = args.includes('--pool') ? args[args.indexOf('--pool') + 1] : race.pool;
+
+  /* Reads come from a FILE rather than the command line: they are paragraphs, and a
+     shell mangles the punctuation. Parsed up here so a malformed file fails before the
+     work below rather than after it. */
+  let reads = null;
+  if (args.includes('--reads')) {
+    const rf = args[args.indexOf('--reads') + 1];
+    if (!rf) { console.error('--reads needs a path to a JSON file keyed by seat.'); process.exit(2); }
+    try { reads = JSON.parse(fs.readFileSync(path.resolve(rf), 'utf8')); }
+    catch (e) { console.error('could not read ' + rf + ': ' + e.message); process.exit(2); }
+    if (!reads || typeof reads !== 'object' || Array.isArray(reads)) {
+      console.error(rf + ' must be a JSON object keyed by seat code.'); process.exit(2);
+    }
+    const strayReads = Object.keys(reads).filter(k => !SEATS.includes(k));
+    if (strayReads.length) { console.error('unknown seat(s) in ' + rf + ': ' + strayReads.join(', ')); process.exit(2); }
+  }
+
 
   const KEY = process.env.CDF_KEY;
   if (!KEY) {
@@ -431,6 +449,32 @@ async function main() {
       '. The stage card reads both. Fix the calendar row first.');
     process.exit(2);
   }
+  /* THE READS ARE A FIELD, NOT A STYLE PREFERENCE. Every stage closed by hand carried
+     four of them, one per seat, and they are the most-read writing on the board. This
+     tool computes numbers and has no prose, so it wrote stages 13, 14, 16 and 17 with
+     no reads and NOTHING FLAGGED IT. The renderer then fell through to st.note, which
+     those stages also lack, and printed the literal word undefined under the heading
+     The read on five live cards. Measured on the live board 2026-09-10.
+     A VOID STAGE IS EXEMPT: nothing was raced, so there is nothing to read. */
+  if (!stageDoc.voidStage) {
+    const missingReads = SEATS.filter(c => !String((reads || {})[c] || '').trim());
+    gate('reads, one per seat', missingReads.length === 0,
+      missingReads.length ? missingReads.join(', ') + ' missing' : 'all ' + SEATS.length);
+    if (missingReads.length) {
+      console.error('');
+      console.error('no read for ' + missingReads.join(', ') + ' on stage ' + stage + '.');
+      console.error('The read is the most-read writing on the board and this tool will');
+      console.error('not invent it. Write a JSON file keyed by seat and pass it:');
+      console.error('');
+      console.error('  {"AA":"...","JB":"...","JJ":"...","JP":"..."}');
+      console.error('  node tools/close-stage.js ' + stage + ' --reads reads-' + stage + '.json');
+      console.error('');
+      console.error('Every pick and its finish is printed above; write from those.');
+      process.exit(2);
+    }
+    stageDoc.reads = reads;
+  }
+
   if (nat) stageDoc.kassei = { top: nat.top, f: nat.f, correct: nat.correct };
 
   console.log('\nSTAGE DOCUMENT');
