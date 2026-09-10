@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260910-130316Z -->
+<head><!-- build:20260910-163644Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -3649,6 +3649,21 @@ async function doBump(){ const ref=draftRef(); try{ await db.runTransaction(asyn
     });
     return out;
   }
+  /* THE READS ARRIVE DRAFTED. The server generates one per seat from the same payload
+     the table above is rendered from, so the prose cannot disagree with the numbers.
+     They are a starting point, not an answer: the operator edits them and the
+     no-reads-no-close gate still applies to whatever he ends up with.
+
+     THIS NEVER OVERWRITES TYPING. It fills a seat only when that seat is empty, so a
+     breakaway flip or a Set, both of which refetch and repaint, cannot throw away a
+     sentence somebody wrote. */
+  function seedReads(d){
+    var drafts=(d&&d.readDrafts)||{};
+    Object.keys(drafts).forEach(function(seat){
+      if(!String(st.reads[seat]||'').trim()) st.reads[seat]=drafts[seat];
+    });
+  }
+
   function readsComplete(d){
     var cards=(d&&d.cards)||[]; if(!cards.length) return false;
     var t=readsTyped();
@@ -3798,7 +3813,7 @@ async function doBump(){ const ref=draftRef(); try{ await db.runTransaction(asyn
     var sd=d.stageDoc||{};
     if(!sd.voidStage && (d.cards||[]).length){
       h.push('<div class="opc-sec">The read</div>');
-      h.push('<div class="opc-p opc-mute">One per seat, in your words. The close refuses without them, and they are the most-read writing on the board.</div>');
+      h.push('<div class="opc-p opc-mute">Drafted from the result. Edit anything that reads wrong. The close still refuses if a box is left empty.</div>');
       (d.cards||[]).forEach(function(c){
         var picks=(c.picks||[]).map(function(p){
           return esc(p.r)+' '+(p.f==null?'no finish':(p.dnf?'abandoned':ord(p.f)));
@@ -3918,7 +3933,7 @@ async function doBump(){ const ref=draftRef(); try{ await db.runTransaction(asyn
   function reload(){
     paint('<div class="opc"><div class="opc-p opc-mute">Working...</div></div>');
     preview({breakaway:st.breakaway, breakThru:st.breakThru}).then(function(d){
-      st.data=d; st.checkedAt=Date.now(); st.view='review'; render();
+      st.data=d; st.checkedAt=Date.now(); seedReads(d); st.view='review'; render();
     }).catch(function(e){ st.err=e.message; render(); });
   }
 
@@ -3926,7 +3941,7 @@ async function doBump(){ const ref=draftRef(); try{ await db.runTransaction(asyn
   function doCheck(){
     paint('<div class="opc"><div class="opc-p opc-mute">Checking...</div></div>');
     preview({breakaway:st.breakaway, breakThru:st.breakThru}).then(function(d){
-      st.data=d; st.checkedAt=Date.now(); st.view='idle'; render();
+      st.data=d; st.checkedAt=Date.now(); seedReads(d); st.view='idle'; render();
     }).catch(function(e){ st.err=e.message; render(); });
   }
 

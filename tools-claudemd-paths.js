@@ -46,6 +46,8 @@ const EXTERNAL = {
     'the read-only close preview, in the coldufantasy-login repo with its own Vercel deploy',
   'api/startlist.js':
     'the cached startlist write, in the coldufantasy-login repo with its own Vercel deploy',
+  'lib/reads.js':
+    'the read generator, in the coldufantasy-login repo; exercised by tools-reads-verify.js',
   'lib/compute-close.js':
     'THE close computation, in the coldufantasy-login repo; both the preview and the write endpoint are thin wrappers over it',
   'lib/close.js':

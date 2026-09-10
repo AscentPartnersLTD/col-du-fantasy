@@ -2581,6 +2581,67 @@ away anything typed into the read boxes.
 `tools-opcard-verify.js` asserts the property directly: an owner card renders with ZERO
 network calls, the first tap makes exactly one, and a second tap makes another.
 
+### The reads are DRAFTED, and the objection is recorded because it lost
+
+Changed 2026-09-10 on Allen's ruling. The boxes arrive filled, he edits what reads
+wrong, and the no-reads-no-close gate still applies to whatever he ends up with.
+
+THE OBJECTION, kept because it was overruled rather than answered: a sentence assembled
+from the same numbers the table already shows can read like a JUDGEMENT while carrying
+none. It has the cadence of an opinion and the content of a row. That is a real cost and
+it is paid every time one of these is read.
+
+THE RULING: the alternative is four paragraphs typed on a phone at midnight, which is
+exactly why five stages shipped with no read and the board printed the word undefined
+under The read. A draft he edits beats a blank he skips.
+
+THE RULE THAT CAME OUT OF IT, and it is the one that keeps the cost small: SAY ONLY WHAT
+THE PAYLOAD KNOWS. The hand-written reads say what a card was BUILT FOR. "Gall was taken
+as the floor pick on a day his team needed to attack." Nothing in a generator can know
+that. It knows two names, two finishes, a scale and a rank. So `lib/reads.js` drafts what
+it can see and NEVER asserts intent. That gap is the honest difference between a drafted
+read and a written one, and it is why these are a starting point rather than an answer.
+
+THE VOICE IS LIFTED FROM THE FIFTEEN STORED READS, not invented. Read them before
+touching the templates. Name both riders and their finishes, say what shape the card came
+out as, say whether it worked. Surnames only, no initials, and NAMES KEEP THEIR OWN CASE:
+the stored reads open sentences with "van Aert fourth", and capitalising that would be a
+small invention repeated hundreds of times. Small ordinals as words, deep ones as digits,
+the boundary at thirty because thirty is where the scale stops paying. Points spelled out.
+
+The scale is passed in rather than typed, so a top-15 race says fifteen with no edit.
+A VOID STAGE IS DRAFTED NOTHING: it scores nothing, so a read would be prose about a race
+that did not happen.
+
+TWO WRITING RULES FROM THIS FILE, both asserted rather than intended. No dashes. And
+NEVER END ON A DIMINISHMENT WHEN A PLAINER STATEMENT WILL DO: the weakest card of the day
+gets its number and a full stop, because ranking it last adds nothing the table already
+shows and it is the sentence a person reads about their own afternoon.
+
+`tools-reads-verify.js`, 22 checks, covers every shape this race has produced and asserts
+the absence of the things that make generated prose obviously generated: a doubled
+"Fantasy Points", a rider named twice, a finish position printed for a rider who
+abandoned, "One points".
+
+BACKFILLED 2026-09-10: stages 8, 13, 14, 16 and 17, which had none. Written from the RAW
+stored document rather than a projection, so `note`, `km` and everything else rode
+through untouched; the write asserted beforehand that the only key differing was `reads`
+and afterwards that nothing else had moved. Every scored stage now carries reads.
+
+### The prefill made one existing test wrong in the safe direction
+
+Worth knowing, because the same trap will recur. The opcard verifier asserted "the boxes
+are EMPTY, the card offers no draft prose" by testing the rendered HTML. The card fills
+the boxes through `el.value`, NOT through textarea content, so that assertion KEPT
+PASSING while being wrong about what the operator sees.
+
+A test that passes for a reason unrelated to the thing it names is worse than no test.
+Assert on the value the user would read, not on the markup that happens to carry it.
+
+The gate itself is now tested from the FILLED side: empty a box and the close must refuse
+again. That is the better test anyway, since the failure mode worth catching is a gate
+quietly satisfied by prefill.
+
 ### The headline must match the gates underneath it
 
 The card read "0 finishers, classification complete" while five gates below it were

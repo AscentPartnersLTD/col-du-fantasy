@@ -259,28 +259,75 @@ async function main() {
 
   check('there is a box for every seat', seats.every(c => openRev.indexOf('id="opcRead_' + c + '"') >= 0),
     seats.join(', '));
-  check('the boxes are EMPTY, the card offers no draft prose',
-    !/<textarea[^>]*>[^<\s]/.test(openRev),
-    'a prefilled box would be prose the operator did not write');
+  /* REVERSED 2026-09-10, deliberately, and the old assertion is worth remembering.
+     It read "the boxes are EMPTY, the card offers no draft prose", on the argument that
+     a prefilled box is prose the operator did not write. That argument was sound and it
+     lost to a better one: the alternative is four paragraphs typed on a phone at
+     midnight, which is why five stages shipped with no read at all and the board
+     printed the word undefined. A draft he edits beats a blank he skips.
+
+     The boxes are filled through el.value rather than textarea content, so asserting
+     on the HTML would have kept passing while being wrong about what the operator
+     sees. Assert the value. */
+  check('every box arrives with a draft in it',
+    seats.every(c => String((cleanRun.dom.els['opcRead_' + c] || {}).value || '').trim().length > 20),
+    seats.map(c => c + ':' + String((cleanRun.dom.els['opcRead_' + c] || {}).value || '').length).join(' '));
+  check('the draft names both riders',
+    (clean.cards || []).every(c => (c.picks || []).every(p =>
+      String((cleanRun.dom.els['opcRead_' + c.seat] || {}).value || '')
+        .indexOf(p.r.replace(/^[A-Z]\.\s*/, '')) >= 0)));
+  check('the draft carries no dash, brace or undefined',
+    !/[\u2013\u2014{}]|\b(undefined|null|NaN)\b/.test(
+      seats.map(c => (cleanRun.dom.els['opcRead_' + c] || {}).value || '').join(' ')));
 
   const facts = textOf(openRev);
   check('each seat has its picks and finishes in front of it',
     (clean.cards || []).every(c => (c.picks || []).every(p => facts.indexOf(p.r) >= 0)));
 
-  check('confirm is DISABLED, not hidden, while a read is missing',
+  /* THE GATE SURVIVES THE PREFILL, and this is the check that proves it rather than
+     assuming it. With drafts in every box the close is available immediately, which
+     is the point. Empty one and it must refuse again: no reads, no close. Testing it
+     from the filled side is the only way round now, and it is the better test, since
+     the failure mode worth catching is a gate quietly satisfied by prefill. */
+  check('confirm is available once the drafts are in',
     /id="opcConfirm"/.test(openRev) && cleanRun.dom.els.opcConfirm &&
-    cleanRun.dom.els.opcConfirm.disabled === true,
-    'hidden reads as broken; disabled reads as not yet');
+    cleanRun.dom.els.opcConfirm.disabled === false);
 
-  /* type all four, the way the operator would */
+  (function () {
+    const el = cleanRun.dom.els['opcRead_' + seats[0]];
+    const keep = el.value;
+    el.value = '';
+    const h = cleanRun.dom.handlers['opcRead_' + seats[0]];
+    if (h) h();
+    check('emptying a box refuses the close again',
+      cleanRun.dom.els.opcConfirm.disabled === true,
+      'hidden reads as broken; disabled reads as not yet');
+    el.value = keep;
+    if (h) h();
+    check('putting it back allows it again',
+      cleanRun.dom.els.opcConfirm.disabled === false);
+  })();
+
+  /* now type over all four, the way the operator would when he rewrites them */
   seats.forEach(c => {
     const el = cleanRun.dom.els['opcRead_' + c];
     el.value = 'A read for ' + c + '.';
     const h = cleanRun.dom.handlers['opcRead_' + c];
     if (h) h();
   });
-  check('confirm ENABLES once all four are written',
+  check('confirm stays available when he writes his own',
     cleanRun.dom.els.opcConfirm.disabled === false);
+
+  /* A breakaway flip refetches and repaints. It must not throw away typing, and it
+     must not re-seed over it either. */
+  const typed = cleanRun.dom.els.opcRead_JJ.value;
+  if (cleanRun.dom.handlers.opcFlip) {
+    cleanRun.dom.handlers.opcFlip();
+    await new Promise(r => setImmediate(r));
+  }
+  check('a refetch does not overwrite what was typed',
+    cleanRun.dom.els.opcRead_JJ.value === typed,
+    JSON.stringify(cleanRun.dom.els.opcRead_JJ.value.slice(0, 40)));
 
   /* and the write must actually carry them */
   cleanRun.calls.length = 0;
