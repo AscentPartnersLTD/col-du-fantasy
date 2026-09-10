@@ -1572,6 +1572,80 @@ are no pins, so there are no movers and the ladder is never reached. AA badger,
 JP professor, JJ tonymartin, JB eternalsecond stands as the engine wrote it. Simulating
 JJ overtaking JP re-draws all four and reuses nothing from the ledger.
 
+## A persona blurb celebrates what a rider did on the bike
+
+Added 2026-09-10, on Allen's ruling, when the board was about to be shown to five people
+who are IN the bank.
+
+THE RULE. A persona blurb carries no doping, no ban, no stripped result and no reverted
+record, and it NEVER ENDS ON A LIMITATION. The bank exists to make a player feel good
+about the name they are wearing, and it is about to be read by the riders themselves.
+This is flavor text on a game board, not a reference work, and the two have different
+duties.
+
+THE SECOND HALF IS THE ONE THAT ACTUALLY CAUGHT ROWS. Only two blurbs of 92 named a
+scandal outright. Fifteen more ended on a diminishment, which is the same discourtesy
+in a politer register: "and never won another grand tour", "without ever contending for
+the race", "long after the pure speed had gone", "before a training crash nearly ended
+everything". Each was true and each made the last thing the board said about a rider a
+limitation. THE TEST IS THE LAST CLAUSE, not the presence of a keyword, and a keyword
+scan finds almost none of them.
+
+REWRITE BY REMOVING, NOT BY ADDING. Sixteen of the nineteen edited blurbs were fixed by
+cutting the closing clause and reframing what was already there, so no new factual claim
+entered the file and no new citation was needed. Only THREE gained a fact, and all three
+were FETCHED in the session that wrote them: Hincapie's 17 Tour starts and 2005 Roubaix
+second, Wiggins's five Olympic golds and seven world titles, and Riis as the first Dane to
+win the Tour, ending Indurain's run of five. That is the cheap way to do this safely; piling on new superlatives to
+fill the gap is how a blurb ends up carrying something false.
+
+DO NOT FIX A NEGATIVE LINE BY WRITING A FALSE ONE. Armstrong's blurb no longer mentions
+doping and it also does NOT say he holds seven Tour titles, because he does not, and a
+guest who spots a false claim about himself is worse off than one who reads a plain
+sentence. "Dominated the Tour from 1999 to 2005" is what happened on the road and asserts
+nothing untrue. Tact is a matter of what you leave out, never of what you make up.
+
+ONE ROW WAS DELIBERATELY LEFT ALONE. `poulidor` says he was second three times and never
+wore yellow, which reads as a limitation and is not one: the epithet France gave him is
+"The Eternal Second", the blurb already says the country adored him more than the winners,
+and it ends warm. A rule applied without reading the row is how you delete the point of a
+persona.
+
+### The rows changed, 2026-09-10
+
+Scandal or reverted result, 3: `armstrong`, `riis`, `hincapie`.
+
+Ended on a limitation, 15: `pereiro`, `renshaw`, `purito`, `cunego`, `chavanel`,
+`vanmoorsel`, `greipel`, `freire`, `froome`, `bernal`, `ocana`, `zabel`, `petacchi`,
+`terpstra`, `pinot`. `terpstra` was found only by the full sweep and not by the first
+pass, which is the argument for sweeping all 92 rather than the rows anyone suspected.
+
+Enriched to read as a welcome rather than a summary, 1: `wiggins`.
+
+Added, 1: `bruyneel`, style tier. THE EPITHET IS FROM HIS RIDING CAREER ON PURPOSE, "The
+Man Who Beat Indurain", off the 1995 stage into Liege where he attacked, was joined by
+Indurain, outsprinted him and took the yellow jersey in his own country. The 1996 descent
+into the ravine is the other famous image of that career and is deliberately unused: it is
+a mishap, not an honour, and this is a row for a man being invited to look at the board.
+
+### Three guests were already in the bank, and all three names are SPENT
+
+Checked against the live ledger rather than assumed, and it is the reason to check before
+adding anything: `wiggins` and `hincapie` were ALREADY rows, with emblems, so adding them
+would have been a duplicate id. `armstrong` was already there too.
+
+All three have been worn this race: `wiggins` by JJ, `hincapie` by JP, `armstrong` by JJ.
+`professor`, which is Fignon and is also Spencer Martin's nickname on the show, was worn by
+JP. Under "Personas never repeat within a race" every one of them is unavailable for the
+rest of the Vuelta, so no guest will see their own name on a seat. That is not a defect,
+and it is worth knowing before anyone tries to arrange one.
+
+SPENCER MARTIN GETS NO ROW. `professor` is Fignon's, sourced in its own blurb to the round
+glasses and the baccalaureate, and renaming it to free a word would falsify a citation. He
+has no palmares for a `fit` to score. `bobroll` is the nearest precedent and it does not
+reach: Bob Roll rode as a professional, and the blurb honours the commentary on top of
+that. The welcome line reaches Spencer directly, which a persona he may never see does not.
+
 ## Personas must match the SEX of the race
 
 Added 2026-09-04, on Allen's ruling, after JJ took a 40 point lead and the board handed

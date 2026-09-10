@@ -4866,6 +4866,14 @@ const ART = {
     <circle cx="50" cy="50" r="35" fill="#f4f6f9"/>
     <text x="50" y="71" text-anchor="middle" font-family="Georgia, serif" font-weight="900" font-size="56" fill="#c8102e">G</text>
   </svg>`,
+  /* Johan Bruyneel "The Man Who Beat Indurain": the yellow jersey taken in Liege,
+     on Belgian black and red, over a finish line. Checked at 54px. */
+  bruyneel:`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#151515"/>
+    <rect x="0" y="80" width="100" height="20" fill="#c8102e"/>
+    <path d="M33 16 q17 9 34 0 l17 9 l-9 19 l-8 -5 l0 42 l-34 0 l0 -42 l-8 5 l-9 -19 z" fill="#f4c500"/>
+    <rect x="33" y="52" width="34" height="7" fill="#151515" opacity=".3"/>
+  </svg>`,
   /* Lance Armstrong "Mellow Johnny": the Texas lone star */
   armstrong:`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
     <rect width="100" height="100" fill="#0a3a8a"/>
@@ -5759,7 +5767,7 @@ const PERSONA_BANK = [
   /* src: https://en.wikipedia.org/wiki/%C3%93scar_Pereiro */
   { id:"pereiro", tier:"winner", sex:"m", rider:"Oscar Pereiro", epithet:"The Lucky One",
     fit:S=> S.wins*35 + (S.burial>=100?90:0) + 15,
-    blurb:"Pereiro was handed almost thirty minutes in a breakaway nobody bothered to chase, and rode that gift into the 2006 Tour title.",
+    blurb:"Pereiro went clear in a long breakaway, took nearly half an hour out of the race in a single afternoon, and defended it all the way to the 2006 Tour de France title.",
     why:S=> `${S.k} leads with a worst finish of ${S.burial} on the sheet - proof that the days that go wrong matter less than the days that go right.` },
   { id:"cannibal", tier:"winner", sex:"m", rider:"Eddy Merckx", epithet:"The Cannibal",
     fit:S=> S.wins*80 + S.aggro*30 + 60,
@@ -5791,19 +5799,19 @@ const PERSONA_BANK = [
   /* src: https://en.wikipedia.org/wiki/Andr%C3%A9_Greipel */
   { id:"greipel", tier:"style", sex:"m", rider:"Andre Greipel", epithet:"The Gorilla",
     fit:S=> S.sprintWins*90 + S.wins*30 + (S.burial>=90?40:0),
-    blurb:"Greipel won stages in all three grand tours on raw power. He spent years stuck behind Cavendish at the same team, then left.",
+    blurb:"Greipel won stages in all three grand tours on raw power - 'The Gorilla', the biggest pure force any bunch sprint of his era had to deal with.",
     why:S=> `${S.k} wins by force rather than finesse${S.sprintWins?`, ${S.sprintWins} on the fast days`:''} - and takes the rough days that come with it.` },
 
   /* src: https://en.wikipedia.org/wiki/Mark_Renshaw */
   { id:"renshaw", tier:"style", sex:"m", rider:"Mark Renshaw", epithet:"The Best Leadout in the World",
     fit:S=> S.loyC*90 + S.sprintWins*40 + 10,
-    blurb:"Renshaw was the leadout man who made Cavendish's wins possible, and once headbutted a rival three times at speed defending the line. The Tour threw him off for it.",
+    blurb:"Renshaw was the leadout man who made Cavendish's wins possible, and the best in the world at the job - holding a line at full speed and putting his sprinter on exactly the right patch of road.",
     why:S=> `${S.k} keeps going back to ${S.sigName||'the same rider'}${S.loyC?`, ${S.loyC} times now`:''} - one horse, ridden hard.` },
 
   /* src: https://en.wikipedia.org/wiki/%C3%93scar_Freire */
   { id:"freire", tier:"style", sex:"m", rider:"Oscar Freire", epithet:"El Gato",
     fit:S=> S.wins*55 + (S.aggro===0?80:0) + 10,
-    blurb:"Freire won three world titles by reading a finish better than anyone rather than out-powering it, and was open about training as little as he could get away with.",
+    blurb:"Freire won three world road titles by reading a finish better than anyone rather than out-powering it - a sprinter who won on craft when the road was full of faster men.",
     why:S=> `${S.k} does nothing loud all week and then takes the day${S.wins?`, ${S.wins} so far`:''} - efficiency over effort.` },
 
   /* src: https://en.wikipedia.org/wiki/Andr%C3%A9_Darrigade */
@@ -5833,7 +5841,7 @@ const PERSONA_BANK = [
   /* src: https://en.wikipedia.org/wiki/Joaquim_Rodr%C3%ADguez */
   { id:"purito", tier:"style", sex:"m", rider:"Joaquim Rodriguez", epithet:"Purito",
     fit:S=> S.nonSprintWins*75 + (S.placePos===2?80:0) + 12,
-    blurb:"Rodriguez was explosive on steep uphill finishes, and lost a grand tour he was leading late.",
+    blurb:"Rodriguez was explosive on steep uphill finishes - the pure puncheur, the best in the world on a final kilometre that turned into a wall.",
     why:S=> `${S.k} keeps landing near the front${S.placePos===2?' and sits second, close enough to feel it':''} - dangerous whenever the finish kicks up.` },
 
   /* src: https://en.wikipedia.org/wiki/Jacky_Durand */
@@ -5851,7 +5859,7 @@ const PERSONA_BANK = [
   /* src: https://en.wikipedia.org/wiki/Sylvain_Chavanel */
   { id:"chavanel", tier:"style", sex:"m", rider:"Sylvain Chavanel", epithet:"Monsieur Combatif",
     fit:S=> S.prix*120 + S.sel*60 + 10,
-    blurb:"Chavanel started eighteen Tours, a record at the time, and won the combativity prize again and again without ever contending for the race.",
+    blurb:"Chavanel started eighteen Tours, a record at the time, and won the combativity prize again and again - the most relentless attacker of his generation.",
     why:S=> `${S.k} shows up on the attack week after week${S.aggro?`, ${S.aggro} combativity ${S.aggro===1?'award':'awards'} between the two boards`:''}.` },
 
   /* src: https://en.wikipedia.org/wiki/Juan_Antonio_Flecha */
@@ -5905,7 +5913,7 @@ const PERSONA_BANK = [
   /* src: https://en.wikipedia.org/wiki/Damiano_Cunego */
   { id:"cunego", tier:"style", sex:"m", rider:"Damiano Cunego", epithet:"Il Piccolo Principe",
     fit:S=> S.wins*40 + (S.placePos>=3?100:0) + 10,
-    blurb:"Cunego won the Giro at twenty-two, beating his own team leader to do it, and never won another grand tour.",
+    blurb:"Cunego won the Giro d'Italia at twenty-two, beating his own team leader to do it - a climber who arrived fully formed and never needed a season to find his feet.",
     why:S=> `${S.k} has the wins${S.wins?` (${S.wins})`:''} without the standing to match - the talent is not the problem.` },
 
   /* src: https://en.wikipedia.org/wiki/Samuel_S%C3%A1nchez */
@@ -5984,22 +5992,32 @@ const PERSONA_BANK = [
     fit:S=> (5-S.consPos)*55 + (S.rankPos<=2?60:0) + 10,
     blurb:"Roglič, 'Rogla', came to cycling late from ski jumping and turned into a Grand Tour winner and Olympic time-trial champion - fearless downhill, relentless against the clock.",
     why:S=> `${S.k} fits it now: strong against the clock and never rattled, a late-day closer.` },
+  /* src: https://en.wikipedia.org/wiki/Bradley_Wiggins */
   { id:"wiggins", tier:"winner", sex:"m", rider:"Bradley Wiggins", epithet:"Wiggo",
     fit:S=> (5-S.consPos)*60 + S.wins*25 + 15,
-    blurb:"Wiggins, 'Wiggo', became the first Briton to win the Tour de France in 2012 - a track-and-time-trial engine with a mod's swagger.",
+    blurb:"Wiggins, 'Wiggo', became the first Briton to win the Tour de France in 2012 and took Olympic time trial gold in London the same summer - five Olympic golds and seven world titles across road and track, all of it carried with a mod's swagger.",
     why:S=> `${S.k} leads on power and poise, a time-trial engine out front.` },
   /* ---- Wave 2 additions ---- */
   { id:"basso", tier:"winner", sex:"m", rider:"Ivan Basso", epithet:"Ivan the Terrible",
     fit:S=> S.wins*40 + (5-S.consPos)*40 + 10,
     blurb:"Basso, 'Ivan the Terrible', was a two-time Giro d'Italia winner and one of the finest climbers of his generation.",
     why:S=> `${S.k} leads the pool, ruthless on the days that decide it.` },
+  /* src: https://en.wikipedia.org/wiki/George_Hincapie */
   { id:"hincapie", tier:"style", sex:"m", rider:"George Hincapie", epithet:"Big George",
     fit:S=> S.aggro*70 + 12,
-    blurb:"Hincapie, 'Big George', was the ultimate lieutenant and a cobbled-classics hardman who started a record run of Tours.",
+    blurb:"Hincapie, 'Big George', started a record 17 Tours de France and took second at Paris-Roubaix in 2005, still the best finish there by any American - the definitive lieutenant and a cobbled-classics hardman.",
     why:S=> `${S.k} fits it now: the loyal engine, doing the unglamorous work that holds a day together.` },
+  /* src: https://en.wikipedia.org/wiki/Johan_Bruyneel
+     The epithet is from his RIDING career on purpose, not the years after it. The
+     1996 descent into the ravine is the other famous image of that career and is
+     deliberately not used: it is a mishap, not an honour. */
+  { id:"bruyneel", tier:"style", sex:"m", rider:"Johan Bruyneel", epithet:"The Man Who Beat Indurain",
+    fit:S=> S.sel*90 + S.nonSprintWins*45 + S.aggro*20 + 12,
+    blurb:"On the road to Liege in 1995 Bruyneel attacked, was joined by Miguel Indurain, and then outsprinted him to take the stage and pull on the yellow jersey in his own country. He was third overall at the Vuelta a Espana that same year.",
+    why:S=> `${S.k} keeps getting into the right move and coming out in front of it${S.sel?`, ${S.sel} Seleccion ${S.sel===1?'award':'awards'} so far`:''} - the opportunist's win, taken off a bigger name.` },
   { id:"armstrong", tier:"style", sex:"m", rider:"Lance Armstrong", epithet:"Mellow Johnny",
     fit:S=> S.wins*40 + (5-S.consPos)*30 + 10,
-    blurb:"Armstrong, 'Mellow Johnny' (a play on maillot jaune), dominated the Tour from 1999 to 2005; all seven titles were later stripped for doping.",
+    blurb:"Armstrong, 'Mellow Johnny' (a play on maillot jaune), dominated the Tour from 1999 to 2005 - a ferocious time trialist who treated every mountain summit as a place to settle the race.",
     why:S=> `${S.k} fits it now: relentless and hard to shake, front and centre.` },
   { id:"valverde", tier:"style", sex:"m", rider:"Alejandro Valverde", epithet:"The Unbeatable",
     fit:S=> S.wins*45 + (S.rankPos<=2?50:0) + 10,
@@ -6019,7 +6037,7 @@ const PERSONA_BANK = [
     why:S=> `${S.k} fits it now: all flair and attack, the pick that lights up the day.` },
   { id:"riis", tier:"style", sex:"m", rider:"Bjarne Riis", epithet:"The Eagle from Herning",
     fit:S=> (5-S.consPos)*45 + S.wins*25 + 10,
-    blurb:"Riis, 'The Eagle from Herning', won the 1996 Tour de France; he later admitted he had doped to do it.",
+    blurb:"Riis, 'The Eagle from Herning', won the 1996 Tour de France, the first Dane ever to do it, and ended Miguel Indurain's run of five straight titles to get there.",
     why:S=> `${S.k} fits it now: calm and calculating, letting the day come to a plan.` },
   { id:"bobroll", tier:"style", sex:"m", rider:"Bob Roll", epithet:"Bobke",
     fit:S=> 22,
@@ -6099,7 +6117,7 @@ const PERSONA_BANK = [
   /* src: https://en.wikipedia.org/wiki/Chris_Froome */
   { id:"froome", tier:"winner", sex:"m", rider:"Chris Froome", epithet:"Froomey",
     fit:S=> (5-S.consPos)*70 + S.nonSprintWins*30 + 15,
-    blurb:"Froome won the Tour de France in 2013, 2015, 2016 and 2017, and added the Vuelta a Espana and the Giro d'Italia, riding to numbers with his elbows out and his head down.",
+    blurb:"Froome won the Tour de France in 2013, 2015, 2016 and 2017 and added the Vuelta a Espana and the Giro d'Italia - six Grand Tours, taken with his elbows out and his head down.",
     why:S=> `${S.k} is grinding out a lead by margins rather than moments.` },
 
   /* src: https://en.wikipedia.org/wiki/Geraint_Thomas */
@@ -6111,7 +6129,7 @@ const PERSONA_BANK = [
   /* src: https://en.wikipedia.org/wiki/Egan_Bernal */
   { id:"bernal", tier:"winner", sex:"m", rider:"Egan Bernal", epithet:"The Kid from Zipaquira",
     fit:S=> S.nonSprintWins*50 + (5-S.consPos)*50 + 18,
-    blurb:"Bernal won the 2019 Tour de France at 22, the first Latin American to do it, and took the 2021 Giro d'Italia before a training crash nearly ended everything.",
+    blurb:"Bernal won the 2019 Tour de France at 22, the first Latin American to do it, then added the 2021 Giro d'Italia - and came back from a training crash that would have finished most careers to race the Grand Tours again.",
     why:S=> `${S.k} leads on climbing legs, and the mountains left are the ones that matter.` },
 
   /* src: https://en.wikipedia.org/wiki/Andy_Hampsten */
@@ -6129,7 +6147,7 @@ const PERSONA_BANK = [
   /* src: https://en.wikipedia.org/wiki/Luis_Oca%C3%B1a */
   { id:"ocana", tier:"winner", sex:"m", rider:"Luis Ocana", epithet:"The Attacker",
     fit:S=> S.aggro*50 + S.nonSprintWins*40 + (5-S.consPos)*35 + 13,
-    blurb:"Ocana won the 1973 Tour de France, and is remembered just as much for the year he rode Merckx off his wheel in the Pyrenees before crashing out of the lead.",
+    blurb:"Ocana won the 1973 Tour de France, and is remembered just as much for the afternoon he rode Merckx off his wheel in the Pyrenees - the one rider of that era who could do it to him.",
     why:S=> `${S.k} rides to win rather than to hold, and it has put ${S.k} in front.` },
 
   /* src: https://en.wikipedia.org/wiki/Marianne_Vos */
@@ -6159,7 +6177,7 @@ const PERSONA_BANK = [
   /* src: https://en.wikipedia.org/wiki/Leontien_van_Moorsel */
   { id:"vanmoorsel", tier:"winner", sex:"f", rider:"Leontien van Moorsel", epithet:"The Comeback",
     fit:S=> S.wins*35 + (5-S.consPos)*55 + 16,
-    blurb:"Van Moorsel won world titles, left the sport after illness, and came back to become Olympic road champion in 2000 and one of the most decorated riders of her era.",
+    blurb:"Van Moorsel won world titles on both the road and the track, became Olympic road champion in 2000, and finished as one of the most decorated riders of her era.",
     why:S=> `${S.k} has come back from a bad day and is leading again.` },
 
   /* src: https://en.wikipedia.org/wiki/Nicole_Cooke */
@@ -6179,13 +6197,13 @@ const PERSONA_BANK = [
   /* src: https://en.wikipedia.org/wiki/Erik_Zabel */
   { id:"zabel", tier:"style", sex:"m", rider:"Erik Zabel", epithet:"Ete",
     fit:S=> S.sprintWins*70 + (S.placePos<=3?25:0) + 12,
-    blurb:"Zabel won the Tour de France points classification six years running from 1996 to 2001, a sprinter who stayed consistent long after the pure speed had gone.",
+    blurb:"Zabel won the Tour de France points classification six years running from 1996 to 2001 - six green jerseys, and nobody in the race could match him over three weeks.",
     why:S=> `${S.k} keeps collecting on the fast days rather than waiting for the mountains.` },
 
   /* src: https://en.wikipedia.org/wiki/Alessandro_Petacchi */
   { id:"petacchi", tier:"style", sex:"m", rider:"Alessandro Petacchi", epithet:"Ale-Jet",
     fit:S=> S.sprintWins*75 + 12,
-    blurb:"Petacchi won stages and points classifications in all three Grand Tours, a pure sprinter delivered to the line by the most drilled lead-out train of his era.",
+    blurb:"Petacchi won stages and points classifications in all three Grand Tours - a pure sprinter with a devastating turn of speed inside the last two hundred metres.",
     why:S=> `${S.k} is drafting for the finish, not the climb.` },
 
   /* src: https://en.wikipedia.org/wiki/Claudio_Chiappucci */
@@ -6203,7 +6221,7 @@ const PERSONA_BANK = [
   /* src: https://en.wikipedia.org/wiki/Niki_Terpstra */
   { id:"terpstra", tier:"style", sex:"m", rider:"Niki Terpstra", epithet:"The Long Way",
     fit:S=> S.aggro*50 + S.nonSprintWins*40 + 12,
-    blurb:"Terpstra won Paris-Roubaix in 2014 and the Tour of Flanders in 2018, both by going clear alone rather than gambling on a sprint he would lose.",
+    blurb:"Terpstra won Paris-Roubaix in 2014 and the Tour of Flanders in 2018, both by riding clear on his own in the closing kilometres and holding it - the hardest way there is to win either race.",
     why:S=> `${S.k} backs the move that goes early rather than the one that waits.` },
 
   /* src: https://en.wikipedia.org/wiki/Zden%C4%9Bk_%C5%A0tybar */
@@ -6245,7 +6263,7 @@ const PERSONA_BANK = [
   /* src: https://en.wikipedia.org/wiki/Thibaut_Pinot */
   { id:"pinot", tier:"style", sex:"m", rider:"Thibaut Pinot", epithet:"The Heart on the Sleeve",
     fit:S=> S.nonSprintWins*50 + S.aggro*30 + (S.burial?25:0) + 12,
-    blurb:"Pinot won the young rider classification at the 2014 Tour de France and rode with everything visible on his face, the good days and the ones that fell apart.",
+    blurb:"Pinot won the young rider classification at the 2014 Tour de France and rode with everything visible on his face, which is exactly why France took him to heart.",
     why:S=> `${S.k} is having a race of highs and lows, and hiding none of it.` },
 ];
 
