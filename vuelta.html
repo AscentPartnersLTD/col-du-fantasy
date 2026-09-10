@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260910-015522Z -->
+<head><!-- build:20260910-130316Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -3598,13 +3598,44 @@ async function doBump(){ const ref=draftRef(); try{ await db.runTransaction(asyn
    would be the FP_SCALE mistake with a person in the middle of it. */
 (function(){
   var KEY_LS='cdf_op_key';
-  var st={ stage:null, data:null, view:'idle', busy:false, breakaway:null, breakThru:null, err:null, reads:{} };
+  var st={ stage:null, data:null, view:'idle', busy:false, breakaway:null, breakThru:null, err:null, reads:{},
+           checkedAt:null, tick:null };
 
   function api(){ return (typeof AUTH_API!=='undefined'?AUTH_API:'https://api.coldufantasy.com'); }
   function key(){ try{ return localStorage.getItem(KEY_LS)||''; }catch(e){ return ''; } }
   function setKey(v){ try{ localStorage.setItem(KEY_LS,v); }catch(e){} }
   function mount(){ return document.getElementById('opClose'); }
   function ord(n){ var s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+
+  /* THE CARD DOES NOT GO AND LOOK UNTIL IT IS ASKED. On load it renders from the
+     CALENDAR alone, which the board already holds, so there is no network call and no
+     answer that is quietly older than the page. Everything below reads pool.boardConfig,
+     never the endpoint. */
+  function calRow(){
+    try{
+      var arr=(pool&&pool.boardConfig&&pool.boardConfig.race)||[];
+      for(var i=0;i<arr.length;i++){ if(arr[i]&&arr[i].n===st.stage) return arr[i]; }
+    }catch(e){}
+    return {};
+  }
+  function stageLine(){
+    var r=calRow(), bits=[];
+    if(r.route) bits.push(esc(r.route));
+    if(r.type) bits.push(esc(String(r.type).toLowerCase()));
+    return bits.join(', ');
+  }
+
+  /* A GATE STATE WITH NO TIMESTAMP IS INDISTINGUISHABLE FROM A FRESH ONE. Whatever the
+     card last heard, it says when it heard it. */
+  function ago(ts){
+    if(!ts) return '';
+    var s=Math.max(0,Math.round((Date.now()-ts)/1000));
+    if(s<45) return 'just now';
+    if(s<90) return 'a minute ago';
+    if(s<3600) return Math.round(s/60)+' minutes ago';
+    var h=Math.round(s/3600);
+    return h===1?'an hour ago':h+' hours ago';
+  }
 
   /* The typed reads, taken from the DOM when the boxes exist and from state when they
      do not. render() repaints innerHTML, so a flip or a Set would otherwise throw away
@@ -3660,19 +3691,45 @@ async function doBump(){ const ref=draftRef(); try{ await db.runTransaction(asyn
       +'<button class="opc-btn" id="opcKeySave">Save the key</button></div>';
   }
 
-  function idle(d){
-    var i=d.stageInfo||{}, bits=[];
-    if(i.route) bits.push(esc(i.route));
-    if(i.type) bits.push(esc(String(i.type).toLowerCase()));
-    var line=bits.join(', ');
-    var fin=(d.official&&d.official.classified)||0;
-    var sub=line+(line?'. ':'')+fin+' finishers, classification complete.';
-    var blocked=(d.refusals||[]).length&&!d.notPublished;
+  /* Before any check. Calendar only, and it says so rather than implying a state it has
+     not looked at. */
+  function unchecked(){
+    var line=stageLine();
     return '<div class="opc"><div class="opc-tag">Operator</div>'
       +'<div class="opc-h">Close stage '+esc(st.stage)+'</div>'
-      +'<div class="opc-p">'+sub+'</div>'
-      +(blocked?'<div class="opc-warn">'+(d.refusals||[]).map(function(r){return esc(r.msg);}).join('<br>')+'</div>':'')
-      +'<button class="opc-btn" id="opcOpen">'+(blocked?'See what is blocking it':'Close it')+'</button></div>';
+      +(line?'<div class="opc-p">'+line+'.</div>':'')
+      +'<div class="opc-p opc-mute">Not checked yet. Nothing is fetched until you ask.</div>'
+      +'<button class="opc-btn" id="opcCheck">Check the results</button></div>';
+  }
+
+  /* After a check. THE HEADLINE MUST MATCH THE GATES UNDERNEATH IT. It used to read
+     "0 finishers, classification complete" while every gate below it was refusing,
+     which is the same class as a fallback that prints undefined: well formed, confident
+     and false. Never say complete while anything refuses, and never print a count of
+     zero as though it were a result. */
+  function checked(d){
+    var line=stageLine();
+    var fin=(d.official&&d.official.classified)||0;
+    var blocked=(d.refusals||[]).length>0;
+    var body;
+    if(d.notPublished){
+      body='Not raced yet, so there is no classification to close.';
+    }else if(blocked){
+      body=fin>0?(fin+' finishers so far. Not ready to close.'):'Not ready to close.';
+    }else{
+      body=fin+' finishers, classification complete.';
+    }
+    var showWhy=blocked&&!d.notPublished;
+    var canClose=!blocked&&!d.notPublished&&d.stageDoc;
+    return '<div class="opc"><div class="opc-tag">Operator</div>'
+      +'<div class="opc-h">Close stage '+esc(st.stage)+'</div>'
+      +(line?'<div class="opc-p">'+line+'.</div>':'')
+      +'<div class="opc-p">'+body+'</div>'
+      +(showWhy?'<div class="opc-warn">'+(d.refusals||[]).map(function(r){return esc(r.msg);}).join('<br>')+'</div>':'')
+      +'<div class="opc-p opc-mute" id="opcWhen">Checked '+esc(ago(st.checkedAt))+'.</div>'
+      +(canClose?'<button class="opc-btn" id="opcOpen">Close it</button>':'')
+      +(showWhy?'<button class="opc-btn" id="opcOpen">See what is blocking it</button>':'')
+      +'<button class="opc-flip" id="opcCheck">Check again</button></div>';
   }
 
   function seatRow(c){
@@ -3805,6 +3862,7 @@ async function doBump(){ const ref=draftRef(); try{ await db.runTransaction(asyn
       el.addEventListener('input',function(){ st.reads[c.seat]=el.value; syncConfirm(); });
     });
     syncConfirm();
+    on('opcCheck',doCheck);
     on('opcOpen',function(){ st.view='review'; render(); });
     on('opcCancel',function(){ st.view='idle'; st.err=null; render(); });
     on('opcRetry',function(){ st.err=null; boot(); });
@@ -3849,25 +3907,31 @@ async function doBump(){ const ref=draftRef(); try{ await db.runTransaction(asyn
   function render(){
     if(!key()){ paint(keyPrompt()); bind(); return; }
     if(st.err){ paint(fail(st.err)); bind(); return; }
-    if(!st.data){ paint(''); return; }
-    if(st.data.notPublished){ paint(''); return; }   /* nothing to close, no card at all */
-    paint(st.view==='review'?review(st.data):idle(st.data));
+    if(!st.data){ paint(unchecked()); bind(); return; }
+    /* An unraced stage USED TO render nothing at all, which is the same as the card
+       being broken. It now says so in one line and keeps the check button. */
+    var canReview=(st.view==='review'&&st.data.stageDoc);
+    paint(canReview?review(st.data):checked(st.data));
     bind();
   }
 
   function reload(){
     paint('<div class="opc"><div class="opc-p opc-mute">Working...</div></div>');
     preview({breakaway:st.breakaway, breakThru:st.breakThru}).then(function(d){
-      st.data=d; st.view='review'; render();
+      st.data=d; st.checkedAt=Date.now(); st.view='review'; render();
     }).catch(function(e){ st.err=e.message; render(); });
   }
 
-  function boot(){
-    if(!key()){ render(); return; }
+  /* The only thing that goes and looks, and it runs on a tap. */
+  function doCheck(){
+    paint('<div class="opc"><div class="opc-p opc-mute">Checking...</div></div>');
     preview({breakaway:st.breakaway, breakThru:st.breakThru}).then(function(d){
-      st.data=d; render();
+      st.data=d; st.checkedAt=Date.now(); st.view='idle'; render();
     }).catch(function(e){ st.err=e.message; render(); });
   }
+
+  /* BOOT MAKES NO NETWORK CALL. It paints the calendar and waits to be asked. */
+  function boot(){ render(); }
 
   window.__opCloseBoot=function(){
     /* NOT RENDERED for anyone but the owner. No node is created at all. */
@@ -3875,6 +3939,15 @@ async function doBump(){ const ref=draftRef(); try{ await db.runTransaction(asyn
     if(!mount()) return;
     st.stage=STAGE;
     boot();
+    /* Tick the one line that ages. Repainting the card would throw away anything typed
+       into the read boxes, so this touches that node and nothing else. Wrapped because
+       a host without setInterval must not take the card down with it. */
+    try{
+      if(!st.tick) st.tick=setInterval(function(){
+        var e=document.getElementById('opcWhen');
+        if(e&&st.checkedAt) e.textContent='Checked '+ago(st.checkedAt)+'.';
+      },30000);
+    }catch(e){}
   };
 })();
 

@@ -2560,6 +2560,53 @@ Production and Preview, then redeploy. The four older endpoints keep their own l
 fallback so nothing breaks meanwhile; the follow-up commit deletes those four fallbacks
 once the variable exists.
 
+### The card does NOT go and look until it is asked
+
+Changed 2026-09-10, at Allen's request, and it is a better rule than the one it replaced.
+
+The card used to fetch `close-preview` when the BOARD loaded. Three things wrong with
+that, and the third is the one that matters:
+
+- the answer on screen was as old as whenever the page happened to be opened
+- re-checking meant reloading the whole board, which is not what anyone does on a phone
+- A STALE GATE STATE AND A FRESH ONE LOOKED IDENTICAL, because neither carried a time
+
+Now: on load the card renders from the CALENDAR alone, `pool.boardConfig.race`, which the
+board already holds. No network call. A [Check the results] button goes and looks; after
+that it is [Check again] and stays available, so the classification can be watched filling
+without touching the page. Every render prints "Checked N minutes ago", and a small
+interval ages that ONE line rather than repainting the card, because a repaint would throw
+away anything typed into the read boxes.
+
+`tools-opcard-verify.js` asserts the property directly: an owner card renders with ZERO
+network calls, the first tap makes exactly one, and a second tap makes another.
+
+### The headline must match the gates underneath it
+
+The card read "0 finishers, classification complete" while five gates below it were
+refusing. Allen saw it on stage 18 while the stage was still on the road.
+
+It is the same class as a fallback that prints `undefined`, and it is worth naming as its
+own shape: THE MARKUP WAS WELL FORMED, THE TEMPLATE DID EXACTLY WHAT IT WAS TOLD, AND THE
+SENTENCE WAS FALSE. No structural check can see it. It is also the half an operator acts
+on, because the headline is the part people read and the gate list is the part they skim.
+
+Two rules, both now asserted:
+
+- NEVER print "complete" while anything is refusing.
+- NEVER print a finisher count of zero as though it were a result. Zero finishers is not a
+  small result, it is the absence of one.
+
+A stage that has not been raced at all gets ONE line saying so and no wall of gate
+failures, because "it has not happened yet" is not five problems. It is deliberately not
+BLANK either: rendering nothing is indistinguishable from the card being broken, which is
+what it used to do.
+
+The fixture behind this is a live capture, `tools-opcard-fixture-unraced.json`, taken from
+stage 18 mid-race: the `ite` bind exists and carries one row at a NEGATIVE position, so
+`started` is 1 and `classified` is 0. That is the exact state that produced the false
+headline, kept rather than invented.
+
 ### The breakaway is JUDGED, the break-through position is NOT
 
 Measured 2026-09-09 over all sixteen scored stages.
@@ -2706,9 +2753,10 @@ THIS MATTERS BECAUSE THE FIX WOULD HAVE BEEN THE BUG. Anyone "correcting" those 
 lines would be editing `normName` and the accent-folding table, both of which decide
 whether a rider name matches, on the strength of a dash that is not there.
 
-Scan CODEPOINTS. The validator that does it is in the scratch tooling used for the card
-build; the one-liner is a loop over the string comparing each character against
-the two dash codepoints, never a grep bracket expression.
+Scan CODEPOINTS, never a bracket expression. `tools-validate-build.js` is the whole
+pre-push checklist made executable and it does it properly: a loop over the string
+comparing each character against the two dash codepoints. Run it before every push
+instead of the grep the rule used to imply.
 
 ## Values read once in loadPool are STALE-SESSION HAZARDS
 
