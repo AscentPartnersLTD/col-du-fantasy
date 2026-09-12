@@ -407,13 +407,26 @@ async function main() {
   console.log('\nCOMBATIF GATE');
   console.log('  ice bind answers for stage ' + (res.iceStage == null ? 'unstated' : res.iceStage) +
     ', previous scored stage ' + prevN + ' stored ' + JSON.stringify(prevStored));
+
+  /* A REFUSAL NO LONGER STOPS THE CLOSE. Allen's ruling, 2026-09-12.
+     The gate's job is to decide WHAT the combatif is, never WHETHER the stage closes.
+     ASO publishes the ice bind on its own schedule and sometimes not at all, so a
+     refusal most often means "not published yet", and holding four players' stage
+     overnight for a decorative field is the mirror of the stage 8 failure: refusing to
+     write a finished stage is not the cautious direction, it is a second way to be wrong.
+     WHAT DOES NOT CHANGE, and is the half worth protecting: a refusal still yields NO
+     VALUE. combatif is left null, never guessed, never carried forward from the previous
+     stage. A missing combatif shows nothing on the card and awards nothing; a wrong one
+     is awarded. Fill it later with a merging .update(), which is how stage 16 was filled. */
+  let combatifValue = null;
   if (!cg.ok) {
-    console.log('  [FAIL] ' + cg.why + ': ' + cg.msg);
-    console.error('\nThe combatif gate refused. Nothing is written. A missing combatif is ' +
-      'recoverable; a wrong one is awarded.');
-    process.exit(1);
+    console.log('  [REFUSED] ' + cg.why + ': ' + cg.msg);
+    console.log('  combatif is left NULL and the close CONTINUES. It is never guessed.');
+    console.log('  No Premio is awarded for this stage until the field is filled in.');
+  } else {
+    combatifValue = cg.value;
+    console.log('  [PASS] ' + cg.value + '  (bib ' + cg.bib + ', resolved from the ice bind)');
   }
-  console.log('  [PASS] ' + cg.value + '  (bib ' + cg.bib + ', resolved from the ice bind)');
 
   /* route and type come from the CALENDAR, boardConfig.race, which is the source of
      truth for them. They are NOT decorative: stageCard prints st.route directly and
@@ -435,7 +448,7 @@ async function main() {
     route: raceRow.route || null,
     type: raceRow.type || null,
     win: tables.nameByBib[winBib] || String(winBib),
-    combatif: cg.value,
+    combatif: combatifValue,
     breakaway: breakaway,
     breakThru: breakaway ? breakThru : null,
     voidStage: false,

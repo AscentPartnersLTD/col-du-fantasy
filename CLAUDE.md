@@ -2922,8 +2922,26 @@ is exactly why the rule demands EVIDENCE rather than banning the repeat.
 THE RULE, both halves:
 
 1. `combatif` comes from the ICE BIND of `rankingType-{year}-{stage}`. Not a web search,
-   not a race report, not a previous stage. If the bind cannot be read, the close STOPS
-   and the field is left unset. A missing combatif shows nothing; a wrong one is AWARDED.
+   not a race report, not a previous stage. If the bind cannot be read the field is left
+   unset. A missing combatif shows nothing; a wrong one is AWARDED.
+
+   A REFUSAL NO LONGER STOPS THE CLOSE. Allen's ruling, 2026-09-12. This said "the close
+   STOPS" from 2026-09-01, and that was the wrong half to be strict about. THE GATE
+   DECIDES WHAT THE COMBATIF IS, NEVER WHETHER THE STAGE CLOSES. ASO publishes the ice
+   bind on its own schedule and sometimes not at all, so a refusal most often means "not
+   published yet", and holding four players' stage overnight for a decorative field is
+   the stage 8 failure wearing a different hat: refusing to write a finished stage is not
+   the cautious direction, it is a second way to be wrong.
+
+   WHAT DOES NOT CHANGE, and is the half actually worth protecting: a refusal still
+   yields NO VALUE. Null, never a guess, never the previous stage carried forward. No
+   Premio is computed from a null. Fill it in later with a MERGING `.update()`, which is
+   how stage 16 was filled and the one write that cannot drop `reads`, `note` or `km`.
+
+   An operator-SUPPLIED combatif that the gate rejects DOES still block, and that
+   asymmetry is deliberate: absence is the feed being quiet, whereas a rejected override
+   is a person asserting a value the feed contradicts. `lib/compute-close.js` already
+   drew this line, at `combatif_override`; `tools/close-stage.js` did not, and now does.
 2. It must not equal the previous scored stage's value UNLESS the ice bind independently
    names it.
 
@@ -3103,9 +3121,28 @@ A VOID STAGE IS EXEMPT everywhere: nothing was raced, so there is nothing to rea
   come from a FILE and not the command line because they are paragraphs and a shell mangles
   the punctuation. The file is parsed at the TOP of `main()`, ahead of every network call,
   so a bad path or a stray seat code fails in a second rather than after the whole compute.
-- `lib/compute-close.js` refuses with `reads_required`. That is the one computation BOTH
-  endpoints run, so the preview and the write agree by construction. `force` does not clear
-  it: `force` only ever clears `already_closed`.
+- `lib/compute-close.js` was described here as refusing with `reads_required`. IT DOES
+  NOT, AND IT NEVER HAS. Measured 2026-09-12 against the deployed code and the live
+  endpoint: there is no `reads_required` anywhere in `lib/compute-close.js`, its `stageDoc`
+  has NO `reads` key, and `/api/close-stage` writes `out.stageDoc` verbatim. So THE API
+  WRITE PATH CANNOT CARRY A READ AT ALL.
+
+  It is worse than a missing gate, because the operator card SENDS them: `commit()` sets
+  `body.reads = readsTyped()`, and `/api/close-stage` extracts only `breakaway`,
+  `breakThru` and `combatif` into `overrides`. The four paragraphs the card insists on
+  before it will enable Confirm are posted and DROPPED, in silence. `close-preview` does
+  not even parse a `reads` query param, so the card's "the reads ride along so the
+  server's own gate is evaluated against what is typed" is evaluating nothing.
+
+  THIS IS THE `sideGames.merica` SHAPE IN A WRITE PATH: a field with no consumer, read by
+  a reader who reasonably assumes it has one. It was invisible because the renderer was
+  fixed in the same week to print nothing rather than `undefined`, so a stage closed
+  through the card loses its reads and LOOKS FINE.
+
+  Until `lib/compute-close.js` carries `reads` onto the stage doc, `/api/score-stage` is the
+  write path for a close, because its `data` is the whole document and the caller decides
+  what is in it. Stage 20 was written that way on 2026-09-12 and read back with all four.
+  `force` clears only `already_closed`, on both endpoints.
 - The operator card grew a fourth surface, below.
 
 ### The card collects them, and offers NO draft
