@@ -100,7 +100,35 @@ function scriptBlocks(html) {
    The cost is that a literal `${` inside an ordinary quoted string would be picked up.
    That is rare, and it lands in the ADVISORY tier rather than failing the gate, so the
    error is one line of noise and never a false failure. */
-function interpolations(code) {
+/* BLANK OUT BLOCK COMMENTS BEFORE LOOKING FOR INTERPOLATIONS.
+   A GATE MUST NOT READ ITS OWN PROSE. This tool reported a defect against the sentence
+   explaining that defect: a board comment documenting the old broken line quoted it
+   verbatim, `${st.reads ? ... : st.note}`, and the sweep found the quotation. CLAUDE.md
+   already records the same mistake in the guest verifier, which matched its own comment
+   saying a thing was GONE and concluded the thing was present.
+
+   Only block comments are masked, and only when the closing delimiter exists. Line comments
+   are deliberately NOT masked: `//` appears inside every https:// string on the board, so
+   masking it would blank real code to end of line, and hiding a real interpolation is a
+   FAIL-OPEN miss where a stray comment match is merely noise. Lengths are preserved so
+   every reported offset still maps to the right line. */
+function maskBlockComments(code) {
+  let out = code, from = 0, masked = 0;
+  for (;;) {
+    const a = out.indexOf('/*', from);
+    if (a < 0) break;
+    const b = out.indexOf('*/', a + 2);
+    if (b < 0) break;                       /* unterminated: mask nothing, never to EOF */
+    const span = out.slice(a, b + 2).replace(/[^\n]/g, ' ');
+    out = out.slice(0, a) + span + out.slice(b + 2);
+    from = b + 2;
+    masked++;
+  }
+  return out;
+}
+
+function interpolations(rawCode) {
+  const code = maskBlockComments(rawCode);
   const out = [];
   let i = 0, unbalanced = 0;
   while ((i = code.indexOf('${', i)) >= 0) {
@@ -242,6 +270,26 @@ function bindParams(code, fixture) {
     while ((f = fre.exec(body))) fields.add(f[1]);
     if (fields.size) guaranteed[target] = fields;
   }
+  /* THE SAME GUARD WRITTEN AS forEach + push, which is the Tour board's idiom:
+         S.forEach(s=>{ if(s.merica && s.merica.top){ watch.push(s); ... } });
+         ... watch.map(s => `... ${s.merica.top} ...`)
+     Identical in effect to the .filter() above and identical in what it proves, so it is
+     recognized rather than made to go away by editing working board code. The Vuelta says
+     the same thing with .filter(); the Tour has not been refactored and does not need to
+     be for a gate's convenience. */
+  const re3b = /\.\s*forEach\s*\(\s*(?:function\s*)?\(?\s*([A-Za-z_$][\w$]*)\)?\s*=>\s*\{\s*if\s*\(([^)]{0,160})\)\s*\{\s*([A-Za-z_$][\w$]*)\s*\.\s*push\s*\(\s*\1\s*\)/g;
+  while ((m = re3b.exec(code))) {
+    const param = m[1], cond = m[2], target = m[3];
+    const fields = new Set();
+    const fre = new RegExp('\\b' + param + '\\.([\\w$]+)', 'g');
+    let f;
+    while ((f = fre.exec(cond))) fields.add(f[1]);
+    if (fields.size) {
+      guaranteed[target] = guaranteed[target] || new Set();
+      fields.forEach(x => guaranteed[target].add(x));
+    }
+  }
+
   /* a parameter iterating a filtered variable inherits what the filter proved */
   const paramGuaranteed = {};
   const re4 = /([A-Za-z_$][\w$]*)\s*\.\s*(?:map|forEach|filter|find|flatMap|some|every|sort)\s*\(\s*(?:function\s*)?\(?\s*([A-Za-z_$][\w$]*)/g;
@@ -317,15 +365,29 @@ function fixtureVerdict(expr, binding, fixture) {
 
 function lineOf(html, idx) { return html.slice(0, idx).split('\n').length; }
 
+/* WHICH POOL'S DATA DOES THIS BOARD RENDER? Measuring a board against another pool's
+   shapes is how the Tour got a confident wrong verdict on 2026-09-13: the Vuelta carries
+   raceRow.extra on 6 of 21 rows and the Tour on all 21, so the same unguarded read is a
+   live defect on one board and inert on the other. */
+function fixtureFor(file, fixture) {
+  const pool = (fixture.boards || {})[file];
+  if (!pool) return null;
+  const spec = (fixture.pools || {})[pool];
+  if (!spec) return null;
+  return { pool: pool, collections: spec.collections, bindings: fixture.bindings };
+}
+
 function sweep(file, fixture) {
   const full = path.join(REPO, file);
   if (!fs.existsSync(full)) return { file: file, skipped: true };
+  const fx = fixtureFor(file, fixture);
+  if (!fx) return { file: file, unmapped: true };
   const html = fs.readFileSync(full, 'utf8');
 
   const proven = [], advisory = [], desyncs = [];
   let total = 0;
   scriptBlocks(html).forEach((blk, bi) => {
-    const bound = bindParams(blk.code, fixture);
+    const bound = bindParams(blk.code, fx);
     const scan = interpolations(blk.code);
     if (scan.desync) desyncs.push({ block: bi, depth: scan.depth, open: scan.open });
     scan.list.forEach(it => {
@@ -334,12 +396,12 @@ function sweep(file, fixture) {
       if (!bad) return;
       if (enclosingGuards(bad, it, scan.list)) return;
       const rec = { line: lineOf(html, blk.offset + it.index), expr: it.expr.trim().slice(0, 90) };
-      const fv = fixtureVerdict(bad, bound, fixture);
+      const fv = fixtureVerdict(bad, bound, fx);
       if (fv && fv.proven) { rec.detail = fv.detail; proven.push(rec); }
       else advisory.push(rec);
     });
   });
-  return { file: file, total: total, proven: proven, advisory: advisory, desyncs: desyncs };
+  return { file: file, pool: fx.pool, total: total, proven: proven, advisory: advisory, desyncs: desyncs };
 }
 
 function main() {
@@ -352,24 +414,19 @@ function main() {
 
   console.log('UNDEFINED SWEEP');
   console.log('interpolations that render the word when a field is absent');
-  console.log('fixture measured ' + fixture.measured + ' on ' + fixture.pool + '\n');
+  console.log('fixtures measured ' + fixture.measured + '\n');
 
-  let fail = 0, swept = 0, adv = 0, desync = 0;
+  let fail = 0, swept = 0, adv = 0, desync = 0, unmapped = 0;
 
   targets.forEach(f => {
     const r = sweep(f, fixture);
     if (r.skipped) { console.log('  ' + f + ': not present, skipped'); return; }
+    /* A board with no fixture is NOT swept and must say so, never pass quietly. */
+    if (r.unmapped) { unmapped++; console.log('  ' + f + ': NO FIXTURE MAPPED, not swept'); return; }
     swept++;
-    /* THE FIXTURE IS MEASURED ON ONE POOL. Verdicts on a board served by a different pool
-       are INFERRED from that pool's document shapes, not measured against its own, and
-       saying so is the difference between a finding and an assumption. The two boards share
-       a code lineage so the shapes are very likely the same, but "very likely" is exactly
-       the word this repo keeps having to add afterwards. */
-    if (!/vuelta/i.test(r.file) && r.proven.length) {
-      console.log('  ' + r.file + ': NOTE, verdicts below are INFERRED from the ' + fixture.pool +
-        ' fixture.');
-      console.log('           Measure this board\'s own pool before treating them as proven.');
-    }
+    /* No "inferred" caveat any more, and that is the point of the per-board fixtures:
+       every verdict below is measured against the pool the board actually renders, so a
+       finding is a finding. The caveat this replaced was itself wrong on the Tour. */
     /* A desynced scan cannot be trusted to have SEEN the defect, so it is a hard
        failure in its own right rather than a warning under a clean summary. */
     if (r.desyncs.length) {
@@ -378,7 +435,7 @@ function main() {
         JSON.stringify(r.desyncs));
       console.log('           The scanner lost its place, so this file was NOT fully swept.');
     }
-    console.log('  ' + r.file + ': ' + r.total + ' interpolations, ' +
+    console.log('  ' + r.file + ' [' + r.pool + ']: ' + r.total + ' interpolations, ' +
       (r.proven.length ? r.proven.length + ' PROVEN UNGUARDED' : 'none proven unguarded') +
       ', ' + r.advisory.length + ' advisory');
     r.proven.forEach(x => {
@@ -395,6 +452,12 @@ function main() {
 
   console.log('');
   if (!swept) { console.log('NOTHING SWEPT. Build the boards first; this reads the BUILT files.'); process.exit(2); }
+
+  if (unmapped) {
+    console.log(unmapped + ' board(s) had NO FIXTURE and were not swept. Add them to the');
+    console.log('`boards` map in tools-undefined-fixture.json; an unswept board is not a clean one.');
+    process.exit(2);
+  }
 
   if (desync) {
     console.log(desync + ' file(s) DESYNCED. Fix the scanner before trusting any result here:');

@@ -4707,11 +4707,42 @@ COMPLETED.forEach(n=>{
   allp.forEach(x=>{ s2++; if(p2===null||x.fin>p2) r2=s2; p2=x.fin;
     OURS.picks[x.p]++; if(r2>=allp.length-1) OURS.tail[x.p]++; });
 });
+/* THE BLOODHOUND. The seat that drafted the actual stage winner most often.
+   Named 2026-09-13. It is a RECORDED STATISTIC on this Vuelta and becomes a real award,
+   with a jersey, from the Giro forward; it is deliberately NOT backfilled as a Vuelta
+   jersey, so nothing is written to carriedJerseys for it here.
+
+   IT READS `WINS_BY` AND COUNTS NOTHING ITSELF. That tally already exists a few lines
+   below and already feeds five render sites, so this is a sixth reader rather than a
+   second count. Writing the loop again is the FP_SCALE mistake, and the copy that drifts
+   is always the one nobody is looking at.
+
+   A TIE IS SHARED and named, the same ruling as the Kasseistampers cobble and the Double
+   Goose: when the tiebreaker does not separate two seats they are still equal, and a
+   stable sort must not invent a winner out of seat-code alphabetical order. That is the
+   FAN_STANDING failure and it has now been made twice in this repo. */
 let WINS_PICKED=0;
 const WINS_BY={}; PL4.forEach(p=>WINS_BY[p]=0);
 COMPLETED.forEach(n=>{ const st=STAGES.find(s=>s.n===n);
   if(PL4.some(p=>(st.picks[p]||[]).some(([r,f])=>f===1))) WINS_PICKED++;
   PL4.forEach(p=>{ if((st.picks[p]||[]).some(([r,f])=>f===1)) WINS_BY[p]++; }); });
+
+/* One derivation, read by every Bloodhound surface. `leaders` is a LIST because the
+   award is shared on a tie; `line` is EMPTY when there is nothing notable to say, so no
+   render site needs a guard of its own. */
+const BLOODHOUND=(function(){
+  const best=Math.max(0,...PL4.map(p=>WINS_BY[p]));
+  const leaders=PL4.filter(p=>WINS_BY[p]===best && best>0);
+  const rest=PL4.filter(p=>leaders.indexOf(p)<0).reduce((a,p)=>a+WINS_BY[p],0);
+  let line='';
+  if(leaders.length===1){
+    line=leaders[0]+' drafted '+best+' of them'
+      +(best>rest?', more than the other three seats together.':'.');
+  } else if(leaders.length>1){
+    line=leaders.join(' and ')+' drafted '+best+' each, and share it.';
+  }
+  return { top:WINS_PICKED, best:best, leaders:leaders, rest:rest, line:line };
+})();
 
 /* ---- Aggressive-selection awards, computed from stage facts + picks ----
    La Selection la plus Combative: on a genuine breakaway stage, to the best-placed
@@ -4865,7 +4896,7 @@ document.getElementById('heroLead').innerHTML = `
 document.getElementById('callouts').innerHTML = `
   <div class="callout"><div class="n">${OURS.fantasy[fanLeader]}</div><div class="l">Fantasy Points leader</div><div class="d">${fanLeader}, highest total through Stage ${THRU}. The system of record on this race. Higher leads.${FAN_TIEBREAK_NOTE?' '+FAN_TIEBREAK_NOTE:''}</div></div>
   <div class="callout"><div class="n">${OURS.rank[rankLeader]}</div><div class="l">Rank leader</div><div class="d">${rankLeader}, lowest rank total. Each stage all eight picks are ranked 1 to 8 by finish; this sums each day's two.</div></div>
-  <div class="callout"><div class="n">${WINS_PICKED}/${COMPLETED.length}</div><div class="l">Winners picked</div><div class="d">Stages where someone in the pool drafted the actual stage winner, across the ${COMPLETED.length} scored days.</div></div>
+  <div class="callout"><div class="n">${BLOODHOUND.top}/${COMPLETED.length}</div><div class="l">The Bloodhound</div><div class="d">${BLOODHOUND.line} Stages where someone in the pool drafted the actual stage winner, across the ${COMPLETED.length} scored days.</div></div>
   <div class="callout"><div class="n">${OURS.placement[placeLeader]}</div><div class="l">Placement leader</div><div class="d">${placeLeader}, lowest total of actual stage finishes. The third view, behind See Placement on any card. Lower leads.</div></div>
   <div class="insight">
     <svg class="arrow" viewBox="0 0 38 26" fill="none"><path d="M2 13H30M30 13L21 4M30 13L21 22" stroke="#c8102e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>

@@ -1,8 +1,7 @@
 {
   "_comment": [
-    "FIELD PRESENCE, measured against the live vuelta-2026 pool on 2026-09-13, after the",
-    "race finished and all 21 stages were closed. This is SHAPE ONLY: field names and how",
-    "many documents carry each. No prose, no picks, no addresses.",
+    "FIELD PRESENCE, measured against the live pools. This is SHAPE ONLY: field names and",
+    "how many documents carry each. No prose, no picks, no addresses.",
     "",
     "WHAT IT IS FOR. tools-undefined-sweep.js uses it to tell a field that is ALWAYS",
     "present from one that is SOMETIMES ABSENT. An unguarded read of an always-present",
@@ -11,42 +10,132 @@
     "column. The difference is not visible in the source, only in the data, which is why",
     "a grep could never have found either.",
     "",
-    "REGENERATE from a signed-in owner board tab whenever the document shape changes,",
-    "and certainly when a new race starts. A stale fixture makes the gate weaker, not",
-    "wrong: it can only miss a newly-optional field, never invent one.",
+    "ONE FIXTURE PER POOL, AND THE BOARD DECIDES WHICH ONE. Measuring the Tour board",
+    "against the Vuelta's data produced a confident wrong answer on 2026-09-13: the Vuelta",
+    "carries raceRow.extra on 6 of 21 rows and the TOUR CARRIES IT ON ALL 21, so the",
+    "${r.extra} that really was printing 'undefined' fifteen times on the Vuelta cannot",
+    "currently print it once on the Tour. Same code, different data, opposite verdict.",
+    "A fixture describes the data at the READ SITE, and which pool a board reads is part",
+    "of that.",
     "",
-    "counts are present/total."
+    "REGENERATE from a signed-in owner board tab whenever the document shape changes, and",
+    "certainly when a new race starts. A stale fixture makes the gate weaker, not wrong:",
+    "it can only miss a newly-optional field, never invent one.",
+    "",
+    "counts under `optional` are present/total."
   ],
   "measured": "2026-09-13",
-  "pool": "vuelta-2026",
-  "collections": {
-    "stage": {
-      "_source": "pools/vuelta-2026/stages/*, AS THE BOARD SEES IT after buildCDF",
-      "_normalized": [
-        "THE FIXTURE DESCRIBES CDF.stages, NOT THE RAW FIRESTORE DOCUMENT, and the",
-        "difference matters. buildCDF does Object.assign({n:Number(d.id)}, v), so `n` is",
-        "supplied from the document id whenever the document itself lacks it. Raw stage",
-        "docs 1, 2 and 3 genuinely have no `n` field, and an audit reading Firestore",
-        "directly sees three undefineds collapse into one null key. The BOARD never sees",
-        "that: every entry in STAGES has an `n`.",
-        "So `n` is listed under always, on purpose. Measuring the raw documents instead",
-        "produced eleven false failures against render sites that cannot fire.",
-        "A fixture for a gate must describe the data AT THE READ SITE, not at its source."
-      ],
-      "count": 21,
-      "always": ["n", "picks", "route", "type", "win"],
-      "optional": {
-        "breakThru": 11, "breakaway": 18, "combatif": 19, "combatifNote": 1,
-        "days": 20, "kassei": 20, "km": 13, "note": 13,
-        "reads": 20, "scored": 7, "voidLabel": 8, "voidStage": 8
+  "boards": {
+    "_comment": "built file -> which pool's data it renders",
+    "vuelta.html": "vuelta-2026",
+    "tour.html": "col-du-fantasy",
+    "index.html": "col-du-fantasy",
+    "tour-staging.html": "col-du-fantasy",
+    "board.html": "col-du-fantasy"
+  },
+  "pools": {
+    "vuelta-2026": {
+      "collections": {
+        "stage": {
+          "_source": "pools/vuelta-2026/stages/*, AS THE BOARD SEES IT after buildCDF",
+          "_normalized": [
+            "THE FIXTURE DESCRIBES CDF.stages, NOT THE RAW FIRESTORE DOCUMENT. buildCDF does",
+            "Object.assign({n:Number(d.id)}, v), so `n` is supplied from the document id",
+            "whenever the document lacks it. Raw stage docs 1, 2 and 3 genuinely have no `n`,",
+            "and an audit reading Firestore directly sees three undefineds collapse into one",
+            "null key. The BOARD never sees that. So `n` is listed under always, on purpose:",
+            "measuring the raw documents instead produced eleven false failures against render",
+            "sites that cannot fire."
+          ],
+          "count": 21,
+          "always": [
+            "n",
+            "picks",
+            "route",
+            "type",
+            "win"
+          ],
+          "optional": {
+            "breakThru": 11,
+            "breakaway": 18,
+            "combatif": 19,
+            "combatifNote": 1,
+            "days": 20,
+            "kassei": 20,
+            "km": 13,
+            "note": 13,
+            "reads": 20,
+            "scored": 7,
+            "voidLabel": 8,
+            "voidStage": 8
+          }
+        },
+        "raceRow": {
+          "_source": "pools/vuelta-2026 boardConfig.race[]",
+          "count": 21,
+          "always": [
+            "date",
+            "km",
+            "n",
+            "profile",
+            "route",
+            "type",
+            "upcoming",
+            "win"
+          ],
+          "optional": {
+            "extra": 6
+          }
+        }
       }
     },
-    "raceRow": {
-      "_source": "pools/vuelta-2026 boardConfig.race[]",
-      "count": 21,
-      "always": ["date", "km", "n", "profile", "route", "type", "upcoming", "win"],
-      "optional": {
-        "extra": 6
+    "col-du-fantasy": {
+      "collections": {
+        "stage": {
+          "_source": "pools/col-du-fantasy/stages/*, with n supplied the way buildCDF does",
+          "count": 21,
+          "always": [
+            "km",
+            "n",
+            "picks",
+            "route",
+            "type",
+            "win"
+          ],
+          "optional": {
+            "best": 11,
+            "breakThru": 3,
+            "breakaway": 3,
+            "combatif": 17,
+            "days": 20,
+            "merica": 6,
+            "note": 20,
+            "reads": 20,
+            "voidLabel": 1,
+            "voidStage": 1
+          }
+        },
+        "raceRow": {
+          "_source": "pools/col-du-fantasy boardConfig.race[]",
+          "_note": [
+            "extra is on ALL 21 rows here, which is why the Tour board's unguarded",
+            "${r.extra} is not currently a live defect even though it is the same code",
+            "that printed the word fifteen times on the Vuelta. It is guarded anyway:",
+            "the row that loses its extra is the one that would print it."
+          ],
+          "count": 21,
+          "always": [
+            "date",
+            "extra",
+            "n",
+            "route",
+            "type",
+            "win"
+          ],
+          "optional": {
+            "voidPool": 1
+          }
+        }
       }
     }
   },
@@ -54,9 +143,15 @@
     "_comment": [
       "Which board identifiers hold documents of which collection. A callback parameter",
       "is bound by the sweep from patterns like RACE.map(r=>...), so this only needs the",
-      "COLLECTION identifiers, not every local name."
+      "COLLECTION identifiers, not every local name. Shared across pools: the two boards",
+      "are the same code and use the same names."
     ],
-    "raceRow": ["RACE"],
-    "stage": ["STAGES", "COMPLETED_STAGES"]
+    "raceRow": [
+      "RACE"
+    ],
+    "stage": [
+      "STAGES",
+      "COMPLETED_STAGES"
+    ]
   }
 }

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260825-120429Z -->
+<head><!-- build:20260913-215449Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -2880,7 +2880,12 @@ function awardsRow(st){
 function stageCard(st){
   let body;
   if(st.voidStage){
-    body = `<div class="note"><span class="lab">Commissaire's note</span>${st.note}</div>`;
+    /* A void stage with no note would print "Commissaire's note undefined". note is on 20
+       of 21 stage documents in this pool, and only the void ones reach here. Guarded
+       rather than left to which stage happens to be void. */
+    body = st.note
+      ? `<div class="note"><span class="lab">Commissaire's note</span>${esc(st.note)}</div>`
+      : '';
   } else {
     // per-player day total: prefer confirmed st.days, else compute from complete picks
     const codes=(CDF.seats||CDF.order).slice();
@@ -2928,7 +2933,23 @@ function stageCard(st){
           :`<div class="pending-line">Finishes pending: ${st.verify}</div>`):''}
        ${awardsRow(st)}
        ${st.merica?`<div class="mer-line"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#B31942" stroke-width="1.7"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="#3C3B6E" stroke-width="1.7"/><path fill="#3C3B6E" d="M12 8.2l1.15 2.33 2.57.37-1.86 1.81.44 2.56L12 14.06l-2.3 1.21.44-2.56-1.86-1.81 2.57-.37z"/></svg><span><b>Captain 'Merica:</b> ${st.merica.top} (${ordinal(st.merica.f)})${st.merica.correct&&st.merica.correct.length?' - called by '+st.merica.correct.join(', '):' - nobody called it'}</span></div>`:''}
-       <div class="note"><span class="lab">The read</span>${st.reads?codes.filter(k=>st.reads[k]).map(k=>`<div class="readrow"><b>${k}</b> ${st.reads[k]}</div>`).join(''):st.note}</div>`;
+       ${(function(){
+          /* THE TERMINAL GUARD, ported from the Vuelta board 2026-09-13. This line was
+             `${st.reads ? ...rows... : st.note}`, a fallback chain ending in a RAW READ,
+             so a stage with neither reads nor note printed the words "The read undefined"
+             under its own heading. That is the defect that ran on five Vuelta cards for
+             about two weeks; the Tour was never fixed with it and still carried it.
+             Both fields are optional here, each on 20 of 21 stage documents, so the
+             stage that has neither is the one that shows it.
+             The heading now disappears WITH the content: an empty slot beats a filler
+             line, and beats a broken one by further still. */
+          const rows = st.reads
+            ? codes.filter(k=>st.reads[k]).map(k=>`<div class="readrow"><b>${esc(k)}</b> ${esc(st.reads[k])}</div>`).join('')
+            : null;
+          const b = rows !== null ? rows : (st.note || '');
+          if(!b) return '';
+          return `<div class="note"><span class="lab">The read</span>${b}</div>`;
+        })()}`;
   }
   /* The void stamp is DATA, not a constant. `voidLabel` on the stage doc says what KIND
      of void this was: "DNS" only when no draft was taken (Tour 2026 stage 9), "CANCELLED"
@@ -3121,12 +3142,17 @@ document.getElementById('resultsTable').innerHTML =
   RACE.map(r=>{
     const winCell = r.upcoming
       ? `<span class="rt" style="${r.live?'color:var(--gold-d);font-weight:700':''}">${r.live?'Racing today':'Upcoming'}</span>`
-      : `<span class="win">${r.win}</span>`;
+      : `<span class="win">${esc(r.win)}</span>`;
+    /* Guarded to match the Vuelta, where this exact line printed "undefined" down the
+       Note column on 15 of 21 rows for a whole race. IT IS NOT CURRENTLY A DEFECT HERE:
+       this pool carries `extra` on ALL 21 race rows, measured rather than assumed, which
+       is why the same code is live on one board and inert on the other. The row that
+       loses its extra is the row that would print it, so the guard goes in now. */
     return `<tr class="${r.voidPool?'void':''}" ${r.upcoming?'style="opacity:.72"':''}>
-      <td class="st">ST ${r.n}<br><span class="rt">${r.date}</span></td>
-      <td>${r.route}<br><span class="rt">${r.type}</span></td>
+      <td class="st">ST ${esc(r.n)}<br><span class="rt">${esc(r.date)}</span></td>
+      <td>${esc(r.route)}<br><span class="rt">${esc(r.type)}</span></td>
       <td>${winCell}</td>
-      <td class="rt">${r.extra}</td></tr>`;
+      <td class="rt">${esc(r.extra)}</td></tr>`;
   }).join('')+`</tbody>`;
 
 /* stats */
@@ -3606,7 +3632,13 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   // (e.g. T. Johannessen in the break vs his brother A. Johannessen in the peloton).
   function matches(feedName,pick){var s=surname(pick); if(s.length<3) return false; if(norm(feedName).indexOf(s)<0) return false; var pi=initialOf(pick), fi=initialOf(feedName); if(pi&&fi&&pi!==fi) return false; return true;}
   function gapStr(sec){sec=Math.round(sec||0); if(sec<=0)return 'front'; var m=Math.floor(sec/60),s=sec%60; return m+"'"+(s<10?'0':'')+s+'"';}
-  function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+  /* THE NULL GUARD IS NOT OPTIONAL, and this copy did not have it. The board carries two
+     functions named esc: the top-level one coerces null and undefined to an empty string,
+     and this one was a bare String(s), so the same call on the same absent field renders
+     nothing through one and the word "undefined" through the other. Which one a render
+     site gets depends only on whether it sits inside this IIFE. Same defect and same fix
+     as the Vuelta board, 2026-09-13. */
+  function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
 
   function poolPicks(){
     // live draft picks first (window.__livePicks is kept current by the draft
@@ -4041,4 +4073,3 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 </script>
 </body>
 </html>
-<!-- redeploy 20260825-120700Z -->
