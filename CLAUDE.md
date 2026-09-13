@@ -422,6 +422,12 @@ again and that is the bug, not the checklist.
 6. Stage profile art, and the scoring row in the table above.
 7. `ASO_PORTRAIT` and `LOCAL_PORTRAIT` for the Giro startlist, harvested and looked
    at, per Rider portraits, three tiers. Neither map carries over from another race.
+8. A `combatifNote` on every stage that CANNOT have a combativity award, rather than
+   leaving the field absent and rediscovering the question each time an audit runs. An
+   individual time trial makes no such award, and a void stage races nothing. Vuelta 2026
+   stage 18 carries the note; STAGE 1 IS THE SAME CASE AND STILL DOES NOT, deliberately
+   left on 2026-09-13 as outside that brief rather than quietly widened into. Close it
+   here, or close it on the Vuelta first and copy the wording.
 
 Nothing else. No host, jersey color, or scale is written anywhere but the profile.
 
@@ -2554,11 +2560,16 @@ An UNSET variable returns `503 server_key_unset`, never `403`. A wrong key and a
 unconfigured server are different faults and must not look the same, which is the same rule
 as "no riders and wrong URL must not look the same".
 
-OUTSTANDING, and the preview endpoint is blocked on it: `SCORE_KEY` is NOT yet set in
-Vercel. Set it in the coldufantasy-login project, Settings, Environment Variables, for
-Production and Preview, then redeploy. The four older endpoints keep their own literal
-fallback so nothing breaks meanwhile; the follow-up commit deletes those four fallbacks
-once the variable exists.
+CLOSED 2026-09-13: `SCORE_KEY` IS NOW SET IN VERCEL, and the four literal fallbacks are
+gone from the repo with it. Confirmed from production rather than from the dashboard, by
+the distinction `lib/secret.js` exists to draw: `/api/close-preview` answers 403 forbidden
+to an unkeyed request, NOT 503 server_key_unset. An unset variable would have said so in
+those words. That is the rule paying for itself, since a wrong key and an unconfigured
+server would otherwise look identical.
+
+STILL TRUE AND WORTH KNOWING: the endpoints now REQUIRE the variable, because the literal
+fallbacks that used to keep them working are deleted. There is no longer a path that works
+without it.
 
 ### The card does NOT go and look until it is asked
 
@@ -3045,6 +3056,149 @@ WHAT WOULD HAVE CAUGHT IT. `tools-opcard-verify.js` already scans its rendered o
 the literal words undefined, null and NaN, and that check exists because a wall of JSON
 once reached the screen. THE BOARD ITSELF HAS NO SUCH SCAN. A render-time sweep of the
 built board for those three words is the obvious next gate and is NOT yet written.
+
+## The undefined sweep, and what a fixture has to describe
+
+Added 2026-09-13, after the SECOND instance of the terminal-guard defect shipped and ran for
+a whole race. `tools-undefined-sweep.js`, over the BUILT boards, with
+`tools-undefined-fixture.json` as its ground truth.
+
+THE DEFECT IT FOUND. `vuelta.src.html:7370` was a bare `${r.extra}` in the Note column with
+no fallback at all, and `extra` is carried by 6 of 21 race rows. So Full Results printed the
+word on 15 rows for the entire Vuelta, on the tab that reads as "the whole race". Clearing a
+race row's `extra` is the CORRECT data action under "Writing boardConfig" above, which is
+exactly what made this arrive quietly.
+
+IT DOES NOT LOOK FOR THE WORD, and it cannot. The defect does not exist in the source text:
+it only appears when a template is evaluated against a document missing a field. It looks
+for the SHAPE, an unguarded member read, then asks the FIXTURE whether that shape can
+actually fire. Two tiers, and the distinction is the whole reason the tool is usable:
+
+- PROVEN, the read is unguarded AND the fixture shows the field absent from real documents.
+  This FAILS. The message says how many documents render the word.
+- ADVISORY, unguarded but the fixture does not cover that object. Listed, never failed.
+  ADVISORY MEANS UNCOVERED, NOT SAFE.
+
+The first version had no tiers and reported 147 findings in one file, which is a gate nobody
+runs. All the noise was locally-built objects, where the field is always present.
+
+### A FIXTURE MUST DESCRIBE THE DATA AT THE READ SITE, NOT AT ITS SOURCE
+
+The single most useful thing learned here, and it cost eleven false failures.
+
+The fixture was first measured against the RAW Firestore stage documents, where `n` is
+absent on stages 1, 2 and 3. The BOARD never sees that: `buildCDF` supplies `n` from the
+document id. Every `st.n` render site was flagged and not one of them could fire. The
+fixture now describes `CDF.stages` and lists `n` under `always`, with the reason in the file.
+
+### Four false-positive classes, each removed by EVIDENCE rather than by loosening
+
+A gate is only worth having if its failures are real, and the way to get there is to explain
+each false positive rather than relax the rule until it stops complaining:
+
+1. The normalized field above.
+2. An ENCLOSING ternary guards its nested reads. A read wrapped in a test of itself is safe,
+   and judged alone it is indistinguishable from the defect.
+3. A PREFIX guard counts: a test one segment shorter than the read still protects it.
+4. An upstream `.filter()` proves a field present, so a render site downstream of it needs
+   no guard of its own.
+
+### The scanner failed OPEN three times before it worked
+
+Worth recording in full, because every failure produced a CONFIDENT CLEAN REPORT over a file
+it had not finished reading, which is the exact shape this repo keeps cataloguing, in the
+tool built to catch that shape.
+
+- Braces were counted inside template TEXT. Board templates carry inline CSS, so their text
+  is full of braces, the depth counter drifted, and a 23KB region was skipped in silence,
+  including the very interpolation the tool was written to find.
+- Regex literals were not lexed. The board's own `esc` replaces a character class that
+  contains a double quote, and that quote opened a phantom string.
+- An unbalanced candidate did `break`, abandoning the rest of the file.
+
+THE FIX THAT HELD WAS REMOVING THE MACHINERY, NOT PATCHING IT. An interpolation opener is
+unambiguous in JavaScript: it is a template interpolation or it is nothing. So the
+template-state tracking was never needed, and without it there is no place to lose. Every
+opener is found independently of every other and the whole class of desync went away. The
+count went 332, then 76 when spans were skipped, then 778 when nested ones were examined.
+
+WHEN A SCANNER CAN LOSE ITS PLACE, IT MUST SAY SO. Guessing that a partial read is a whole
+one is how a gate reports a file clean that it never finished.
+
+### The board carried TWO functions named esc, and only one guarded
+
+The `esc` at the top of the first block coerces null and undefined to an empty string. The
+one in the rest-day block was a bare `String(s)`. Identical name, identical call, and the
+same absent field rendered as nothing or as the word depending only on which block the
+render site happened to sit in. Fixed 2026-09-13. It is the `FP_SCALE` duplication one layer
+down, in a helper nobody thinks of as a computation, and it is the reason a guarding call
+has to be READ before it is trusted rather than recognised by name.
+
+## Stage docs 1, 2 and 3 have no `n` field
+
+Found 2026-09-13, as the answer to an audit that returned `[null, 12, 18]` for stages lacking
+a combatif. The `null` was not one document, it was THREE.
+
+Stages 1, 2 and 3 carry no `n`. Their document IDS are fine; the FIELD is absent. An audit
+keyed on the field gets undefined from all three and collapses them into a single key, so one
+null stood for three stages, only one of which was really missing anything:
+
+- stage 1, Monaco ITT, combatif absent. Legitimately none, same case as 18.
+- stage 2, combatif `E. Hayter`. Not missing at all.
+- stage 3, void. Legitimately none.
+
+THE BOARD IS UNAFFECTED, and that is the trap. `buildCDF` supplies `n` from the document id,
+so `STAGES` always has one and every render site works. The discrepancy is invisible from the
+board and visible only to something reading Firestore directly, which is what an audit and a
+fixture both do. ANY TOOL THAT READS THE RAW COLLECTION MUST SUPPLY `n` FROM THE DOCUMENT ID
+THE WAY buildCDF DOES, or it will mis-key three stages and report a phantom.
+
+## RACE OVER is derived, and the guards for it already existed
+
+Added 2026-09-13, when the Vuelta finished and `startStage` advanced to 22 on a 21-stage
+race. `buildCDF` synthesized an `upcoming` for whatever `startStage` said, whether or not
+such a stage existed, so the board invented a stage 22 and asked for it in SIX places:
+
+| Surface | What it showed |
+|---|---|
+| Today's Order | a stage 22 label with an empty route after the separator |
+| Operator close card | "Close stage 22" and a live Check the results button |
+| Draft card | "Stage 22 draft", eight empty slots, Enter for JP, "Draft armed" |
+| Next Two card | "Stage 22 up next", a dead stage-22 link, a missing profile image |
+| Kasseistampers | "KASSEISTAMPERS - STAGE 22", thirteen tappable riders |
+| Stage Ledger | a 22nd card above the real ones, status LIVE, 0 KM |
+
+TWO OF THEM ACCEPTED INPUT for a stage that will never be raced.
+
+THE CONSUMERS WERE ALREADY WRITTEN FOR THIS, and this is the part worth carrying forward.
+The Next Two card, the weather card and the Today's Order strip each open with a branch that
+handles no upcoming stage. Those branches had NEVER RUN, because nothing ever produced the
+null they test for. A GUARD WITH NO PRODUCER IS THE MIRROR OF A CONFIG FLAG WITH NO CONSUMER:
+it reads as though the case is handled, and nothing handles it. Grep for the producer of a
+null before believing a null check means the case was considered.
+
+`RACE_OVER` is DERIVED, from `startStage` past the last calendar row with no race row for it.
+No flag in Firestore, nothing to set at close time, and the Giro inherits it unchanged, the
+same call as the rest-day derivation and `FP_SCALE`.
+
+It is published on `window` as well as on `CDF`, because the consumers SPAN SCRIPT BLOCKS:
+the draft card, the operator card and the Kasseistampers picker are in the block that builds
+CDF, the other three are in the next one. A const in the later block cannot be seen from the
+earlier one and reaching for it is the ReferenceError that blanks the board, the same trap
+recorded against `MER` and `norm`.
+
+THE TWO INPUT SURFACES ACCEPT NOTHING RATHER THAN BEING DISABLED. A disabled control still
+invites the attempt and still reads as "not yet" rather than "never". Nothing is built.
+
+"No upcoming stage set" was the existing copy in those dead branches and it is
+MISCONFIGURATION copy: it reads as something an operator forgot. A finished race is not a
+missing setting. Cards with nothing left to say REMOVE themselves, because an empty bordered
+card on the tab everyone lands on reads as broken where an absent one reads as finished.
+
+Retired in the same pass: the Live Break Check, which offered to ask the feed who is up the
+road on a race that has finished and would have got the last frozen snapshot, per "live from
+/api/break is NOT a race-state flag"; and the weather card, which was not merely stale but
+WRONG, still showing stage 20's finish dated Sep 12 as though it were the outlook.
 
 WHY THIS BITES HERE SPECIFICALLY: the board renders from JavaScript into template literals,
 where `undefined` stringifies silently instead of throwing. A missing field is not an error
@@ -3631,17 +3785,18 @@ beneath them. Both were built to expose engine state. Neither was asked for.
   a landmine only if someone flips `sideGames.merica` true on this board without
   reading this line. Close it by shipping the computed roster, or by deleting the
   array outright if the generalization slips.
-- Stage 12 has NO combatif, and it is the last one outstanding. The value is computed and
-  GATED: the stage 12 ice bind names bib 31, W. van Aert, the bind answers for stage 12,
-  and stage 11 stored E. Hayter so it is not a copy-forward. Nobody drafted van Aert that
-  day, so no Premio moves either way. It was deliberately NOT written on 2026-09-09,
-  because /api/score-stage replaces the doc with merge:false and rebuilding stage 12 from
-  the pool-state PROJECTION would silently drop `note`, `reads` or `km` if it carries any,
-  and this file's own rule says not to force-rewrite a pre-stage-13 doc without a raw read.
-  Two ways to close it, both safe. A browser console `.update({combatif: ...})` on
-  `pools/vuelta-2026/stages/12`, which MERGES and therefore cannot drop a field; or set
-  SCORE_KEY in Vercel and read the raw doc from `/api/close-preview?stage=12`, which
-  returns `storedStageDoc`, then write it back in full.
+- Stage 12 combatif: CLOSED 2026-09-13, written as W. van Aert by the first of the two
+  safe routes above, a console `.update({combatif})` that MERGES. Twelve keys before,
+  thirteen after, nothing lost. The gate passed on the live bind and the no-Premio claim
+  was CHECKED rather than carried over: stage 12 picks were AA Gall/Kuss, JB Carapaz/Onley,
+  JJ Mas/Widar, JP Buitrago/Roglic, so nobody held van Aert and AA's Premio 3 stands.
+  Stage 18 was closed in the same pass. Its `combatif` was ALREADY null; what was missing
+  was the reason, so it now carries `combatifNote` saying an individual time trial makes no
+  combativity award and the bind carries no rider. Verified: stage 18 has no ice bind at
+  all, where 12, 17, 19, 20 and 21 all do.
+  STAGE 1 IS THE SAME CASE AND WAS DELIBERATELY LEFT ALONE, at Allen's instruction, as
+  outside that brief. It is the Monaco ITT, its combatif is absent rather than null, and it
+  wants the same note. It is on the Giro checklist instead of being quietly widened into.
 - Style tier exhaustion: CLOSED 2026-09-10, by adding EIGHT style rows and `bruyneel`,
   taking the bank from 92 to 101 and the style tier from 0 unworn to 9, which is three
   full rotations against the stages that remain. The capacity paragraph was corrected in
@@ -3668,17 +3823,18 @@ beneath them. Both were built to expose engine state. Neither was asked for.
   The fourth is a trap worth naming on its own: a PURE WHITE field dissolves into the
   off-white page and the avatar loses its circular edge, so a flag with a white half needs
   that half darkened to about `#dfe3ea`. None of this is visible at 108px.
-- A RENDER-TIME SWEEP of the built board for the literal words undefined, null and NaN
-  is NOT written, and it is the gate that would have caught "The read undefined" two
-  weeks earlier. `tools-opcard-verify.js` already does exactly this for the operator
-  card and it is the reason that card has never leaked one.
-  WHY IT IS NOT A ONE-LINER, and this is the part to read before attempting it: a STATIC
-  grep of `vuelta.html` is useless, because the file legitimately contains `typeof x ===
-  'undefined'` and similar, and because the defect does not exist in the source at all.
-  It only appears once a template literal is evaluated against a document that is missing
-  a field. So the gate has to RENDER, which means either a DOM walk on a signed-in board
-  (what found this one, by hand) or a fixture-driven render under a shim the way the
-  opcard verifier works. The second is the right shape and needs stage docs as fixtures.
+- The undefined sweep: HALF CLOSED 2026-09-13. `tools-undefined-sweep.js` is the STATIC
+  half and it is real: it found `${r.extra}` printing on 15 of 21 Full Results rows, and
+  it catches "The read undefined" in the same pass. See "The undefined sweep" above.
+  STILL OPEN, and it is the half that proves rather than infers: a RENDER-TIME pass over
+  real documents. The static tool says a shape CAN fire; only a render says it DID at a
+  given site. The fixture-driven render under a shim, the way `tools-opcard-verify.js`
+  works, is still the right shape. The stage docs it needs as fixtures now exist in
+  `tools-undefined-fixture.json`, so that groundwork is done.
+  ALSO OPEN: `tour.html` and `board.html` carry the SAME `${r.extra}` defect and the same
+  two read guards, named but not fixed on 2026-09-13 as outside that brief. Their verdicts
+  are INFERRED from the Vuelta fixture rather than measured on the Tour pool, and the tool
+  says so rather than implying otherwise. Measure that pool before treating them as proven.
 - The Giro host `racecenter.giroditalia.it` in the Adding the Giro checklist is a
   GUESS and has never been checked. Verify it, and verify that the bind names
   match the ASO shape, before writing it into a profile. A wrong host is exactly
