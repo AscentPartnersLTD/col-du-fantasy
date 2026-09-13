@@ -62,10 +62,22 @@ def convert(src, dst):
     return dst
 
 # THE SET. master -> shipped file.
+#
+# Rows whose master is not here yet are SKIPPED with a line saying so, so this table is
+# also the to-do list for the art. Drop a master in and re-run; nothing else changes.
+#
+# jersey-yellow.jpg is in the repo but is NOT from this generator: it is a stock product
+# mockup carrying a third-party brand, "FREESTYLE CYCLING" on the collar and an infinity
+# bicycle on the chest, and it currently renders on AA's and JB's 2026 Tour
+# championships. It wants replacing with a real one, which is why it has a row.
 JERSEYS = [
     ('goose_plumage_clean_front_jersey.png', 'jersey-goose-front.jpg'),
     ('goose_plumage_clean_back_jersey.png',  'jersey-goose-back.jpg'),
     ('poppy_red_front_jersey.png',           'jersey-red.jpg'),
+    ('yellow_front_jersey.png',              'jersey-yellow.jpg'),
+    ('placement_front_jersey.png',           'jersey-placement.jpg'),
+    ('seleccion_front_jersey.png',           'jersey-seleccion.jpg'),
+    ('premio_front_jersey.png',              'jersey-premio.jpg'),
 ]
 
 if __name__ == '__main__':

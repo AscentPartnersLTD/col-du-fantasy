@@ -587,6 +587,21 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
   .pc-trophy .jsy{height:60px;width:auto;max-width:80px;object-fit:contain;display:block;margin:0 auto;border-radius:5px;filter:drop-shadow(0 2px 5px rgba(0,0,0,.18))}
   .pc-trophy .pc-tlab{font-family:'Montserrat',sans-serif;font-weight:800;font-size:10.5px;color:var(--ink);line-height:1.15;margin-top:3px}
   .pc-trophy .pc-tsub{font-size:9.5px;color:var(--mute);line-height:1.2}
+  /* The repeat count. Sits ON the art rather than beside the label, because the art is
+     what a reader recognizes from across the card and the count is a fact about the art.
+     The wrapper is the positioning context; without it the badge would hang off .pc-trophy
+     and drift as the label wraps. */
+  .pc-trophy .pc-tart{position:relative;display:inline-block;line-height:0}
+  .pc-trophy .pc-tmul{position:absolute;right:-5px;bottom:-3px;min-width:17px;height:17px;
+    padding:0 4px;border-radius:9px;background:var(--red);color:#fff;
+    font-family:'Montserrat',sans-serif;font-weight:800;font-size:10px;line-height:17px;
+    text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.28)}
+  /* The citation. Deliberately quiet and deliberately allowed to run to a few lines: it
+     is the only place on the board that says WHY a jersey was won rather than that it was. */
+  .pc-trophy .pc-tnote{font-size:9px;color:var(--mute);line-height:1.35;margin-top:4px;
+    text-align:left;font-style:italic}
+  .pc-trophy.noted{flex:1 1 100%;min-width:0}
+  @media(min-width:620px){ .pc-trophy.noted{flex:1 1 172px;min-width:172px} }
   .pc-jempty{font-size:11.5px;color:var(--mute);font-style:italic;line-height:1.5;margin-bottom:8px}
   .pc-jrow{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;padding:5px 0;border-bottom:1px dashed rgba(0,0,0,.09)}
   .pc-jrow:last-child{border-bottom:none}
@@ -7005,8 +7020,36 @@ const PERSONA_BY = (function(){
     /* Jerseys Awarded trophy view: the classification jerseys this player carries across
        races, from the CDF.carriedJerseys map (Firestore). Icons from JERSEY_ICONS. */
     const cj=(CDF.carriedJerseys && CDF.carriedJerseys[k])?CDF.carriedJerseys[k]:[];
-    const trophyHtml=cj.length
-      ? `<div class="pc-trophies">${cj.map(j=>`<div class="pc-trophy" title="${esc((j.label||'')+(j.sub?' - '+j.sub:''))}">${JERSEY_ICONS[j.type]||''}<span class="pc-tlab">${esc(j.label||'')}</span>${j.sub?`<span class="pc-tsub">${esc(j.sub)}</span>`:''}</div>`).join('')}</div>`
+    /* GROUPED BY TYPE, and the grouping is a DISPLAY decision only.
+       `carriedJerseys` stays append-only, one entry per win, because each win is a fact
+       and the next race simply appends to it. What changes here is how a REPEAT reads:
+       two identical jerseys side by side look like a rendering fault rather than like
+       winning the same thing twice, so the art is drawn once and a count says how often.
+       JJ is the live case, holding Le Maillot Arlequin from the 2026 Tour and again from
+       the 2026 Vuelta.
+       Groups keep FIRST-APPEARANCE order rather than being sorted, so the case reads in
+       the order the jerseys were won and a new race lands at the end. */
+    const cjGroups=[];
+    cj.forEach(j=>{
+      if(!j) return;
+      const g=cjGroups.find(x=>x.type===j.type);
+      if(g) g.entries.push(j); else cjGroups.push({type:j.type,label:j.label||'',entries:[j]});
+    });
+    const trophyHtml=cjGroups.length
+      ? `<div class="pc-trophies">${cjGroups.map(g=>{
+          const n=g.entries.length;
+          const subs=g.entries.map(e=>e.sub).filter(Boolean);
+          const notes=g.entries.map(e=>e.note).filter(Boolean);
+          /* A tile carrying a citation is given room to hold it. The base tile is
+             84px wide, which is right for art plus a label and unreadable for a
+             sentence, so the note is what widens it rather than every tile growing. */
+          return `<div class="pc-trophy${notes.length?' noted':''}" title="${esc(g.label+(subs.length?' - '+subs.join(', '):''))}">`
+            +`<span class="pc-tart">${JERSEY_ICONS[g.type]||''}${n>1?`<span class="pc-tmul">&times;${n}</span>`:''}</span>`
+            +`<span class="pc-tlab">${esc(g.label)}</span>`
+            +subs.map(s=>`<span class="pc-tsub">${esc(s)}</span>`).join('')
+            +notes.map(s=>`<span class="pc-tnote">${esc(s)}</span>`).join('')
+            +`</div>`;
+        }).join('')}</div>`
       : `<div class="pc-jempty">No jerseys yet. Win a classification and it lands in the case here, and rides with you into the next race.</div>`;
     const jerseysHtml=`<details class="pc-jerseys"><summary>Jerseys Awarded${cj.length?`<span class="pc-tct">${cj.length}</span>`:''}<span class="jtog"></span></summary><div class="pc-jbody">${trophyHtml}<div class="pc-jrow"><span class="pc-jed">This season</span><span class="pc-jw">${curLine}</span></div>${jh.map(e=>`<div class="pc-jrow"><span class="pc-jed">${e.ed}</span><span class="pc-jw">${e.jersey}</span></div>`).join('')}</div></details>`;
     return `<div class="pcard${i===0?' lead':''}">
