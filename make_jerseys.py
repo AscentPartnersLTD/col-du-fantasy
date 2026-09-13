@@ -1,4 +1,9 @@
-"""Goose jersey masters (PNG) -> shipped board art (JPG).
+"""Jersey masters (PNG) -> shipped board art (JPG).
+
+Was make_goose_jerseys.py until 2026-09-13. Renamed rather than copied when the red
+champion jersey arrived: the conversion is identical for every master this generator
+produces, and a second copy of it is the FP_SCALE mistake in a build script. Add a row
+to JERSEYS below; do not write another converter.
 
 Matches the Kasseistampers precedent exactly on the things that are matched-able:
 560px wide, JPEG quality 84, 4:2:0 subsampling, progressive. Height follows the art,
@@ -6,7 +11,8 @@ because the reference back (560x418) is a landscape crop of a narrower pose and
 forcing the goose back into it would cut the jersey.
 
 Also erases the "Gemini Notebook" generator watermark, which sits on bare background
-in the bottom right of both masters and must not ship.
+in the bottom right of every master and MUST NOT SHIP. A file that goes out with it
+tells the board who made it. It was present on both goose masters and on the red.
 """
 from PIL import Image, ImageFilter
 import numpy as np, os, sys
@@ -55,6 +61,19 @@ def convert(src, dst):
           f'-> {OUT_W}x{out_h}  {os.path.getsize(dst)/1024:.1f} KB')
     return dst
 
+# THE SET. master -> shipped file.
+JERSEYS = [
+    ('goose_plumage_clean_front_jersey.png', 'jersey-goose-front.jpg'),
+    ('goose_plumage_clean_back_jersey.png',  'jersey-goose-back.jpg'),
+    ('poppy_red_front_jersey.png',           'jersey-red.jpg'),
+]
+
 if __name__ == '__main__':
-    convert('goose_plumage_clean_front_jersey.png', 'jersey-goose-front.jpg')
-    convert('goose_plumage_clean_back_jersey.png',  'jersey-goose-back.jpg')
+    only = sys.argv[1:]
+    for src, dst in JERSEYS:
+        if only and dst not in only and src not in only:
+            continue
+        if not os.path.exists(src):
+            print(f'{dst:28s} SKIPPED, master {src} is not here')
+            continue
+        convert(src, dst)

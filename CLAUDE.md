@@ -600,7 +600,16 @@ stating them.
 The board references JPGs only. Generated masters stay in the repo as PNG source and
 are never linked from a board file. `goose_plumage_clean_front_jersey.png` and
 `goose_plumage_clean_back_jersey.png` are the masters for `jersey-goose-front.jpg` and
-`jersey-goose-back.jpg`; `make_goose_jerseys.py` is the conversion and can be re-run.
+`jersey-goose-back.jpg`, and `poppy_red_front_jersey.png` is the master for
+`jersey-red.jpg`. `make_jerseys.py` is THE conversion, for every jersey, and can be
+re-run. It was named for the goose until 2026-09-13 and was renamed rather than
+copied when the red arrived: the conversion is identical for every master this generator
+produces, so a second copy of it is the `FP_SCALE` mistake in a build script. Add a row
+to its `JERSEYS` table; do not write another converter. Pass a filename to convert one.
+
+VERIFY THE ENCODE BY ROUND-TRIPPING THE QUANTIZATION TABLES, not by trusting the quality
+argument. All three shipped files, the Kasseistampers reference, the goose and the red,
+return the same table signature, which is what makes "matched" a measurement.
 
 Match the Kasseistampers precedent rather than picking numbers. Measured off
 `jersey-kasseistampers-front.jpg`: 560px wide, JPEG quality 84, 4:2:0 subsampling,

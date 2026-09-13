@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260913-193520Z -->
+<head><!-- build:20260913-195920Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -6945,11 +6945,21 @@ const PERSONA_BY = (function(){
   /* Jersey trophy icons for the "Jerseys Awarded" drawer - small cycling-jersey glyphs a
      player carries from race to race. clip/pattern ids repeat across cards but point to the
      identical jersey shape, so duplicates are harmless. */
+  /* KEYED BY TYPE, and the key is what `carriedJerseys` stores. The colour-named keys
+     are the race CHAMPION jerseys and they follow the race rather than the pool: yellow
+     for the Tour, red for the Vuelta, and pink is left free for the Giro on the same
+     pattern. The rest are named for the award, because those travel across races
+     unchanged. A type with no entry here renders no image and the trophy still shows its
+     label, so adding a jersey is additive and a missing one degrades rather than errors. */
   const JERSEY_ICONS={
     yellow:'<img class="jsy" src="/jersey-yellow.jpg" alt="Yellow jersey">',
+    red:'<img class="jsy" src="/jersey-red.jpg" alt="Red jersey, Vuelta champion">',
     merica:'<img class="jsy" src="/jersey-merica.jpg" alt="Captain Merica jersey">',
     arlequin:'<img class="jsy" src="/jersey-arlequin.jpg" alt="Arlequin jersey">',
-    kassei:'<img class="jsy" src="/jersey-kasseistampers-front.jpg" alt="Kasseistampers jersey">'
+    kassei:'<img class="jsy" src="/jersey-kasseistampers-front.jpg" alt="Kasseistampers jersey">',
+    /* The art has been in the repo since the Double Goose shipped and was never wired,
+       so the mark existed on the board while its jersey could not be awarded. */
+    goose:'<img class="jsy" src="/jersey-goose-front.jpg" alt="Double Goose jersey">'
   };
   const rp=(typeof RIDER_PROFILE!=='undefined')?RIDER_PROFILE:{};
   /* Cards run in system-of-record order so the row reads the same way as the callout
