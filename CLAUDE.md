@@ -611,6 +611,46 @@ VERIFY THE ENCODE BY ROUND-TRIPPING THE QUANTIZATION TABLES, not by trusting the
 argument. All three shipped files, the Kasseistampers reference, the goose and the red,
 return the same table signature, which is what makes "matched" a measurement.
 
+### The Premio jersey is PURPLE, and that is the decision, not a mistake
+
+Recorded 2026-09-13 so nobody corrects it back. The brief for this jersey specified GOLD,
+`#e8b31e`, matching the Premio medal icon already in the code. The art came back BRIGHT
+PURPLE and Allen kept it, for two reasons that are better than the original brief:
+
+- every jersey carries a GOLD CdF badge on its sleeve, so a gold jersey puts gold on gold
+- the yellow jersey sits in the same row, and gold against yellow separates poorly
+
+Purple clears both. The star and laurels are unchanged and still match the medal emblem,
+which is what actually ties the jersey to the award; the ground colour never did.
+
+DO NOT "FIX" THIS. It looks like a brief that was missed and it is a brief that was
+overruled, which is the same shape as the crossed 103/104 portrait paths: a deliberate
+thing that reads as an error to anyone who finds it later without the reason.
+
+### The set, and the one jersey that is inconsistent
+
+As of 2026-09-13 every jersey on the board is CdF art. `jersey-yellow.jpg` WAS a stock
+product mockup carrying a third-party brand, FREESTYLE CYCLING on the collar and an
+infinity bicycle on the chest, and it rendered on two Tour championships for months. It
+is now generated art like the rest.
+
+THE SLEEVE BADGE IS MOUNTAIN ABOVE, `CdF` BELOW, ON THE WEARER'S LEFT SLEEVE. Measured
+across the whole set rather than assumed: Kasseistampers, Goose, Merica, yellow,
+placement, seleccion and premio all agree on the orientation. Merica is on the wearer's
+RIGHT sleeve and is the odd one out on side.
+
+`jersey-red.jpg` IS THE ONE WITH THE BADGE THE WRONG WAY ROUND, `CdF` above the mountain.
+It shipped that way on purpose. The badge is 8px wide at the 60px the trophy case draws
+it and 17px at the 118px prize block, so the orientation is invisible at every size the
+board renders; this was checked by rendering at both sizes and looking, not by arithmetic.
+Regenerating it is worth doing only for the master's own sake.
+
+CHECK EVERY NEW JERSEY AT 60px BEFORE SHIPPING IT, which is what `.jsy` actually draws.
+The premio's laurel strokes were the one real risk in this batch and they survive: the
+laurel band samples about (164,140,179) against a (107,25,151) ground at that size. The
+chest motif is the ONLY thing that reads at 60px; the badge is a speck and the collar trim
+is two pixels, so a jersey lives or dies on one bold central shape.
+
 Match the Kasseistampers precedent rather than picking numbers. Measured off
 `jersey-kasseistampers-front.jpg`: 560px wide, JPEG quality 84, 4:2:0 subsampling,
 progressive. The quality was confirmed by round-tripping quantization tables, not
