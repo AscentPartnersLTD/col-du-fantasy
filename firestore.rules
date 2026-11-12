@@ -139,10 +139,21 @@ service cloud.firestore {
 
     match /userPools/{uid} {
       /* A viewer READS their own so the switcher can move between the two showroom
-         boards. They do not write it: the owner creates it when inviting, which is
-         the same act that puts them in a viewers map. */
+         boards, and WRITES only their own, which is what it has always been.
+         THIS WAS TIGHTENED TO isMember() AND REVERTED, because it locked people out.
+         isMember() is the LEGACY config/roster, and every board writes this document
+         on sign-in to keep the switcher and the not-a-member reroute working. A pool
+         member who is not in that roster, which is every Lowry City Rollers member and
+         anyone added to a pool since, would have had the write denied. The board
+         swallows it with catch(), so nothing would error: the entry would simply stop
+         being maintained, and a member whose entry was never written would land on
+         "You are not in a pool yet."
+         IT BOUGHT NOTHING. A guest writing their own userPools grants themselves no
+         access: every read is still checked against members or viewers, and
+         resolvePool skips an id it cannot open. The list is a hint for the switcher,
+         never a permission. */
       allow read:  if signedIn() && (uid == em() || owner());
-      allow write: if owner() || (isMember() && uid == em());
+      allow write: if owner() || (signedIn() && uid == em());
     }
 
   }

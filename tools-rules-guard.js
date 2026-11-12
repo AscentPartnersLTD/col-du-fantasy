@@ -151,9 +151,12 @@ check('top-level engagement writes are not signedIn()',
 const up = (src.match(/match\s+\/userPools\/\{uid\}\s*{[\s\S]*?}/) || [''])[0];
 check('a viewer reads their own userPools', /allow read:\s*if signedIn\(\) && \(uid == em\(\)/.test(up),
   'the switcher needs it');
-check('a viewer does not write userPools',
-  /allow write:\s*if owner\(\) \|\| \(isMember\(\) && uid == em\(\)\)/.test(up),
-  'the owner creates it when inviting');
+/* NOT gated on isMember(): that locked out every pool member absent from the legacy
+   config/roster, and the board writes this on every sign-in behind a catch(), so the
+   denial was silent. Writing it grants nothing, which the emulator suite asserts. */
+check('the userPools write is the caller own, not isMember()',
+  /allow write:\s*if owner\(\) \|\| \(signedIn\(\) && uid == em\(\)\)/.test(up),
+  'gating it on the legacy roster is a lockout, not a tightening');
 
 console.log('\n' + (ran - fails) + '/' + ran + ' invariants hold');
 if (fails) {

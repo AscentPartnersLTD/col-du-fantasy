@@ -36,6 +36,10 @@ const PLAYERS = { JJ, JP, JB, AA };
 const GUEST = 'guest@themove.test';
 const LAPSED = 'lapsed@themove.test';
 const STRANGER = 'nobody@elsewhere.test';
+/* A member of a NON-Grand-Tour pool, deliberately absent from config/roster.
+   Lowry City Rollers is the live shape: a real pool whose members have no
+   reason to appear in a roster that predates it. */
+const LOWRY = 'lo@rollers.test';
 
 const PROD = ['col-du-fantasy', 'vuelta-2026'];
 const SHOWROOMS = ['tour-showroom', 'vuelta-showroom'];
@@ -112,6 +116,16 @@ async function seed() {
       await setDoc(doc(db, 'pools', pid, 'predictions', 'JJ'), { seat: 'JJ' });
     }
 
+    /* a NON-Grand-Tour pool whose member is not on config/roster */
+    await setDoc(doc(db, 'pools', 'lowry-city-rollers'), {
+      name: 'Lowry City Rollers',
+      members: { [LOWRY]: 'L1' },
+      order: ['L1'],
+    });
+    await setDoc(doc(db, 'pools', 'lowry-city-rollers', 'stages', '21'), { n: 21 });
+    await setDoc(doc(db, 'pools', 'lowry-city-rollers', 'drafts', '21'), { n: 21, picks: [] });
+    await setDoc(doc(db, 'userPools', LOWRY), { pools: ['lowry-city-rollers'] });
+
     /* a pool carrying viewers but NOT flagged a showroom: the flag is required */
     await setDoc(doc(db, 'pools', 'unflagged-copy'), {
       name: 'unflagged', members: {}, viewers: { [GUEST]: FUTURE },
@@ -187,9 +201,18 @@ async function run() {
     await expect('guest CANNOT write the persona ledger on ' + pid,
       updateDoc(doc(g, 'pools', pid), { personaLedger: { order: [], by: {}, seen: {} } }), false);
   }
-  await expect('guest does not write their own userPools',
-    setDoc(doc(g, 'userPools', GUEST), { pools: ['col-du-fantasy'] }), false,
-    'the owner creates it when inviting');
+  /* A guest CAN write their own userPools, and that is deliberate: gating it on
+     isMember() locked out every pool member who is not in the legacy config/roster.
+     What matters is that the write grants NOTHING, so it is asserted directly: the
+     guest names a production pool in their own list and still cannot open it. The
+     list is a hint for the switcher, never a permission. */
+  await expect('a guest may write their own userPools',
+    setDoc(doc(g, 'userPools', GUEST), { pools: ['col-du-fantasy', 'vuelta-2026'] }), true);
+  await expect('and naming a production pool in it grants nothing',
+    getDoc(doc(g, 'pools', 'col-du-fantasy')), false,
+    'membership is checked on the pool, never on this list');
+  await expect('nor can they write anybody else userPools',
+    setDoc(doc(g, 'userPools', JJ), { pools: [] }), false);
 
   results.lines.push('\nTHE INVITATION IS SCOPED AND EXPIRES');
   const lapsed = ctx(LAPSED);
@@ -251,6 +274,39 @@ async function run() {
     'owner only, unchanged');
   await expect('a player cannot widen the pool document',
     updateDoc(doc(jj, 'pools', 'vuelta-2026'), { name: 'hijacked' }), false);
+
+  /* ============================== A MEMBER WHO IS NOT ON config/roster ========= */
+  /* THE LOCKOUT CHECK. config/roster is the LEGACY single-pool roster, and isMember()
+     is built on it. Four rules were tightened from signedIn() to isMember(), so any
+     pool member who is not in that roster loses whatever those rules gate.
+     Lowry City Rollers is the live case: a real pool whose members have no reason to
+     be in a roster that predates it. The assertions below mirror what the board
+     actually does on sign-in, in order, for such a member. */
+  results.lines.push('\nA POOL MEMBER WHO IS NOT ON config/roster');
+  const lowry = ctx(LOWRY);
+  await expect('they read their own pool document',
+    getDoc(doc(lowry, 'pools', 'lowry-city-rollers')), true, 'the members map, unchanged');
+  await expect('they read its stages',
+    getDoc(doc(lowry, 'pools', 'lowry-city-rollers', 'stages', '21')), true);
+  await expect('they read its draft',
+    getDoc(doc(lowry, 'pools', 'lowry-city-rollers', 'drafts', '21')), true);
+  await expect('they WRITE its draft, which is the game',
+    setDoc(doc(lowry, 'pools', 'lowry-city-rollers', 'drafts', '21'), { n: 21, picks: [] }), true);
+  await expect('they read their own userPools',
+    getDoc(doc(lowry, 'userPools', LOWRY)), true, 'resolvePool and the switcher');
+  /* THE ONE THAT MATTERS. Every board writes this on sign-in, to keep the switcher and
+     the not-a-member reroute working, and the write is swallowed by .catch(()=>{}).
+     So a tightened rule here does not error: it silently stops maintaining the entry,
+     and a member whose entry was never written lands on "You are not in a pool yet". */
+  await expect('they WRITE their own userPools, which the board does on every sign-in',
+    setDoc(doc(lowry, 'userPools', LOWRY), { pools: ['lowry-city-rollers'] }), true,
+    'swallowed by catch(), so a denial is silent');
+  await expect('they are still refused config/roster',
+    getDoc(doc(lowry, 'config/roster')), false, 'no board reads it; guests stay out');
+  await expect('they are still refused a production pool',
+    getDoc(doc(lowry, 'pools', 'vuelta-2026')), false);
+  await expect('they are still refused a showroom',
+    getDoc(doc(lowry, 'pools', SHOWROOMS[0])), false);
 
   /* ============================================================== THE OWNER ==== */
   results.lines.push('\nTHE OWNER IS UNCHANGED');
