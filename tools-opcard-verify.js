@@ -99,16 +99,20 @@ async function main() {
       localStorage: { getItem: () => opts.key === undefined ? 'k' : opts.key, setItem: () => {} },
       fetch: (url, init) => { calls.push(String(url));
         return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(payload) }); },
-      setTimeout: () => {}, location: { reload: () => {} },
+      setTimeout: () => {}, setInterval: () => 1, location: { reload: () => {} },
+      /* the card reads the calendar off the board's own pool doc, never the endpoint */
+      pool: { boardConfig: { race: [{ n: payload.stage,
+        route: (payload.stageInfo && payload.stageInfo.route) || 'A > B',
+        type: (payload.stageInfo && payload.stageInfo.type) || 'Flat' }] } },
       console: { error: () => {} }, window: {}
     };
     sandbox.window = sandbox;
     const fn = new Function('window', 'document', 'isOwner', 'STAGE', 'poolId', 'AUTH_API',
-      'esc', 'localStorage', 'fetch', 'setTimeout', 'location', 'console',
+      'esc', 'localStorage', 'fetch', 'setTimeout', 'setInterval', 'location', 'console', 'pool',
       card + '\nreturn window.__opCloseBoot;');
     const boot = fn(sandbox, sandbox.document, sandbox.isOwner, sandbox.STAGE, sandbox.poolId,
       sandbox.AUTH_API, sandbox.esc, sandbox.localStorage, sandbox.fetch, sandbox.setTimeout,
-      sandbox.location, sandbox.console);
+      sandbox.setInterval, sandbox.location, sandbox.console, sandbox.pool);
     boot();
     return { dom, calls };
   }
@@ -126,17 +130,41 @@ async function main() {
     /Paste your operator key/.test(noKey.dom.mount.innerHTML));
   check('the key prompt makes no network call', noKey.calls.length === 0);
 
-  /* ---- 2. the idle card ---- */
-  console.log('\nTHE IDLE CARD');
+  /* ---- 2. the card does NOT go and look until it is asked ----
+     THE DEFECT THIS GUARDS. The card used to fetch on board load, so the answer on
+     screen was as old as whenever the page happened to be opened, and re-checking meant
+     reloading the whole board. Worse, a stale gate state and a fresh one looked
+     identical. Allen decides when it goes and looks. */
+  console.log('\nNOTHING IS FETCHED UNTIL THE BUTTON IS TAPPED');
   const owner = run({ isOwner: true });
   await new Promise(r => setImmediate(r));
+  const preTap = owner.dom.mount.innerHTML;
+  const preTapText = textOf(preTap);
+  check('the owner card renders with NO network call', owner.calls.length === 0,
+    owner.calls.length + ' calls');
+  check('it still names the stage, off the calendar alone',
+    preTapText.indexOf('Close stage ' + payload.stage) >= 0, preTapText.slice(0, 80));
+  check('it does not claim a state it has not checked',
+    !/complete/.test(preTapText) && !/finishers/.test(preTapText), preTapText.slice(0, 110));
+  check('the only action offered is to check', /id="opcCheck"/.test(preTap) &&
+    !/id="opcOpen"/.test(preTap));
+
+  owner.dom.handlers.opcCheck();
+  await new Promise(r => setImmediate(r));
+  check('tapping it makes exactly one call', owner.calls.length === 1,
+    owner.calls.length + ' calls');
   const idle = owner.dom.mount.innerHTML;
   const idleText = textOf(idle);
-  check('it names the stage', idleText.indexOf('Close stage ' + payload.stage) >= 0, idleText.slice(0, 90));
-  check('it says the classification is complete',
+  check('now it reports the gate state',
     /classification complete/.test(idleText) || (payload.refusals || []).length > 0);
-  check('there is a single primary action',
-    (idle.match(/class="opc-btn"/g) || []).length === 1);
+  check('it says when it checked', /Checked /.test(idleText) &&
+    /(just now|minutes? ago|a minute ago|hours? ago|an hour ago)/.test(idleText),
+    (idleText.match(/Checked [^.]*/) || [''])[0]);
+  check('check again stays available', /id="opcCheck"/.test(idle));
+  check('a second tap re-checks', (function(){
+    owner.dom.handlers.opcCheck();
+    return owner.calls.length === 2;
+  })(), owner.calls.length + ' calls');
 
   /* ---- 3. the review screen, tap one ---- */
   console.log('\nTHE REVIEW SCREEN');
@@ -218,7 +246,11 @@ async function main() {
   const seats = (clean.cards || []).map(c => c.seat);
 
   const cleanRun = run({ isOwner: true, payload: clean });
-  await new Promise(r => setImmediate(r));   /* the preview is a promise, as above */
+  await new Promise(r => setImmediate(r));
+  /* Check first. The card no longer fetches on load, so Open does not exist until the
+     operator has asked it to go and look. */
+  cleanRun.dom.handlers.opcCheck();
+  await new Promise(r => setImmediate(r));
   const openRev = (function () {
     const h = cleanRun.dom.handlers['opcOpen'];
     if (h) h();
@@ -227,28 +259,75 @@ async function main() {
 
   check('there is a box for every seat', seats.every(c => openRev.indexOf('id="opcRead_' + c + '"') >= 0),
     seats.join(', '));
-  check('the boxes are EMPTY, the card offers no draft prose',
-    !/<textarea[^>]*>[^<\s]/.test(openRev),
-    'a prefilled box would be prose the operator did not write');
+  /* REVERSED 2026-09-10, deliberately, and the old assertion is worth remembering.
+     It read "the boxes are EMPTY, the card offers no draft prose", on the argument that
+     a prefilled box is prose the operator did not write. That argument was sound and it
+     lost to a better one: the alternative is four paragraphs typed on a phone at
+     midnight, which is why five stages shipped with no read at all and the board
+     printed the word undefined. A draft he edits beats a blank he skips.
+
+     The boxes are filled through el.value rather than textarea content, so asserting
+     on the HTML would have kept passing while being wrong about what the operator
+     sees. Assert the value. */
+  check('every box arrives with a draft in it',
+    seats.every(c => String((cleanRun.dom.els['opcRead_' + c] || {}).value || '').trim().length > 20),
+    seats.map(c => c + ':' + String((cleanRun.dom.els['opcRead_' + c] || {}).value || '').length).join(' '));
+  check('the draft names both riders',
+    (clean.cards || []).every(c => (c.picks || []).every(p =>
+      String((cleanRun.dom.els['opcRead_' + c.seat] || {}).value || '')
+        .indexOf(p.r.replace(/^[A-Z]\.\s*/, '')) >= 0)));
+  check('the draft carries no dash, brace or undefined',
+    !/[\u2013\u2014{}]|\b(undefined|null|NaN)\b/.test(
+      seats.map(c => (cleanRun.dom.els['opcRead_' + c] || {}).value || '').join(' ')));
 
   const facts = textOf(openRev);
   check('each seat has its picks and finishes in front of it',
     (clean.cards || []).every(c => (c.picks || []).every(p => facts.indexOf(p.r) >= 0)));
 
-  check('confirm is DISABLED, not hidden, while a read is missing',
+  /* THE GATE SURVIVES THE PREFILL, and this is the check that proves it rather than
+     assuming it. With drafts in every box the close is available immediately, which
+     is the point. Empty one and it must refuse again: no reads, no close. Testing it
+     from the filled side is the only way round now, and it is the better test, since
+     the failure mode worth catching is a gate quietly satisfied by prefill. */
+  check('confirm is available once the drafts are in',
     /id="opcConfirm"/.test(openRev) && cleanRun.dom.els.opcConfirm &&
-    cleanRun.dom.els.opcConfirm.disabled === true,
-    'hidden reads as broken; disabled reads as not yet');
+    cleanRun.dom.els.opcConfirm.disabled === false);
 
-  /* type all four, the way the operator would */
+  (function () {
+    const el = cleanRun.dom.els['opcRead_' + seats[0]];
+    const keep = el.value;
+    el.value = '';
+    const h = cleanRun.dom.handlers['opcRead_' + seats[0]];
+    if (h) h();
+    check('emptying a box refuses the close again',
+      cleanRun.dom.els.opcConfirm.disabled === true,
+      'hidden reads as broken; disabled reads as not yet');
+    el.value = keep;
+    if (h) h();
+    check('putting it back allows it again',
+      cleanRun.dom.els.opcConfirm.disabled === false);
+  })();
+
+  /* now type over all four, the way the operator would when he rewrites them */
   seats.forEach(c => {
     const el = cleanRun.dom.els['opcRead_' + c];
     el.value = 'A read for ' + c + '.';
     const h = cleanRun.dom.handlers['opcRead_' + c];
     if (h) h();
   });
-  check('confirm ENABLES once all four are written',
+  check('confirm stays available when he writes his own',
     cleanRun.dom.els.opcConfirm.disabled === false);
+
+  /* A breakaway flip refetches and repaints. It must not throw away typing, and it
+     must not re-seed over it either. */
+  const typed = cleanRun.dom.els.opcRead_JJ.value;
+  if (cleanRun.dom.handlers.opcFlip) {
+    cleanRun.dom.handlers.opcFlip();
+    await new Promise(r => setImmediate(r));
+  }
+  check('a refetch does not overwrite what was typed',
+    cleanRun.dom.els.opcRead_JJ.value === typed,
+    JSON.stringify(cleanRun.dom.els.opcRead_JJ.value.slice(0, 40)));
 
   /* and the write must actually carry them */
   cleanRun.calls.length = 0;
@@ -262,9 +341,58 @@ async function main() {
   voided.stageDoc.voidStage = true;
   const voidRun = run({ isOwner: true, payload: voided });
   await new Promise(r => setImmediate(r));
+  voidRun.dom.handlers.opcCheck();
+  await new Promise(r => setImmediate(r));
   if (voidRun.dom.handlers['opcOpen']) voidRun.dom.handlers['opcOpen']();
   check('a VOID stage is asked for no reads at all',
     voidRun.dom.mount.innerHTML.indexOf('opcRead_') < 0);
+
+  /* ---- a stage that is not ready ----
+     THE DEFECT THIS GUARDS, and it is a live capture rather than an invention. The
+     headline read "0 finishers, classification complete" while five gates underneath it
+     were refusing. The fixture is the real /api/close-preview for stage 18 taken while
+     the stage was on the road: the ite bind exists but carries one row at a negative
+     position, so started is 1 and classified is 0.
+
+     That is the same class as a fallback that prints undefined. The markup was well
+     formed, the template did what it was told, and the sentence was false. It is also
+     the half an operator acts on, because the headline is the part people read. */
+  console.log('\nA STAGE THAT IS NOT READY');
+  const notReady = JSON.parse(fs.readFileSync(path.join(REPO, 'tools-opcard-fixture-unraced.json'), 'utf8'));
+  const nr = run({ isOwner: true, payload: notReady });
+  await new Promise(r => setImmediate(r));
+  nr.dom.handlers.opcCheck();
+  await new Promise(r => setImmediate(r));
+  const nrHtml = nr.dom.mount.innerHTML, nrText = textOf(nrHtml);
+  check('it never says complete while a gate refuses', !/complete/i.test(nrText),
+    nrText.slice(0, 130));
+  check('it never prints a finisher count of zero', !/\b0 finishers/.test(nrText), nrText.slice(0, 130));
+  check('it says plainly that it is not ready', /Not ready to close/.test(nrText));
+  check('it offers no close button', !/id="opcOpen"[^>]*>Close it/.test(nrHtml));
+  check('the refusals are still shown in plain words',
+    (notReady.refusals || []).every(r => nrText.indexOf(r.msg) >= 0));
+  check('it still offers a re-check', /id="opcCheck"/.test(nrHtml));
+  check('it says when it checked', /Checked /.test(nrText));
+
+  /* ---- a stage that has not been raced at all ----
+     The server's own notPublished shape. This one gets ONE line and no wall of gate
+     failures, because "it has not happened yet" is not five problems. */
+  console.log('\nA STAGE NOT RACED AT ALL');
+  const np = JSON.parse(JSON.stringify(notReady));
+  np.notPublished = true;
+  np.refusals = [{ why: 'not_published', msg: 'Stage has not been raced yet.' }];
+  np.gates = []; np.official = null; delete np.stageDoc;
+  const npr = run({ isOwner: true, payload: np });
+  await new Promise(r => setImmediate(r));
+  npr.dom.handlers.opcCheck();
+  await new Promise(r => setImmediate(r));
+  const npHtml = npr.dom.mount.innerHTML, npText = textOf(npHtml);
+  check('an unraced stage never says complete', !/complete/i.test(npText), npText.slice(0, 130));
+  check('an unraced stage says so in one line', /Not raced yet/.test(npText));
+  check('it does not also dump gate failures', !/opc-warn/.test(npHtml));
+  check('it prints no finisher count at all', !/finishers/.test(npText));
+  check('the card is not blank, which would read as broken', npText.length > 20);
+  check('it still offers a re-check', /id="opcCheck"/.test(npHtml));
 
   console.log('\n' + (ran - fails) + '/' + ran + ' checks passed');
   process.exit(fails ? 1 : 0);

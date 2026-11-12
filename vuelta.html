@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260910-022914Z -->
+<head><!-- build:20261112-013858Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -587,6 +587,21 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
   .pc-trophy .jsy{height:60px;width:auto;max-width:80px;object-fit:contain;display:block;margin:0 auto;border-radius:5px;filter:drop-shadow(0 2px 5px rgba(0,0,0,.18))}
   .pc-trophy .pc-tlab{font-family:'Montserrat',sans-serif;font-weight:800;font-size:10.5px;color:var(--ink);line-height:1.15;margin-top:3px}
   .pc-trophy .pc-tsub{font-size:9.5px;color:var(--mute);line-height:1.2}
+  /* The repeat count. Sits ON the art rather than beside the label, because the art is
+     what a reader recognizes from across the card and the count is a fact about the art.
+     The wrapper is the positioning context; without it the badge would hang off .pc-trophy
+     and drift as the label wraps. */
+  .pc-trophy .pc-tart{position:relative;display:inline-block;line-height:0}
+  .pc-trophy .pc-tmul{position:absolute;right:-5px;bottom:-3px;min-width:17px;height:17px;
+    padding:0 4px;border-radius:9px;background:var(--red);color:#fff;
+    font-family:'Montserrat',sans-serif;font-weight:800;font-size:10px;line-height:17px;
+    text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.28)}
+  /* The citation. Deliberately quiet and deliberately allowed to run to a few lines: it
+     is the only place on the board that says WHY a jersey was won rather than that it was. */
+  .pc-trophy .pc-tnote{font-size:9px;color:var(--mute);line-height:1.35;margin-top:4px;
+    text-align:left;font-style:italic}
+  .pc-trophy.noted{flex:1 1 100%;min-width:0}
+  @media(min-width:620px){ .pc-trophy.noted{flex:1 1 172px;min-width:172px} }
   .pc-jempty{font-size:11.5px;color:var(--mute);font-style:italic;line-height:1.5;margin-bottom:8px}
   .pc-jrow{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;padding:5px 0;border-bottom:1px dashed rgba(0,0,0,.09)}
   .pc-jrow:last-child{border-bottom:none}
@@ -2732,12 +2747,42 @@ async function buildCDF(){
   // (and every future live stage) populated with no per-stage hand write.
   const _rr=(pool.boardConfig&&Array.isArray(pool.boardConfig.race))?pool.boardConfig.race.find(r=>Number(r.n)===Number(STAGE)):null;
   const _rrIntel=_rr?(_rr.intel||(_rr.extra?{summary:_rr.extra,facts:[]}:null)):null;
-  const upcoming={ n:Number(STAGE), order:ORDER.slice(), route:(draftDoc.route||(_rr&&_rr.route)||su.route||''), type:(draftDoc.type||(_rr&&_rr.type)||su.type||''), km:(draftDoc.km||(_rr&&_rr.km)||su.km||0), intel:(dIntel||_rrIntel||su.intel||{summary:'',facts:[]}), reads:(draftDoc.reads||su.reads||null), flag:(draftDoc.flag||su.flag||null), profile:(draftDoc.profile||(_rr&&_rr.profile)||su.profile||null), picks:upPicks };
+  /* THE RACE IS OVER WHEN startStage HAS RUN PAST THE CALENDAR.
+     This block used to synthesize an `upcoming` for whatever startStage said, whether or
+     not such a stage existed, so when the Vuelta finished and startStage advanced to 22
+     the board invented a stage 22 and asked for it in six places: the Today's Order strip,
+     the operator close card, the draft card, the Next Two card, the Kasseistampers picker
+     and a LIVE card at the top of the Stage Ledger. Two of them accepted input for a stage
+     that will never be raced, and the Next Two card linked to lavuelta.es/en/stage-22 and
+     requested a /22.jpg that does not exist.
+
+     The consumers were ALREADY WRITTEN FOR THIS. renderNextStage, the weather card and the
+     Today's Order strip each open with an `if(!U)` or an `if(!UPCOMING)` branch. Those
+     guards have never run, because nothing ever produced the null they test for. A guard
+     with no producer is the mirror of the config flag with no consumer recorded under the
+     side games: it looks like the case is handled, and nothing handles it.
+
+     RACE_OVER is therefore the producer, and it is DERIVED rather than written: no flag in
+     Firestore, nothing to set at close time, and the Giro gets it with no code change. */
+  const _calendar=(pool.boardConfig&&Array.isArray(pool.boardConfig.race))?pool.boardConfig.race:[];
+  const _lastStage=_calendar.reduce((a,r)=>Math.max(a,Number(r&&r.n)||0),0);
+  /* Past the last calendar row AND no document for this stage: nothing is coming. The
+     second half matters because a calendar that has not been extended yet must not
+     declare a running race finished. */
+  const RACE_OVER=_lastStage>0 && Number(STAGE)>_lastStage && !_rr;
+  /* PUBLISHED ON window BECAUSE THE CONSUMERS SPAN SCRIPT BLOCKS. The draft card, the
+     operator close card and the Kasseistampers picker all live in THIS block; the Next
+     Two card, the weather card and the Today's Order strip live in the next one and read
+     CDF.raceOver. A block-7 const cannot be seen from block 6, and reaching for one is
+     the ReferenceError that blanks the board. One derivation, two ways to read it, and
+     no second computation. */
+  window.__RACE_OVER=RACE_OVER;
+  const upcoming=RACE_OVER?null:{ n:Number(STAGE), order:ORDER.slice(), route:(draftDoc.route||(_rr&&_rr.route)||su.route||''), type:(draftDoc.type||(_rr&&_rr.type)||su.type||''), km:(draftDoc.km||(_rr&&_rr.km)||su.km||0), intel:(dIntel||_rrIntel||su.intel||{summary:'',facts:[]}), reads:(draftDoc.reads||su.reads||null), flag:(draftDoc.flag||su.flag||null), profile:(draftDoc.profile||(_rr&&_rr.profile)||su.profile||null), picks:upPicks };
   const official=pool.official||{ through:0, placement:Object.assign({},zero), rank:Object.assign({},zero) };
   const ledger=pool.personaLedger||{order:ORDER.slice(),by:{},seen:{}};
   const rp=pool.riderProfile||riderProfile;
   const seats=seatList.slice();
-  return { players, order:ORDER.slice(), seats, riderProfile:rp, personaLedger:ledger, official, stages, upcoming, editorial:pool.editorial||null, boardConfig:pool.boardConfig||null, carriedJerseys:pool.carriedJerseys||null, predictionsLocked:pool.predictionsLocked===true };
+  return { players, order:ORDER.slice(), seats, riderProfile:rp, personaLedger:ledger, official, stages, upcoming, raceOver:RACE_OVER, lastStage:_lastStage, editorial:pool.editorial||null, boardConfig:pool.boardConfig||null, carriedJerseys:pool.carriedJerseys||null, predictionsLocked:pool.predictionsLocked===true };
 }
 /* ---------------- draft engine (per pool) ---------------- */
 function draftRef(){ return db.doc('pools/'+poolId+'/drafts/'+STAGE); }
@@ -3360,6 +3405,18 @@ function kasNormalize(val){
   return [null, null];
 }
 function renderKassei(){
+  /* Surface 5 of 6, and THE SECOND ONE THAT ACCEPTED INPUT. It headed itself
+     "KASSEISTAMPERS - STAGE 22" and offered thirteen tappable Belgians for a stage that
+     will never be raced. Like the draft card it now accepts NOTHING: the picker, the
+     chips and their handlers are never built, so there is nothing to tap rather than
+     something that looks tappable and quietly does nothing. The season result lives on
+     the palmares cards and in the trophy case, which is where it belongs once the
+     racing stops. */
+  if(window.__RACE_OVER){
+    const gone=document.getElementById('kasseiMount');
+    if(gone) gone.remove();
+    return;
+  }
   let mm=document.getElementById('kasseiMount');
   if(!mm){ const dm=document.getElementById('kasseiMount')||document.getElementById('draftMount'); if(!dm||!dm.parentNode) return; mm=document.createElement('div'); mm.id='kasseiMount'; dm.parentNode.insertBefore(mm, dm.nextSibling); }
   const rawPicks=(draft&&draft.kassei)||{};
@@ -3574,6 +3631,19 @@ function renderMini(picks){
     +'</div>');
 }
 function renderDraft(){
+  /* Surface 4 of 6, and ONE OF THE TWO THAT ACCEPTED INPUT. With the race over this card
+     read "Stage 22 draft", showed eight empty slots, offered "Enter for JP" and told the
+     operator the draft was armed and would go live the instant pick #1 was locked. There
+     is no stage 22. It now accepts NOTHING: no slots, no seed button, no click targets,
+     because a disabled control still invites the attempt and a card that takes a pick for
+     a stage that will never be raced is worse than no card at all. */
+  if(window.__RACE_OVER){
+    const m=document.getElementById('draftMount');
+    if(m) m.innerHTML='<div class="dh"><div><div class="dh-t">The racing is done</div>'
+      +'<div class="dh-s">Twenty one stages, and the drafting is closed for this race.</div></div>'
+      +'<span class="dh-badge badge-done">Final</span></div>';
+    return;
+  }
   const picks=draft.picks||[], queue=draft.queue||[]; const clock=queue[0]||null; const status=draft.status||'pending';
   const done=status==='complete'||queue.length===0; const pending=status==='pending'&&picks.length===0; const leadoff=ORDER[0];
   /* A GUEST GETS THE LOCKED STRIP AND NOTHING ELSE. It is the most-read card on the
@@ -3655,13 +3725,44 @@ async function doBump(){ if(!CAN_PLAY()) return; const ref=draftRef(); try{ awai
    would be the FP_SCALE mistake with a person in the middle of it. */
 (function(){
   var KEY_LS='cdf_op_key';
-  var st={ stage:null, data:null, view:'idle', busy:false, breakaway:null, breakThru:null, err:null, reads:{} };
+  var st={ stage:null, data:null, view:'idle', busy:false, breakaway:null, breakThru:null, err:null, reads:{},
+           checkedAt:null, tick:null };
 
   function api(){ return (typeof AUTH_API!=='undefined'?AUTH_API:'https://api.coldufantasy.com'); }
   function key(){ try{ return localStorage.getItem(KEY_LS)||''; }catch(e){ return ''; } }
   function setKey(v){ try{ localStorage.setItem(KEY_LS,v); }catch(e){} }
   function mount(){ return document.getElementById('opClose'); }
   function ord(n){ var s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+
+  /* THE CARD DOES NOT GO AND LOOK UNTIL IT IS ASKED. On load it renders from the
+     CALENDAR alone, which the board already holds, so there is no network call and no
+     answer that is quietly older than the page. Everything below reads pool.boardConfig,
+     never the endpoint. */
+  function calRow(){
+    try{
+      var arr=(pool&&pool.boardConfig&&pool.boardConfig.race)||[];
+      for(var i=0;i<arr.length;i++){ if(arr[i]&&arr[i].n===st.stage) return arr[i]; }
+    }catch(e){}
+    return {};
+  }
+  function stageLine(){
+    var r=calRow(), bits=[];
+    if(r.route) bits.push(esc(r.route));
+    if(r.type) bits.push(esc(String(r.type).toLowerCase()));
+    return bits.join(', ');
+  }
+
+  /* A GATE STATE WITH NO TIMESTAMP IS INDISTINGUISHABLE FROM A FRESH ONE. Whatever the
+     card last heard, it says when it heard it. */
+  function ago(ts){
+    if(!ts) return '';
+    var s=Math.max(0,Math.round((Date.now()-ts)/1000));
+    if(s<45) return 'just now';
+    if(s<90) return 'a minute ago';
+    if(s<3600) return Math.round(s/60)+' minutes ago';
+    var h=Math.round(s/3600);
+    return h===1?'an hour ago':h+' hours ago';
+  }
 
   /* The typed reads, taken from the DOM when the boxes exist and from state when they
      do not. render() repaints innerHTML, so a flip or a Set would otherwise throw away
@@ -3675,6 +3776,21 @@ async function doBump(){ if(!CAN_PLAY()) return; const ref=draftRef(); try{ awai
     });
     return out;
   }
+  /* THE READS ARRIVE DRAFTED. The server generates one per seat from the same payload
+     the table above is rendered from, so the prose cannot disagree with the numbers.
+     They are a starting point, not an answer: the operator edits them and the
+     no-reads-no-close gate still applies to whatever he ends up with.
+
+     THIS NEVER OVERWRITES TYPING. It fills a seat only when that seat is empty, so a
+     breakaway flip or a Set, both of which refetch and repaint, cannot throw away a
+     sentence somebody wrote. */
+  function seedReads(d){
+    var drafts=(d&&d.readDrafts)||{};
+    Object.keys(drafts).forEach(function(seat){
+      if(!String(st.reads[seat]||'').trim()) st.reads[seat]=drafts[seat];
+    });
+  }
+
   function readsComplete(d){
     var cards=(d&&d.cards)||[]; if(!cards.length) return false;
     var t=readsTyped();
@@ -3717,19 +3833,45 @@ async function doBump(){ if(!CAN_PLAY()) return; const ref=draftRef(); try{ awai
       +'<button class="opc-btn" id="opcKeySave">Save the key</button></div>';
   }
 
-  function idle(d){
-    var i=d.stageInfo||{}, bits=[];
-    if(i.route) bits.push(esc(i.route));
-    if(i.type) bits.push(esc(String(i.type).toLowerCase()));
-    var line=bits.join(', ');
-    var fin=(d.official&&d.official.classified)||0;
-    var sub=line+(line?'. ':'')+fin+' finishers, classification complete.';
-    var blocked=(d.refusals||[]).length&&!d.notPublished;
+  /* Before any check. Calendar only, and it says so rather than implying a state it has
+     not looked at. */
+  function unchecked(){
+    var line=stageLine();
     return '<div class="opc"><div class="opc-tag">Operator</div>'
       +'<div class="opc-h">Close stage '+esc(st.stage)+'</div>'
-      +'<div class="opc-p">'+sub+'</div>'
-      +(blocked?'<div class="opc-warn">'+(d.refusals||[]).map(function(r){return esc(r.msg);}).join('<br>')+'</div>':'')
-      +'<button class="opc-btn" id="opcOpen">'+(blocked?'See what is blocking it':'Close it')+'</button></div>';
+      +(line?'<div class="opc-p">'+line+'.</div>':'')
+      +'<div class="opc-p opc-mute">Not checked yet. Nothing is fetched until you ask.</div>'
+      +'<button class="opc-btn" id="opcCheck">Check the results</button></div>';
+  }
+
+  /* After a check. THE HEADLINE MUST MATCH THE GATES UNDERNEATH IT. It used to read
+     "0 finishers, classification complete" while every gate below it was refusing,
+     which is the same class as a fallback that prints undefined: well formed, confident
+     and false. Never say complete while anything refuses, and never print a count of
+     zero as though it were a result. */
+  function checked(d){
+    var line=stageLine();
+    var fin=(d.official&&d.official.classified)||0;
+    var blocked=(d.refusals||[]).length>0;
+    var body;
+    if(d.notPublished){
+      body='Not raced yet, so there is no classification to close.';
+    }else if(blocked){
+      body=fin>0?(fin+' finishers so far. Not ready to close.'):'Not ready to close.';
+    }else{
+      body=fin+' finishers, classification complete.';
+    }
+    var showWhy=blocked&&!d.notPublished;
+    var canClose=!blocked&&!d.notPublished&&d.stageDoc;
+    return '<div class="opc"><div class="opc-tag">Operator</div>'
+      +'<div class="opc-h">Close stage '+esc(st.stage)+'</div>'
+      +(line?'<div class="opc-p">'+line+'.</div>':'')
+      +'<div class="opc-p">'+body+'</div>'
+      +(showWhy?'<div class="opc-warn">'+(d.refusals||[]).map(function(r){return esc(r.msg);}).join('<br>')+'</div>':'')
+      +'<div class="opc-p opc-mute" id="opcWhen">Checked '+esc(ago(st.checkedAt))+'.</div>'
+      +(canClose?'<button class="opc-btn" id="opcOpen">Close it</button>':'')
+      +(showWhy?'<button class="opc-btn" id="opcOpen">See what is blocking it</button>':'')
+      +'<button class="opc-flip" id="opcCheck">Check again</button></div>';
   }
 
   function seatRow(c){
@@ -3798,7 +3940,7 @@ async function doBump(){ if(!CAN_PLAY()) return; const ref=draftRef(); try{ awai
     var sd=d.stageDoc||{};
     if(!sd.voidStage && (d.cards||[]).length){
       h.push('<div class="opc-sec">The read</div>');
-      h.push('<div class="opc-p opc-mute">One per seat, in your words. The close refuses without them, and they are the most-read writing on the board.</div>');
+      h.push('<div class="opc-p opc-mute">Drafted from the result. Edit anything that reads wrong. The close still refuses if a box is left empty.</div>');
       (d.cards||[]).forEach(function(c){
         var picks=(c.picks||[]).map(function(p){
           return esc(p.r)+' '+(p.f==null?'no finish':(p.dnf?'abandoned':ord(p.f)));
@@ -3862,6 +4004,7 @@ async function doBump(){ if(!CAN_PLAY()) return; const ref=draftRef(); try{ awai
       el.addEventListener('input',function(){ st.reads[c.seat]=el.value; syncConfirm(); });
     });
     syncConfirm();
+    on('opcCheck',doCheck);
     on('opcOpen',function(){ st.view='review'; render(); });
     on('opcCancel',function(){ st.view='idle'; st.err=null; render(); });
     on('opcRetry',function(){ st.err=null; boot(); });
@@ -3906,32 +4049,53 @@ async function doBump(){ if(!CAN_PLAY()) return; const ref=draftRef(); try{ awai
   function render(){
     if(!key()){ paint(keyPrompt()); bind(); return; }
     if(st.err){ paint(fail(st.err)); bind(); return; }
-    if(!st.data){ paint(''); return; }
-    if(st.data.notPublished){ paint(''); return; }   /* nothing to close, no card at all */
-    paint(st.view==='review'?review(st.data):idle(st.data));
+    if(!st.data){ paint(unchecked()); bind(); return; }
+    /* An unraced stage USED TO render nothing at all, which is the same as the card
+       being broken. It now says so in one line and keeps the check button. */
+    var canReview=(st.view==='review'&&st.data.stageDoc);
+    paint(canReview?review(st.data):checked(st.data));
     bind();
   }
 
   function reload(){
     paint('<div class="opc"><div class="opc-p opc-mute">Working...</div></div>');
     preview({breakaway:st.breakaway, breakThru:st.breakThru}).then(function(d){
-      st.data=d; st.view='review'; render();
+      st.data=d; st.checkedAt=Date.now(); seedReads(d); st.view='review'; render();
     }).catch(function(e){ st.err=e.message; render(); });
   }
 
-  function boot(){
-    if(!key()){ render(); return; }
+  /* The only thing that goes and looks, and it runs on a tap. */
+  function doCheck(){
+    paint('<div class="opc"><div class="opc-p opc-mute">Checking...</div></div>');
     preview({breakaway:st.breakaway, breakThru:st.breakThru}).then(function(d){
-      st.data=d; render();
+      st.data=d; st.checkedAt=Date.now(); seedReads(d); st.view='idle'; render();
     }).catch(function(e){ st.err=e.message; render(); });
   }
+
+  /* BOOT MAKES NO NETWORK CALL. It paints the calendar and waits to be asked. */
+  function boot(){ render(); }
 
   window.__opCloseBoot=function(){
     /* NOT RENDERED for anyone but the owner. No node is created at all. */
     if(!isOwner) return;
+    /* Surface 6 of 6. With the race over this offered "Close stage 22" and a live
+       "Check the results" button that would have gone to the official feed for a stage
+       that does not exist. There is nothing left to close, so the card is not built:
+       same reasoning as the guard above it, one condition further on. Nothing is
+       disabled, because a disabled Confirm still reads as "not yet" rather than "never". */
+    if(window.__RACE_OVER) return;
     if(!mount()) return;
     st.stage=STAGE;
     boot();
+    /* Tick the one line that ages. Repainting the card would throw away anything typed
+       into the read boxes, so this touches that node and nothing else. Wrapped because
+       a host without setInterval must not take the card down with it. */
+    try{
+      if(!st.tick) st.tick=setInterval(function(){
+        var e=document.getElementById('opcWhen');
+        if(e&&st.checkedAt) e.textContent='Checked '+ago(st.checkedAt)+'.';
+      },30000);
+    }catch(e){}
   };
 })();
 
@@ -4073,6 +4237,17 @@ try { window.__REST_DAYS = REST_DAYS; } catch(e){}
 const STAGES = CDF.stages;
 
 const UPCOMING = CDF.upcoming;
+
+/* THE RACE IS OVER. Derived in buildCDF from startStage against the calendar, never
+   written to Firestore and never set by hand, so the Giro inherits it unchanged. When it
+   is true, UPCOMING is null and every surface that asks "what is next" has to answer that
+   nothing is, rather than invent a stage. See the block at RACE_OVER in buildCDF for what
+   the invented stage 22 actually put on the board.
+
+   RACE_OVER_LINE is the one place the finished-season wording lives, so the six surfaces
+   cannot drift into six different ways of saying the race has finished. */
+const RACE_OVER = CDF.raceOver === true;
+const RACE_OVER_LINE = RACE_PROFILE.name + ' ' + RACE_PROFILE.year + ' is complete.';
 
 /* Next-stage weather. The widget on the Stats tab fetches a live forecast from
    Open-Meteo (free, no key) for the finish town on `date`. Update place/lat/lon/date
@@ -4589,11 +4764,42 @@ COMPLETED.forEach(n=>{
   allp.forEach(x=>{ s2++; if(p2===null||x.fin>p2) r2=s2; p2=x.fin;
     OURS.picks[x.p]++; if(r2>=allp.length-1) OURS.tail[x.p]++; });
 });
+/* THE BLOODHOUND. The seat that drafted the actual stage winner most often.
+   Named 2026-09-13. It is a RECORDED STATISTIC on this Vuelta and becomes a real award,
+   with a jersey, from the Giro forward; it is deliberately NOT backfilled as a Vuelta
+   jersey, so nothing is written to carriedJerseys for it here.
+
+   IT READS `WINS_BY` AND COUNTS NOTHING ITSELF. That tally already exists a few lines
+   below and already feeds five render sites, so this is a sixth reader rather than a
+   second count. Writing the loop again is the FP_SCALE mistake, and the copy that drifts
+   is always the one nobody is looking at.
+
+   A TIE IS SHARED and named, the same ruling as the Kasseistampers cobble and the Double
+   Goose: when the tiebreaker does not separate two seats they are still equal, and a
+   stable sort must not invent a winner out of seat-code alphabetical order. That is the
+   FAN_STANDING failure and it has now been made twice in this repo. */
 let WINS_PICKED=0;
 const WINS_BY={}; PL4.forEach(p=>WINS_BY[p]=0);
 COMPLETED.forEach(n=>{ const st=STAGES.find(s=>s.n===n);
   if(PL4.some(p=>(st.picks[p]||[]).some(([r,f])=>f===1))) WINS_PICKED++;
   PL4.forEach(p=>{ if((st.picks[p]||[]).some(([r,f])=>f===1)) WINS_BY[p]++; }); });
+
+/* One derivation, read by every Bloodhound surface. `leaders` is a LIST because the
+   award is shared on a tie; `line` is EMPTY when there is nothing notable to say, so no
+   render site needs a guard of its own. */
+const BLOODHOUND=(function(){
+  const best=Math.max(0,...PL4.map(p=>WINS_BY[p]));
+  const leaders=PL4.filter(p=>WINS_BY[p]===best && best>0);
+  const rest=PL4.filter(p=>leaders.indexOf(p)<0).reduce((a,p)=>a+WINS_BY[p],0);
+  let line='';
+  if(leaders.length===1){
+    line=leaders[0]+' drafted '+best+' of them'
+      +(best>rest?', more than the other three seats together.':'.');
+  } else if(leaders.length>1){
+    line=leaders.join(' and ')+' drafted '+best+' each, and share it.';
+  }
+  return { top:WINS_PICKED, best:best, leaders:leaders, rest:rest, line:line };
+})();
 
 /* ---- Aggressive-selection awards, computed from stage facts + picks ----
    La Selection la plus Combative: on a genuine breakaway stage, to the best-placed
@@ -4752,7 +4958,7 @@ document.getElementById('heroLead').innerHTML = `
 document.getElementById('callouts').innerHTML = `
   <div class="callout"><div class="n">${OURS.fantasy[fanLeader]}</div><div class="l">Fantasy Points leader</div><div class="d">${fanLeader}, highest total through Stage ${THRU}. The system of record on this race. Higher leads.${FAN_TIEBREAK_NOTE?' '+FAN_TIEBREAK_NOTE:''}</div></div>
   <div class="callout"><div class="n">${OURS.rank[rankLeader]}</div><div class="l">Rank leader</div><div class="d">${rankLeader}, lowest rank total. Each stage all eight picks are ranked 1 to 8 by finish; this sums each day's two.</div></div>
-  <div class="callout"><div class="n">${WINS_PICKED}/${COMPLETED.length}</div><div class="l">Winners picked</div><div class="d">Stages where someone in the pool drafted the actual stage winner, across the ${COMPLETED.length} scored days.</div></div>
+  <div class="callout"><div class="n">${BLOODHOUND.top}/${COMPLETED.length}</div><div class="l">The Bloodhound</div><div class="d">${BLOODHOUND.line} Stages where someone in the pool drafted the actual stage winner, across the ${COMPLETED.length} scored days.</div></div>
   <div class="callout"><div class="n">${OURS.placement[placeLeader]}</div><div class="l">Placement leader</div><div class="d">${placeLeader}, lowest total of actual stage finishes. The third view, behind See Placement on any card. Lower leads.</div></div>
   <div class="insight">
     <svg class="arrow" viewBox="0 0 38 26" fill="none"><path d="M2 13H30M30 13L21 4M30 13L21 22" stroke="#c8102e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -6847,11 +7053,28 @@ const PERSONA_BY = (function(){
   /* Jersey trophy icons for the "Jerseys Awarded" drawer - small cycling-jersey glyphs a
      player carries from race to race. clip/pattern ids repeat across cards but point to the
      identical jersey shape, so duplicates are harmless. */
+  /* KEYED BY TYPE, and the key is what `carriedJerseys` stores. The colour-named keys
+     are the race CHAMPION jerseys and they follow the race rather than the pool: yellow
+     for the Tour, red for the Vuelta, and pink is left free for the Giro on the same
+     pattern. The rest are named for the award, because those travel across races
+     unchanged. A type with no entry here renders no image and the trophy still shows its
+     label, so adding a jersey is additive and a missing one degrades rather than errors. */
   const JERSEY_ICONS={
     yellow:'<img class="jsy" src="/jersey-yellow.jpg" alt="Yellow jersey">',
+    red:'<img class="jsy" src="/jersey-red.jpg" alt="Red jersey, Vuelta champion">',
     merica:'<img class="jsy" src="/jersey-merica.jpg" alt="Captain Merica jersey">',
     arlequin:'<img class="jsy" src="/jersey-arlequin.jpg" alt="Arlequin jersey">',
-    kassei:'<img class="jsy" src="/jersey-kasseistampers-front.jpg" alt="Kasseistampers jersey">'
+    kassei:'<img class="jsy" src="/jersey-kasseistampers-front.jpg" alt="Kasseistampers jersey">',
+    /* The art has been in the repo since the Double Goose shipped and was never wired,
+       so the mark existed on the board while its jersey could not be awarded. */
+    goose:'<img class="jsy" src="/jersey-goose-front.jpg" alt="Double Goose jersey">',
+    placement:'<img class="jsy" src="/jersey-placement.jpg" alt="Placement jersey">',
+    seleccion:'<img class="jsy" src="/jersey-seleccion.jpg" alt="La Seleccion jersey">',
+    /* PURPLE, NOT GOLD, AND THAT IS DELIBERATE. The brief said gold #e8b31e and the art
+       came back bright purple; Allen kept it. Gold would have clashed with the gold CdF
+       sleeve badge every jersey carries and with the yellow jersey beside it in the same
+       row, and the purple separates cleanly from both. Do not "correct" it back. */
+    premio:'<img class="jsy" src="/jersey-premio.jpg" alt="Premio de la Combatividad jersey">'
   };
   const rp=(typeof RIDER_PROFILE!=='undefined')?RIDER_PROFILE:{};
   /* Cards run in system-of-record order so the row reads the same way as the callout
@@ -6897,8 +7120,36 @@ const PERSONA_BY = (function(){
     /* Jerseys Awarded trophy view: the classification jerseys this player carries across
        races, from the CDF.carriedJerseys map (Firestore). Icons from JERSEY_ICONS. */
     const cj=(CDF.carriedJerseys && CDF.carriedJerseys[k])?CDF.carriedJerseys[k]:[];
-    const trophyHtml=cj.length
-      ? `<div class="pc-trophies">${cj.map(j=>`<div class="pc-trophy" title="${esc((j.label||'')+(j.sub?' - '+j.sub:''))}">${JERSEY_ICONS[j.type]||''}<span class="pc-tlab">${esc(j.label||'')}</span>${j.sub?`<span class="pc-tsub">${esc(j.sub)}</span>`:''}</div>`).join('')}</div>`
+    /* GROUPED BY TYPE, and the grouping is a DISPLAY decision only.
+       `carriedJerseys` stays append-only, one entry per win, because each win is a fact
+       and the next race simply appends to it. What changes here is how a REPEAT reads:
+       two identical jerseys side by side look like a rendering fault rather than like
+       winning the same thing twice, so the art is drawn once and a count says how often.
+       JJ is the live case, holding Le Maillot Arlequin from the 2026 Tour and again from
+       the 2026 Vuelta.
+       Groups keep FIRST-APPEARANCE order rather than being sorted, so the case reads in
+       the order the jerseys were won and a new race lands at the end. */
+    const cjGroups=[];
+    cj.forEach(j=>{
+      if(!j) return;
+      const g=cjGroups.find(x=>x.type===j.type);
+      if(g) g.entries.push(j); else cjGroups.push({type:j.type,label:j.label||'',entries:[j]});
+    });
+    const trophyHtml=cjGroups.length
+      ? `<div class="pc-trophies">${cjGroups.map(g=>{
+          const n=g.entries.length;
+          const subs=g.entries.map(e=>e.sub).filter(Boolean);
+          const notes=g.entries.map(e=>e.note).filter(Boolean);
+          /* A tile carrying a citation is given room to hold it. The base tile is
+             84px wide, which is right for art plus a label and unreadable for a
+             sentence, so the note is what widens it rather than every tile growing. */
+          return `<div class="pc-trophy${notes.length?' noted':''}" title="${esc(g.label+(subs.length?' - '+subs.join(', '):''))}">`
+            +`<span class="pc-tart">${JERSEY_ICONS[g.type]||''}${n>1?`<span class="pc-tmul">&times;${n}</span>`:''}</span>`
+            +`<span class="pc-tlab">${esc(g.label)}</span>`
+            +subs.map(s=>`<span class="pc-tsub">${esc(s)}</span>`).join('')
+            +notes.map(s=>`<span class="pc-tnote">${esc(s)}</span>`).join('')
+            +`</div>`;
+        }).join('')}</div>`
       : `<div class="pc-jempty">No jerseys yet. Win a classification and it lands in the case here, and rides with you into the next race.</div>`;
     const jerseysHtml=`<details class="pc-jerseys"><summary>Jerseys Awarded${cj.length?`<span class="pc-tct">${cj.length}</span>`:''}<span class="jtog"></span></summary><div class="pc-jbody">${trophyHtml}<div class="pc-jrow"><span class="pc-jed">This season</span><span class="pc-jw">${curLine}</span></div>${jh.map(e=>`<div class="pc-jrow"><span class="pc-jed">${e.ed}</span><span class="pc-jw">${e.jersey}</span></div>`).join('')}</div></details>`;
     return `<div class="pcard${i===0?' lead':''}">
@@ -6992,7 +7243,12 @@ function awardsRow(st){
 function stageCard(st){
   let body;
   if(st.voidStage){
-    body = `<div class="note"><span class="lab">Commissaire's note</span>${st.note}</div>`;
+    /* A void stage without a note would print "Commissaire's note undefined". Stage 3
+       happens to carry one, so this has never fired; note is absent on 8 of 21 stage
+       documents and only the void ones reach here. Guarded rather than left to luck. */
+    body = st.note
+      ? `<div class="note"><span class="lab">Commissaire's note</span>${esc(st.note)}</div>`
+      : '';
   } else {
     // per-player day total: prefer confirmed st.days, else compute from complete picks
     const codes=(CDF.seats||CDF.order).slice();
@@ -7067,7 +7323,9 @@ function stageCard(st){
       return codes.filter(k=>st.reads[k])
         .map(k=>({k,p:at(P,k),l:at(L,k)}))
         .sort((a,b)=>a.p-b.p)
-        .map(r=>`<div class="readrow" style="--ro-p:${r.p};--ro-l:${r.l}"><b>${r.k}</b> ${st.reads[r.k]}</div>`)
+        /* esc() is the terminal guard as well as the escaper: a stage carrying reads for
+           three seats and not the fourth would otherwise print the word against that seat. */
+        .map(r=>`<div class="readrow" style="--ro-p:${r.p};--ro-l:${r.l}"><b>${r.k}</b> ${esc(st.reads[r.k])}</div>`)
         .join('');
     })();
     /* THE READ IS OMITTED WHEN THERE IS NOTHING TO SAY, never printed empty. This used
@@ -7252,7 +7510,13 @@ document.getElementById('stages').addEventListener('click',e=>{
     <div class="combat-tally"><span class="ctl">Season tally</span>${tallyHtml}</div>`;
 })();
 
+/* THE PHANTOM LEDGER CARD. This block prepends a "next up" card to the Stage Ledger from
+   UPCOMING. With the race over that produced a card reading "ST 22 / 0 KM / Next up" with
+   its status set to LIVE, sitting above the twenty one real stages, on a race that had
+   finished. Everything below is skipped when there is nothing upcoming, so the ledger
+   opens on stage 21 and the last card of the race is the last card on the page. */
 const up=UPCOMING;
+if(up){
 const upHasPicks=Object.values(up.picks).some(v=>(Array.isArray(v)?v:[v]).length>0);
 /* DRAFT ORDER, stated rather than inherited. This used to be Object.entries(up.picks),
    which relies on the insertion order of an object literal built somewhere else to be the
@@ -7293,6 +7557,7 @@ document.getElementById('stages').insertAdjacentHTML('afterbegin',
       <table class="picks"><caption class="sc-ord">Draft order</caption><thead><tr><th>Seat</th><th>Picks</th><th class="r">Placement</th></tr></thead><tbody>${upRows}</tbody></table>
       ${upRead}
     </div></div>`);
+} /* end if(up): no upcoming stage means no next-up card on the ledger */
 
 /* Pre-race "road ahead": every not-yet-scored stage from the calendar (CDF.boardConfig.race)
    as an expandable card with a stylized profile. Official climbs and the real elevation
@@ -7320,6 +7585,18 @@ document.getElementById('stages').insertAdjacentHTML('afterbegin',
 /* Today's Order strip (Overview) - the day's pick order, rotates each stage */
 (function(){
   const el=document.getElementById('todayOrder'); if(!el || typeof UPCOMING==='undefined') return;
+  /* Surface 1 of 6. With the race over there is no order to take, so the strip names the
+     champion instead of printing "Stage 22 &middot; " with an empty route after it. */
+  if(RACE_OVER||!UPCOMING){
+    /* Defined HERE rather than reused from the palmares block. winIC lives inside that
+       block's IIFE, and reaching across for it is the ReferenceError that blanks the
+       whole board, the same trap recorded against MER and norm in CLAUDE.md. */
+    const cup='<svg viewBox="0 0 24 24" aria-hidden="true" style="width:15px;height:15px;vertical-align:-2px"><path d="M7 3h10v3h4v3a5 5 0 01-5 5h-.4A5 5 0 0113 16.9V19h3v2H8v-2h3v-2.1A5 5 0 019.4 14H9a5 5 0 01-5-5V6h3zM7 8H6v1a3 3 0 002 2.8zM18 8v3.8A3 3 0 0020 9V8z" fill="currentColor"/></svg>';
+    el.innerHTML=`<div class="to-inner"><span class="to-lab">${cup} Final standing</span>`
+      +`<span class="to-seq">${fanOrder.map((k,i)=>`<span class="to-chip${i===0?' first':''}"><i>${i+1}</i>${esc(k)}</span>`).join('')}</span>`
+      +`<span class="to-stage">${esc(RACE_OVER_LINE)}</span></div>`;
+    return;
+  }
   const order=todaysOrder();
   const rot='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>';
   const chips=order.map((k,i)=>`<span class="to-chip${i===0?' first':''}"><i>${i+1}</i>${k}</span>`).join('');
@@ -7336,12 +7613,20 @@ document.getElementById('resultsTable').innerHTML =
   RACE.map(r=>{
     const winCell = r.upcoming
       ? `<span class="rt" style="${r.live?'color:var(--gold-d);font-weight:700':''}">${r.live?'Racing today':'Upcoming'}</span>`
-      : `<span class="win">${r.win}</span>`;
+      : `<span class="win">${esc(r.win)}</span>`;
+    /* EVERY field here goes through esc(), which is the TERMINAL GUARD as well as the
+       escaper: esc at the top of this block is String(s==null?'':s), so an absent field
+       renders as nothing instead of the five-letter word. `extra` is the one that was
+       actually absent, on 15 of 21 rows, and it printed "undefined" down the Note column
+       for the whole race. It was a BARE interpolation with no fallback at all, which is
+       the same shape as "The read undefined" one field over and is why the sweep exists
+       rather than a one-line fix. The other five are guarded in the same pass because
+       they are the same shape and only luck made them present. */
     return `<tr class="${r.voidPool?'void':''}" ${r.upcoming?'style="opacity:.72"':''}>
-      <td class="st">ST ${r.n}<br><span class="rt">${r.date}</span></td>
-      <td>${r.route}<br><span class="rt">${r.type}</span></td>
+      <td class="st">ST ${esc(r.n)}<br><span class="rt">${esc(r.date)}</span></td>
+      <td>${esc(r.route)}<br><span class="rt">${esc(r.type)}</span></td>
       <td>${winCell}</td>
-      <td class="rt">${r.extra}</td></tr>`;
+      <td class="rt">${esc(r.extra)}</td></tr>`;
   }).join('')+`</tbody>`;
 
 /* ===== Computed pool profile: rider archetypes and datapoints =====
@@ -8022,7 +8307,16 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   const body=document.getElementById('wxBody'); if(!body) return;
   const W=(typeof WEATHER!=='undefined')?WEATHER:null;
   const sub=document.getElementById('wxSub');
-  if(!W){ body.innerHTML='<span class="wx-muted">No upcoming stage set.</span>'; return; }
+  /* Surface 3 of 6, and the one that was quietly WRONG rather than merely stale: with no
+     stage 22 it went on showing stage 20's finish, dated Sep 12, as though it were the
+     outlook. A forecast for a stage that has been raced is not a forecast. The whole card
+     retires with the race. */
+  if(RACE_OVER||!W){
+    const box=body.closest('.metricbox')||body.parentElement;
+    if(box&&RACE_OVER) box.remove();
+    else body.innerHTML='<span class="wx-muted">No upcoming stage set.</span>';
+    return;
+  }
   if(sub) sub.innerHTML=`Stage ${W.stage} finish &middot; <span class="wx-place">${W.place}</span>`+(W.finish?` &middot; ${W.finish}`:'');
   function code(c){ if(c===0)return['Clear','sun']; if(c<=3)return['Partly cloudy','pcloud']; if(c<=48)return['Fog','fog']; if(c<=57)return['Drizzle','rain']; if(c<=67)return['Rain','rain']; if(c<=77)return['Snow','snow']; if(c<=82)return['Rain showers','rain']; if(c<=86)return['Snow showers','snow']; return['Thunderstorms','storm']; }
   function fmt(s){ try{const p=s.split('-');const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return m[+p[1]-1]+' '+(+p[2])+', '+p[0];}catch(e){return s;} }
@@ -8254,7 +8548,16 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 (function(){
   const el=document.getElementById('nsBody'); if(!el) return;
   const U=(typeof UPCOMING!=='undefined')?UPCOMING:null;
-  if(!U){ el.innerHTML='<span class="ns-muted">No upcoming stage set.</span>'; return; }
+  /* Surface 2 of 6. "No upcoming stage set" is MISCONFIGURATION copy: it reads as
+     something an operator forgot to do. A finished race is not a missing setting, so the
+     card retires itself and the heading goes with it. Removing the whole box rather than
+     emptying it is deliberate: an empty bordered card on the tab everyone lands on reads
+     as broken, where an absent one reads as finished. */
+  if(RACE_OVER||!U){
+    const box=document.getElementById('nextStageBox');
+    if(box) box.remove(); else el.innerHTML='';
+    return;
+  }
   const RD=(typeof REST_DAYS!=='undefined')?REST_DAYS:[];
   const R=(typeof RACE!=='undefined'&&Array.isArray(RACE))?RACE:[];
   const PROF=(typeof RACE_PROFILE!=='undefined')?RACE_PROFILE:{};
@@ -8498,6 +8801,12 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 (function(){
   var CARD=document.getElementById('breakWidget');
   if(!CARD || typeof BREAK_WORKER==='undefined' || !BREAK_WORKER){ return; } // hidden until configured
+  /* RETIRED WITH THE RACE. "Who is up the road right now" is a live-race question, and
+     with the peloton off the road there is nobody up the road: the feed would answer with
+     the last frozen snapshot of a finished stage, which is the stale-groups trap recorded
+     under "live from /api/break is NOT a race-state flag". The card starts hidden and
+     simply never reveals itself, so nothing is removed and nothing flashes. */
+  if(CDF.raceOver===true){ return; }
   CARD.style.display='';
   var BTN=document.getElementById('bwBtn'), BODY=document.getElementById('bwBody');
   var COL=(function(){var _p=['#c9971a','#26347e','#2f8f52','#cf2530'],_s=CDF.order.slice().sort(),o={};_s.forEach(function(c,i){o[c]=_p[i%_p.length];});return o;})();
@@ -8543,7 +8852,15 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
     return matches(feedName,pick);
   }
   function gapStr(sec){sec=Math.round(sec||0); if(sec<=0)return 'front'; var m=Math.floor(sec/60),s=sec%60; return m+"'"+(s<10?'0':'')+s+'"';}
-  function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+  /* THE NULL GUARD IS NOT OPTIONAL, and this copy did not have it. The board carries two
+     functions named esc: the one at the top of the first block is String(s==null?'':s),
+     and this one was a bare String(s), so the same call on the same absent field renders
+     nothing through one and the word "undefined" through the other. Which one a render
+     site gets depends only on which block it happens to sit in, which is the FP_SCALE
+     duplication one layer down. Kept as a separate function rather than collapsed onto
+     the outer esc, because that one lives in an earlier script block and reaching for
+     it from here is the ReferenceError trap recorded against MER and norm in CLAUDE.md. */
+  function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
 
   function poolPicks(){
     // live draft picks first (window.__livePicks is kept current by the draft

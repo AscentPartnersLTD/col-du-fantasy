@@ -422,6 +422,12 @@ again and that is the bug, not the checklist.
 6. Stage profile art, and the scoring row in the table above.
 7. `ASO_PORTRAIT` and `LOCAL_PORTRAIT` for the Giro startlist, harvested and looked
    at, per Rider portraits, three tiers. Neither map carries over from another race.
+8. A `combatifNote` on every stage that CANNOT have a combativity award, rather than
+   leaving the field absent and rediscovering the question each time an audit runs. An
+   individual time trial makes no such award, and a void stage races nothing. Vuelta 2026
+   stage 18 carries the note; STAGE 1 IS THE SAME CASE AND STILL DOES NOT, deliberately
+   left on 2026-09-13 as outside that brief rather than quietly widened into. Close it
+   here, or close it on the Vuelta first and copy the wording.
 
 Nothing else. No host, jersey color, or scale is written anywhere but the profile.
 
@@ -594,7 +600,56 @@ stating them.
 The board references JPGs only. Generated masters stay in the repo as PNG source and
 are never linked from a board file. `goose_plumage_clean_front_jersey.png` and
 `goose_plumage_clean_back_jersey.png` are the masters for `jersey-goose-front.jpg` and
-`jersey-goose-back.jpg`; `make_goose_jerseys.py` is the conversion and can be re-run.
+`jersey-goose-back.jpg`, and `poppy_red_front_jersey.png` is the master for
+`jersey-red.jpg`. `make_jerseys.py` is THE conversion, for every jersey, and can be
+re-run. It was named for the goose until 2026-09-13 and was renamed rather than
+copied when the red arrived: the conversion is identical for every master this generator
+produces, so a second copy of it is the `FP_SCALE` mistake in a build script. Add a row
+to its `JERSEYS` table; do not write another converter. Pass a filename to convert one.
+
+VERIFY THE ENCODE BY ROUND-TRIPPING THE QUANTIZATION TABLES, not by trusting the quality
+argument. All three shipped files, the Kasseistampers reference, the goose and the red,
+return the same table signature, which is what makes "matched" a measurement.
+
+### The Premio jersey is PURPLE, and that is the decision, not a mistake
+
+Recorded 2026-09-13 so nobody corrects it back. The brief for this jersey specified GOLD,
+`#e8b31e`, matching the Premio medal icon already in the code. The art came back BRIGHT
+PURPLE and Allen kept it, for two reasons that are better than the original brief:
+
+- every jersey carries a GOLD CdF badge on its sleeve, so a gold jersey puts gold on gold
+- the yellow jersey sits in the same row, and gold against yellow separates poorly
+
+Purple clears both. The star and laurels are unchanged and still match the medal emblem,
+which is what actually ties the jersey to the award; the ground colour never did.
+
+DO NOT "FIX" THIS. It looks like a brief that was missed and it is a brief that was
+overruled, which is the same shape as the crossed 103/104 portrait paths: a deliberate
+thing that reads as an error to anyone who finds it later without the reason.
+
+### The set, and the one jersey that is inconsistent
+
+As of 2026-09-13 every jersey on the board is CdF art. `jersey-yellow.jpg` WAS a stock
+product mockup carrying a third-party brand, FREESTYLE CYCLING on the collar and an
+infinity bicycle on the chest, and it rendered on two Tour championships for months. It
+is now generated art like the rest.
+
+THE SLEEVE BADGE IS MOUNTAIN ABOVE, `CdF` BELOW, ON THE WEARER'S LEFT SLEEVE. Measured
+across the whole set rather than assumed: Kasseistampers, Goose, Merica, yellow,
+placement, seleccion and premio all agree on the orientation. Merica is on the wearer's
+RIGHT sleeve and is the odd one out on side.
+
+`jersey-red.jpg` IS THE ONE WITH THE BADGE THE WRONG WAY ROUND, `CdF` above the mountain.
+It shipped that way on purpose. The badge is 8px wide at the 60px the trophy case draws
+it and 17px at the 118px prize block, so the orientation is invisible at every size the
+board renders; this was checked by rendering at both sizes and looking, not by arithmetic.
+Regenerating it is worth doing only for the master's own sake.
+
+CHECK EVERY NEW JERSEY AT 60px BEFORE SHIPPING IT, which is what `.jsy` actually draws.
+The premio's laurel strokes were the one real risk in this batch and they survive: the
+laurel band samples about (164,140,179) against a (107,25,151) ground at that size. The
+chest motif is the ONLY thing that reads at 60px; the badge is a speck and the collar trim
+is two pixels, so a jersey lives or dies on one bold central shape.
 
 Match the Kasseistampers precedent rather than picking numbers. Measured off
 `jersey-kasseistampers-front.jpg`: 560px wide, JPEG quality 84, 4:2:0 subsampling,
@@ -2554,11 +2609,124 @@ An UNSET variable returns `503 server_key_unset`, never `403`. A wrong key and a
 unconfigured server are different faults and must not look the same, which is the same rule
 as "no riders and wrong URL must not look the same".
 
-OUTSTANDING, and the preview endpoint is blocked on it: `SCORE_KEY` is NOT yet set in
-Vercel. Set it in the coldufantasy-login project, Settings, Environment Variables, for
-Production and Preview, then redeploy. The four older endpoints keep their own literal
-fallback so nothing breaks meanwhile; the follow-up commit deletes those four fallbacks
-once the variable exists.
+CLOSED 2026-09-13: `SCORE_KEY` IS NOW SET IN VERCEL, and the four literal fallbacks are
+gone from the repo with it. Confirmed from production rather than from the dashboard, by
+the distinction `lib/secret.js` exists to draw: `/api/close-preview` answers 403 forbidden
+to an unkeyed request, NOT 503 server_key_unset. An unset variable would have said so in
+those words. That is the rule paying for itself, since a wrong key and an unconfigured
+server would otherwise look identical.
+
+STILL TRUE AND WORTH KNOWING: the endpoints now REQUIRE the variable, because the literal
+fallbacks that used to keep them working are deleted. There is no longer a path that works
+without it.
+
+### The card does NOT go and look until it is asked
+
+Changed 2026-09-10, at Allen's request, and it is a better rule than the one it replaced.
+
+The card used to fetch `close-preview` when the BOARD loaded. Three things wrong with
+that, and the third is the one that matters:
+
+- the answer on screen was as old as whenever the page happened to be opened
+- re-checking meant reloading the whole board, which is not what anyone does on a phone
+- A STALE GATE STATE AND A FRESH ONE LOOKED IDENTICAL, because neither carried a time
+
+Now: on load the card renders from the CALENDAR alone, `pool.boardConfig.race`, which the
+board already holds. No network call. A [Check the results] button goes and looks; after
+that it is [Check again] and stays available, so the classification can be watched filling
+without touching the page. Every render prints "Checked N minutes ago", and a small
+interval ages that ONE line rather than repainting the card, because a repaint would throw
+away anything typed into the read boxes.
+
+`tools-opcard-verify.js` asserts the property directly: an owner card renders with ZERO
+network calls, the first tap makes exactly one, and a second tap makes another.
+
+### The reads are DRAFTED, and the objection is recorded because it lost
+
+Changed 2026-09-10 on Allen's ruling. The boxes arrive filled, he edits what reads
+wrong, and the no-reads-no-close gate still applies to whatever he ends up with.
+
+THE OBJECTION, kept because it was overruled rather than answered: a sentence assembled
+from the same numbers the table already shows can read like a JUDGEMENT while carrying
+none. It has the cadence of an opinion and the content of a row. That is a real cost and
+it is paid every time one of these is read.
+
+THE RULING: the alternative is four paragraphs typed on a phone at midnight, which is
+exactly why five stages shipped with no read and the board printed the word undefined
+under The read. A draft he edits beats a blank he skips.
+
+THE RULE THAT CAME OUT OF IT, and it is the one that keeps the cost small: SAY ONLY WHAT
+THE PAYLOAD KNOWS. The hand-written reads say what a card was BUILT FOR. "Gall was taken
+as the floor pick on a day his team needed to attack." Nothing in a generator can know
+that. It knows two names, two finishes, a scale and a rank. So `lib/reads.js` drafts what
+it can see and NEVER asserts intent. That gap is the honest difference between a drafted
+read and a written one, and it is why these are a starting point rather than an answer.
+
+THE VOICE IS LIFTED FROM THE FIFTEEN STORED READS, not invented. Read them before
+touching the templates. Name both riders and their finishes, say what shape the card came
+out as, say whether it worked. Surnames only, no initials, and NAMES KEEP THEIR OWN CASE:
+the stored reads open sentences with "van Aert fourth", and capitalising that would be a
+small invention repeated hundreds of times. Small ordinals as words, deep ones as digits,
+the boundary at thirty because thirty is where the scale stops paying. Points spelled out.
+
+The scale is passed in rather than typed, so a top-15 race says fifteen with no edit.
+A VOID STAGE IS DRAFTED NOTHING: it scores nothing, so a read would be prose about a race
+that did not happen.
+
+TWO WRITING RULES FROM THIS FILE, both asserted rather than intended. No dashes. And
+NEVER END ON A DIMINISHMENT WHEN A PLAINER STATEMENT WILL DO: the weakest card of the day
+gets its number and a full stop, because ranking it last adds nothing the table already
+shows and it is the sentence a person reads about their own afternoon.
+
+`tools-reads-verify.js`, 22 checks, covers every shape this race has produced and asserts
+the absence of the things that make generated prose obviously generated: a doubled
+"Fantasy Points", a rider named twice, a finish position printed for a rider who
+abandoned, "One points".
+
+BACKFILLED 2026-09-10: stages 8, 13, 14, 16 and 17, which had none. Written from the RAW
+stored document rather than a projection, so `note`, `km` and everything else rode
+through untouched; the write asserted beforehand that the only key differing was `reads`
+and afterwards that nothing else had moved. Every scored stage now carries reads.
+
+### The prefill made one existing test wrong in the safe direction
+
+Worth knowing, because the same trap will recur. The opcard verifier asserted "the boxes
+are EMPTY, the card offers no draft prose" by testing the rendered HTML. The card fills
+the boxes through `el.value`, NOT through textarea content, so that assertion KEPT
+PASSING while being wrong about what the operator sees.
+
+A test that passes for a reason unrelated to the thing it names is worse than no test.
+Assert on the value the user would read, not on the markup that happens to carry it.
+
+The gate itself is now tested from the FILLED side: empty a box and the close must refuse
+again. That is the better test anyway, since the failure mode worth catching is a gate
+quietly satisfied by prefill.
+
+### The headline must match the gates underneath it
+
+The card read "0 finishers, classification complete" while five gates below it were
+refusing. Allen saw it on stage 18 while the stage was still on the road.
+
+It is the same class as a fallback that prints `undefined`, and it is worth naming as its
+own shape: THE MARKUP WAS WELL FORMED, THE TEMPLATE DID EXACTLY WHAT IT WAS TOLD, AND THE
+SENTENCE WAS FALSE. No structural check can see it. It is also the half an operator acts
+on, because the headline is the part people read and the gate list is the part they skim.
+
+Two rules, both now asserted:
+
+- NEVER print "complete" while anything is refusing.
+- NEVER print a finisher count of zero as though it were a result. Zero finishers is not a
+  small result, it is the absence of one.
+
+A stage that has not been raced at all gets ONE line saying so and no wall of gate
+failures, because "it has not happened yet" is not five problems. It is deliberately not
+BLANK either: rendering nothing is indistinguishable from the card being broken, which is
+what it used to do.
+
+The fixture behind this is a live capture, `tools-opcard-fixture-unraced.json`, taken from
+stage 18 mid-race: the `ite` bind exists and carries one row at a NEGATIVE position, so
+`started` is 1 and `classified` is 0. That is the exact state that produced the false
+headline, kept rather than invented.
 
 ### The breakaway is JUDGED, the break-through position is NOT
 
@@ -2706,9 +2874,10 @@ THIS MATTERS BECAUSE THE FIX WOULD HAVE BEEN THE BUG. Anyone "correcting" those 
 lines would be editing `normName` and the accent-folding table, both of which decide
 whether a rider name matches, on the strength of a dash that is not there.
 
-Scan CODEPOINTS. The validator that does it is in the scratch tooling used for the card
-build; the one-liner is a loop over the string comparing each character against
-the two dash codepoints, never a grep bracket expression.
+Scan CODEPOINTS, never a bracket expression. `tools-validate-build.js` is the whole
+pre-push checklist made executable and it does it properly: a loop over the string
+comparing each character against the two dash codepoints. Run it before every push
+instead of the grep the rule used to imply.
 
 ## Values read once in loadPool are STALE-SESSION HAZARDS
 
@@ -2813,8 +2982,26 @@ is exactly why the rule demands EVIDENCE rather than banning the repeat.
 THE RULE, both halves:
 
 1. `combatif` comes from the ICE BIND of `rankingType-{year}-{stage}`. Not a web search,
-   not a race report, not a previous stage. If the bind cannot be read, the close STOPS
-   and the field is left unset. A missing combatif shows nothing; a wrong one is AWARDED.
+   not a race report, not a previous stage. If the bind cannot be read the field is left
+   unset. A missing combatif shows nothing; a wrong one is AWARDED.
+
+   A REFUSAL NO LONGER STOPS THE CLOSE. Allen's ruling, 2026-09-12. This said "the close
+   STOPS" from 2026-09-01, and that was the wrong half to be strict about. THE GATE
+   DECIDES WHAT THE COMBATIF IS, NEVER WHETHER THE STAGE CLOSES. ASO publishes the ice
+   bind on its own schedule and sometimes not at all, so a refusal most often means "not
+   published yet", and holding four players' stage overnight for a decorative field is
+   the stage 8 failure wearing a different hat: refusing to write a finished stage is not
+   the cautious direction, it is a second way to be wrong.
+
+   WHAT DOES NOT CHANGE, and is the half actually worth protecting: a refusal still
+   yields NO VALUE. Null, never a guess, never the previous stage carried forward. No
+   Premio is computed from a null. Fill it in later with a MERGING `.update()`, which is
+   how stage 16 was filled and the one write that cannot drop `reads`, `note` or `km`.
+
+   An operator-SUPPLIED combatif that the gate rejects DOES still block, and that
+   asymmetry is deliberate: absence is the feed being quiet, whereas a rejected override
+   is a person asserting a value the feed contradicts. `lib/compute-close.js` already
+   drew this line, at `combatif_override`; `tools/close-stage.js` did not, and now does.
 2. It must not equal the previous scored stage's value UNLESS the ice bind independently
    names it.
 
@@ -2919,6 +3106,149 @@ the literal words undefined, null and NaN, and that check exists because a wall 
 once reached the screen. THE BOARD ITSELF HAS NO SUCH SCAN. A render-time sweep of the
 built board for those three words is the obvious next gate and is NOT yet written.
 
+## The undefined sweep, and what a fixture has to describe
+
+Added 2026-09-13, after the SECOND instance of the terminal-guard defect shipped and ran for
+a whole race. `tools-undefined-sweep.js`, over the BUILT boards, with
+`tools-undefined-fixture.json` as its ground truth.
+
+THE DEFECT IT FOUND. `vuelta.src.html:7370` was a bare `${r.extra}` in the Note column with
+no fallback at all, and `extra` is carried by 6 of 21 race rows. So Full Results printed the
+word on 15 rows for the entire Vuelta, on the tab that reads as "the whole race". Clearing a
+race row's `extra` is the CORRECT data action under "Writing boardConfig" above, which is
+exactly what made this arrive quietly.
+
+IT DOES NOT LOOK FOR THE WORD, and it cannot. The defect does not exist in the source text:
+it only appears when a template is evaluated against a document missing a field. It looks
+for the SHAPE, an unguarded member read, then asks the FIXTURE whether that shape can
+actually fire. Two tiers, and the distinction is the whole reason the tool is usable:
+
+- PROVEN, the read is unguarded AND the fixture shows the field absent from real documents.
+  This FAILS. The message says how many documents render the word.
+- ADVISORY, unguarded but the fixture does not cover that object. Listed, never failed.
+  ADVISORY MEANS UNCOVERED, NOT SAFE.
+
+The first version had no tiers and reported 147 findings in one file, which is a gate nobody
+runs. All the noise was locally-built objects, where the field is always present.
+
+### A FIXTURE MUST DESCRIBE THE DATA AT THE READ SITE, NOT AT ITS SOURCE
+
+The single most useful thing learned here, and it cost eleven false failures.
+
+The fixture was first measured against the RAW Firestore stage documents, where `n` is
+absent on stages 1, 2 and 3. The BOARD never sees that: `buildCDF` supplies `n` from the
+document id. Every `st.n` render site was flagged and not one of them could fire. The
+fixture now describes `CDF.stages` and lists `n` under `always`, with the reason in the file.
+
+### Four false-positive classes, each removed by EVIDENCE rather than by loosening
+
+A gate is only worth having if its failures are real, and the way to get there is to explain
+each false positive rather than relax the rule until it stops complaining:
+
+1. The normalized field above.
+2. An ENCLOSING ternary guards its nested reads. A read wrapped in a test of itself is safe,
+   and judged alone it is indistinguishable from the defect.
+3. A PREFIX guard counts: a test one segment shorter than the read still protects it.
+4. An upstream `.filter()` proves a field present, so a render site downstream of it needs
+   no guard of its own.
+
+### The scanner failed OPEN three times before it worked
+
+Worth recording in full, because every failure produced a CONFIDENT CLEAN REPORT over a file
+it had not finished reading, which is the exact shape this repo keeps cataloguing, in the
+tool built to catch that shape.
+
+- Braces were counted inside template TEXT. Board templates carry inline CSS, so their text
+  is full of braces, the depth counter drifted, and a 23KB region was skipped in silence,
+  including the very interpolation the tool was written to find.
+- Regex literals were not lexed. The board's own `esc` replaces a character class that
+  contains a double quote, and that quote opened a phantom string.
+- An unbalanced candidate did `break`, abandoning the rest of the file.
+
+THE FIX THAT HELD WAS REMOVING THE MACHINERY, NOT PATCHING IT. An interpolation opener is
+unambiguous in JavaScript: it is a template interpolation or it is nothing. So the
+template-state tracking was never needed, and without it there is no place to lose. Every
+opener is found independently of every other and the whole class of desync went away. The
+count went 332, then 76 when spans were skipped, then 778 when nested ones were examined.
+
+WHEN A SCANNER CAN LOSE ITS PLACE, IT MUST SAY SO. Guessing that a partial read is a whole
+one is how a gate reports a file clean that it never finished.
+
+### The board carried TWO functions named esc, and only one guarded
+
+The `esc` at the top of the first block coerces null and undefined to an empty string. The
+one in the rest-day block was a bare `String(s)`. Identical name, identical call, and the
+same absent field rendered as nothing or as the word depending only on which block the
+render site happened to sit in. Fixed 2026-09-13. It is the `FP_SCALE` duplication one layer
+down, in a helper nobody thinks of as a computation, and it is the reason a guarding call
+has to be READ before it is trusted rather than recognised by name.
+
+## Stage docs 1, 2 and 3 have no `n` field
+
+Found 2026-09-13, as the answer to an audit that returned `[null, 12, 18]` for stages lacking
+a combatif. The `null` was not one document, it was THREE.
+
+Stages 1, 2 and 3 carry no `n`. Their document IDS are fine; the FIELD is absent. An audit
+keyed on the field gets undefined from all three and collapses them into a single key, so one
+null stood for three stages, only one of which was really missing anything:
+
+- stage 1, Monaco ITT, combatif absent. Legitimately none, same case as 18.
+- stage 2, combatif `E. Hayter`. Not missing at all.
+- stage 3, void. Legitimately none.
+
+THE BOARD IS UNAFFECTED, and that is the trap. `buildCDF` supplies `n` from the document id,
+so `STAGES` always has one and every render site works. The discrepancy is invisible from the
+board and visible only to something reading Firestore directly, which is what an audit and a
+fixture both do. ANY TOOL THAT READS THE RAW COLLECTION MUST SUPPLY `n` FROM THE DOCUMENT ID
+THE WAY buildCDF DOES, or it will mis-key three stages and report a phantom.
+
+## RACE OVER is derived, and the guards for it already existed
+
+Added 2026-09-13, when the Vuelta finished and `startStage` advanced to 22 on a 21-stage
+race. `buildCDF` synthesized an `upcoming` for whatever `startStage` said, whether or not
+such a stage existed, so the board invented a stage 22 and asked for it in SIX places:
+
+| Surface | What it showed |
+|---|---|
+| Today's Order | a stage 22 label with an empty route after the separator |
+| Operator close card | "Close stage 22" and a live Check the results button |
+| Draft card | "Stage 22 draft", eight empty slots, Enter for JP, "Draft armed" |
+| Next Two card | "Stage 22 up next", a dead stage-22 link, a missing profile image |
+| Kasseistampers | "KASSEISTAMPERS - STAGE 22", thirteen tappable riders |
+| Stage Ledger | a 22nd card above the real ones, status LIVE, 0 KM |
+
+TWO OF THEM ACCEPTED INPUT for a stage that will never be raced.
+
+THE CONSUMERS WERE ALREADY WRITTEN FOR THIS, and this is the part worth carrying forward.
+The Next Two card, the weather card and the Today's Order strip each open with a branch that
+handles no upcoming stage. Those branches had NEVER RUN, because nothing ever produced the
+null they test for. A GUARD WITH NO PRODUCER IS THE MIRROR OF A CONFIG FLAG WITH NO CONSUMER:
+it reads as though the case is handled, and nothing handles it. Grep for the producer of a
+null before believing a null check means the case was considered.
+
+`RACE_OVER` is DERIVED, from `startStage` past the last calendar row with no race row for it.
+No flag in Firestore, nothing to set at close time, and the Giro inherits it unchanged, the
+same call as the rest-day derivation and `FP_SCALE`.
+
+It is published on `window` as well as on `CDF`, because the consumers SPAN SCRIPT BLOCKS:
+the draft card, the operator card and the Kasseistampers picker are in the block that builds
+CDF, the other three are in the next one. A const in the later block cannot be seen from the
+earlier one and reaching for it is the ReferenceError that blanks the board, the same trap
+recorded against `MER` and `norm`.
+
+THE TWO INPUT SURFACES ACCEPT NOTHING RATHER THAN BEING DISABLED. A disabled control still
+invites the attempt and still reads as "not yet" rather than "never". Nothing is built.
+
+"No upcoming stage set" was the existing copy in those dead branches and it is
+MISCONFIGURATION copy: it reads as something an operator forgot. A finished race is not a
+missing setting. Cards with nothing left to say REMOVE themselves, because an empty bordered
+card on the tab everyone lands on reads as broken where an absent one reads as finished.
+
+Retired in the same pass: the Live Break Check, which offered to ask the feed who is up the
+road on a race that has finished and would have got the last frozen snapshot, per "live from
+/api/break is NOT a race-state flag"; and the weather card, which was not merely stale but
+WRONG, still showing stage 20's finish dated Sep 12 as though it were the outlook.
+
 WHY THIS BITES HERE SPECIFICALLY: the board renders from JavaScript into template literals,
 where `undefined` stringifies silently instead of throwing. A missing field is not an error
 in this codebase, it is a five-letter word on a card, which is the fail-open shape this file
@@ -2994,9 +3324,28 @@ A VOID STAGE IS EXEMPT everywhere: nothing was raced, so there is nothing to rea
   come from a FILE and not the command line because they are paragraphs and a shell mangles
   the punctuation. The file is parsed at the TOP of `main()`, ahead of every network call,
   so a bad path or a stray seat code fails in a second rather than after the whole compute.
-- `lib/compute-close.js` refuses with `reads_required`. That is the one computation BOTH
-  endpoints run, so the preview and the write agree by construction. `force` does not clear
-  it: `force` only ever clears `already_closed`.
+- `lib/compute-close.js` was described here as refusing with `reads_required`. IT DOES
+  NOT, AND IT NEVER HAS. Measured 2026-09-12 against the deployed code and the live
+  endpoint: there is no `reads_required` anywhere in `lib/compute-close.js`, its `stageDoc`
+  has NO `reads` key, and `/api/close-stage` writes `out.stageDoc` verbatim. So THE API
+  WRITE PATH CANNOT CARRY A READ AT ALL.
+
+  It is worse than a missing gate, because the operator card SENDS them: `commit()` sets
+  `body.reads = readsTyped()`, and `/api/close-stage` extracts only `breakaway`,
+  `breakThru` and `combatif` into `overrides`. The four paragraphs the card insists on
+  before it will enable Confirm are posted and DROPPED, in silence. `close-preview` does
+  not even parse a `reads` query param, so the card's "the reads ride along so the
+  server's own gate is evaluated against what is typed" is evaluating nothing.
+
+  THIS IS THE `sideGames.merica` SHAPE IN A WRITE PATH: a field with no consumer, read by
+  a reader who reasonably assumes it has one. It was invisible because the renderer was
+  fixed in the same week to print nothing rather than `undefined`, so a stage closed
+  through the card loses its reads and LOOKS FINE.
+
+  Until `lib/compute-close.js` carries `reads` onto the stage doc, `/api/score-stage` is the
+  write path for a close, because its `data` is the whole document and the caller decides
+  what is in it. Stage 20 was written that way on 2026-09-12 and read back with all four.
+  `force` clears only `already_closed`, on both endpoints.
 - The operator card grew a fourth surface, below.
 
 ### The card collects them, and offers NO draft
@@ -3635,17 +3984,18 @@ beneath them. Both were built to expose engine state. Neither was asked for.
   a landmine only if someone flips `sideGames.merica` true on this board without
   reading this line. Close it by shipping the computed roster, or by deleting the
   array outright if the generalization slips.
-- Stage 12 has NO combatif, and it is the last one outstanding. The value is computed and
-  GATED: the stage 12 ice bind names bib 31, W. van Aert, the bind answers for stage 12,
-  and stage 11 stored E. Hayter so it is not a copy-forward. Nobody drafted van Aert that
-  day, so no Premio moves either way. It was deliberately NOT written on 2026-09-09,
-  because /api/score-stage replaces the doc with merge:false and rebuilding stage 12 from
-  the pool-state PROJECTION would silently drop `note`, `reads` or `km` if it carries any,
-  and this file's own rule says not to force-rewrite a pre-stage-13 doc without a raw read.
-  Two ways to close it, both safe. A browser console `.update({combatif: ...})` on
-  `pools/vuelta-2026/stages/12`, which MERGES and therefore cannot drop a field; or set
-  SCORE_KEY in Vercel and read the raw doc from `/api/close-preview?stage=12`, which
-  returns `storedStageDoc`, then write it back in full.
+- Stage 12 combatif: CLOSED 2026-09-13, written as W. van Aert by the first of the two
+  safe routes above, a console `.update({combatif})` that MERGES. Twelve keys before,
+  thirteen after, nothing lost. The gate passed on the live bind and the no-Premio claim
+  was CHECKED rather than carried over: stage 12 picks were AA Gall/Kuss, JB Carapaz/Onley,
+  JJ Mas/Widar, JP Buitrago/Roglic, so nobody held van Aert and AA's Premio 3 stands.
+  Stage 18 was closed in the same pass. Its `combatif` was ALREADY null; what was missing
+  was the reason, so it now carries `combatifNote` saying an individual time trial makes no
+  combativity award and the bind carries no rider. Verified: stage 18 has no ice bind at
+  all, where 12, 17, 19, 20 and 21 all do.
+  STAGE 1 IS THE SAME CASE AND WAS DELIBERATELY LEFT ALONE, at Allen's instruction, as
+  outside that brief. It is the Monaco ITT, its combatif is absent rather than null, and it
+  wants the same note. It is on the Giro checklist instead of being quietly widened into.
 - Style tier exhaustion: CLOSED 2026-09-10, by adding EIGHT style rows and `bruyneel`,
   taking the bank from 92 to 101 and the style tier from 0 unworn to 9, which is three
   full rotations against the stages that remain. The capacity paragraph was corrected in
@@ -3672,17 +4022,18 @@ beneath them. Both were built to expose engine state. Neither was asked for.
   The fourth is a trap worth naming on its own: a PURE WHITE field dissolves into the
   off-white page and the avatar loses its circular edge, so a flag with a white half needs
   that half darkened to about `#dfe3ea`. None of this is visible at 108px.
-- A RENDER-TIME SWEEP of the built board for the literal words undefined, null and NaN
-  is NOT written, and it is the gate that would have caught "The read undefined" two
-  weeks earlier. `tools-opcard-verify.js` already does exactly this for the operator
-  card and it is the reason that card has never leaked one.
-  WHY IT IS NOT A ONE-LINER, and this is the part to read before attempting it: a STATIC
-  grep of `vuelta.html` is useless, because the file legitimately contains `typeof x ===
-  'undefined'` and similar, and because the defect does not exist in the source at all.
-  It only appears once a template literal is evaluated against a document that is missing
-  a field. So the gate has to RENDER, which means either a DOM walk on a signed-in board
-  (what found this one, by hand) or a fixture-driven render under a shim the way the
-  opcard verifier works. The second is the right shape and needs stage docs as fixtures.
+- The undefined sweep: HALF CLOSED 2026-09-13. `tools-undefined-sweep.js` is the STATIC
+  half and it is real: it found `${r.extra}` printing on 15 of 21 Full Results rows, and
+  it catches "The read undefined" in the same pass. See "The undefined sweep" above.
+  STILL OPEN, and it is the half that proves rather than infers: a RENDER-TIME pass over
+  real documents. The static tool says a shape CAN fire; only a render says it DID at a
+  given site. The fixture-driven render under a shim, the way `tools-opcard-verify.js`
+  works, is still the right shape. The stage docs it needs as fixtures now exist in
+  `tools-undefined-fixture.json`, so that groundwork is done.
+  ALSO OPEN: `tour.html` and `board.html` carry the SAME `${r.extra}` defect and the same
+  two read guards, named but not fixed on 2026-09-13 as outside that brief. Their verdicts
+  are INFERRED from the Vuelta fixture rather than measured on the Tour pool, and the tool
+  says so rather than implying otherwise. Measure that pool before treating them as proven.
 - The Giro host `racecenter.giroditalia.it` in the Adding the Giro checklist is a
   GUESS and has never been checked. Verify it, and verify that the bind names
   match the ASO shape, before writing it into a profile. A wrong host is exactly
