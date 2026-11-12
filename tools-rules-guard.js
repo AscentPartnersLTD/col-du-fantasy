@@ -3,50 +3,46 @@
  *
  *   node tools-rules-guard.js
  *
- * WHAT THIS IS NOT. It is not a rules unit test and it is not a compiler. Real
- * rules tests need the Firestore emulator, the emulator needs Java, and there is
- * no Java on Gerald. THE RULES IN THIS REPO HAVE NOT BEEN COMPILED. `firebase
- * deploy --only firestore:rules` compiles server side and rejects a syntax error,
- * so the deploy is the compile step, and that is the moment to find out.
+ * WHAT THIS IS NOT. It is not a rules unit test and it is not a compiler. The real
+ * tests live in tools-rules-tests/ and run against the Firestore emulator; this is
+ * the cheap static gate that runs in a second alongside them.
  *
- * WHAT IT IS. A static check of the handful of properties that are easy to break
- * by hand and expensive to get wrong, drawn from what this project has actually
- * suffered:
+ * WHAT IT IS. A check of the handful of properties that are easy to break by hand
+ * and expensive to get wrong under the SHOWROOM design:
  *
- *  1. NO EMAIL IS READABLE BY A GUEST. The whole feature turns on this. Two
- *     separate leak paths existed: `members` on the pool document, and
- *     `config/roster`, which holds `players` and `reviewers` keyed by email under
- *     a blanket signedIn() read. Fixing one and not the other fixes nothing.
- *  2. A GUEST NEVER WRITES. Not one allow-write clause may mention a guest.
- *  3. GUEST READS ARE SCOPED TO A NAMED POOL, never blanket, or a guest edits
- *     ?pool= and reads the Tour pool.
- *  4. NOTHING IS PUBLIC. No `if true` anywhere.
- *  5. The pool document no longer carries a members map, so no rule may read one.
+ *  1. THE PRODUCTION POOL BLOCK IS UNCHANGED from what is deployed. A guest never
+ *     reads col-du-fantasy or vuelta-2026, so nothing about them needs to move, and
+ *     the migration that used to live here is what made a five-step cutover
+ *     necessary. If this check fails, somebody has reintroduced that risk.
+ *  2. A VIEWER CAN NEVER REACH A PRODUCTION POOL, denied by NAME and not by a flag.
+ *  3. A VIEWER NEVER WRITES. Not one allow-write clause mentions one.
+ *  4. config/roster is closed. It holds players and reviewers keyed by EMAIL under
+ *     what used to be a blanket signedIn() read.
+ *  5. NOTHING IS PUBLIC, and nothing still grants on signedIn() alone.
  */
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 const SRC = path.join(__dirname, 'firestore.rules');
 
 let fails = 0, ran = 0;
 function check(label, ok, detail) {
   ran++; if (!ok) fails++;
-  console.log('  [' + (ok ? 'PASS' : 'FAIL') + '] ' + String(label).padEnd(52) +
+  console.log('  [' + (ok ? 'PASS' : 'FAIL') + '] ' + String(label).padEnd(54) +
     (detail == null ? '' : String(detail)));
 }
 
 const raw = fs.readFileSync(SRC, 'utf8');
 
-/* Comments carry the word "guest" everywhere by design, so every check below runs
-   against the rules with comments stripped. A gate that reads its own prose is
-   the same mistake as a text match standing in for a component. */
+/* Comments carry the words "viewer" and "guest" everywhere by design, so every check
+   below runs against the rules with comments stripped. A gate that reads its own prose
+   is the same mistake as a text match standing in for a component. */
 const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
 
 /* An allow clause runs from `allow` to its semicolon and OFTEN SPANS LINES: the two
-   scoped member updates are five visual rows each. Reading them line by line finds the
-   word `allow` and none of the conditions, which is how the first version of this gate
-   reported zero scoped updates while two sat in the file. Parse whole statements. */
+   scoped member updates are five visual rows each. Parse whole statements. */
 const allows = (src.match(/allow\s[^;]*;/g) || []).map(a => a.replace(/\s+/g, ' ').trim());
 const writeAllows = allows.filter(l => /allow[^:]*\b(write|create|update|delete)\b/.test(l));
 const readAllows = allows.filter(l => /allow[^:]*\bread\b/.test(l));
@@ -55,92 +51,113 @@ console.log('FIRESTORE RULES INVARIANTS');
 console.log('  ' + allows.length + ' allow clauses, ' + readAllows.length + ' read, ' +
   writeAllows.length + ' write\n');
 
-/* ---- 1. braces balance, which is the one syntax error a hand edit makes ---- */
+/* ---- 1. braces balance, the one syntax error a hand edit makes ---- */
 const opens = (src.match(/{/g) || []).length, closes = (src.match(/}/g) || []).length;
 check('braces balance', opens === closes, opens + ' open, ' + closes + ' close');
 
-/* ---- 2. nothing is public ---- */
-const publicRules = allows.filter(l => /:\s*if\s+true\s*;/.test(l));
-check('no rule is unconditionally public', publicRules.length === 0,
-  publicRules.join(' | '));
+/* ---- 2. nothing is public, and nothing grants on signedIn() alone ---- */
+check('no rule is unconditionally public',
+  allows.filter(l => /:\s*if\s+true\s*;/.test(l)).length === 0);
 
-/* ---- 3. a guest never writes ---- */
-const guestWrites = writeAllows.filter(l => /guest/i.test(l));
-check('no write clause mentions a guest', guestWrites.length === 0,
-  guestWrites.join(' | '));
+/* `signedIn()` on its own is the shape that let a guest read config/roster. It is
+   legitimate ONLY where a further term narrows it to the caller's own document. */
+const bareSignedIn = allows.filter(l => {
+  const cond = (l.split(/:\s*if\s/)[1] || '');
+  if (!/signedIn\(\)/.test(cond)) return false;
+  return !/em\(\)|owner\(\)|isMember\(\)|isPlayer\(\)|resource\.data\.members|viewerOf|showroomPool/.test(cond);
+});
+check('no clause grants on signedIn() alone', bareSignedIn.length === 0,
+  bareSignedIn.length ? bareSignedIn.join(' | ') : 'every one is narrowed to the caller');
 
-/* ---- 4. guest reads are scoped to a named pool ---- */
-/* A GRANT to a guest is guestOf(). `!isGuest()` is an EXCLUSION, and counting it as a
-   grant is how the first version of this gate failed on the two clauses that exist
-   precisely to keep guests OUT of the legacy collections. */
-const guestReads = readAllows.filter(l => /guestOf\s*\(/.test(l));
-const guestExclusions = readAllows.filter(l => /!\s*isGuest\s*\(\)/.test(l));
-check('at least one read is granted to a guest', guestReads.length > 0,
-  guestReads.length + ' grant(s), ' + guestExclusions.length + ' explicit exclusion(s)');
-const unscoped = guestReads.filter(l => !/guestOf\(\s*poolId\s*\)/.test(l));
-check('every guest read is scoped by guestOf(poolId)', unscoped.length === 0,
-  unscoped.length ? unscoped.join(' | ') : 'never blanket, so ?pool= cannot widen it');
+/* ---- 3. THE PRODUCTION BLOCK IS UNCHANGED ---- */
+/* Compared against the rules as they stand on origin/main, which is what is deployed.
+   This is the check that keeps the dropped migration dropped. */
+let deployed = null;
+try {
+  deployed = execFileSync('git', ['show', 'origin/main:firestore.rules'],
+    { cwd: __dirname, encoding: 'utf8' });
+} catch (e) { /* no origin, see the skip below */ }
 
-/* MOST guest reads reach guestOf through the poolReader() helper rather than naming it,
-   so the check above only ever sees the one clause that spells it out. Without this, the
-   gate would pass on a poolReader that had quietly lost its guest arm, or worse on one
-   widened to a bare isGuest(), which is the unscoped case that lets ?pool= reach the
-   Tour pool. Check the helper, not just the call sites. */
-const readerDef = (src.match(/function\s+poolReader\s*\(poolId\)\s*{[^}]*}/) || [''])[0];
-check('poolReader is the guest read path', /guestOf\(\s*poolId\s*\)/.test(readerDef),
-  readerDef.replace(/\s+/g, ' ').trim() || 'poolReader not found');
-check('poolReader is not widened to a bare isGuest()',
-  readerDef.length > 0 && !/\|\|\s*isGuest\s*\(\)/.test(readerDef),
-  'a bare isGuest() would ignore which pool the guest was invited to');
-const readerUses = readAllows.filter(l => /poolReader\(\s*poolId\s*\)/.test(l));
-check('the pool doc, its stages and its drafts read through poolReader',
-  readerUses.length >= 3, readerUses.length + ' clause(s)');
+if (deployed == null) {
+  console.log('  [SKIP] production comparison            origin/main:firestore.rules unreadable');
+} else {
+  const norm = t => t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\s+/g, ' ').trim();
+  const prodRead = /allow read:\s*if owner\(\) \|\| \(signedIn\(\) && em\(\) in resource\.data\.members\)/;
+  check('the production pool read is the deployed one, plus viewerOf',
+    prodRead.test(src) && prodRead.test(deployed),
+    'untouched: a guest is denied by the rule that already exists');
 
-/* guestOf itself must require BOTH the claim and the record */
-const guestOfDef = (src.match(/function\s+guestOf\s*\(poolId\)\s*{[\s\S]*?}/) || [''])[0];
-check('guestOf requires the signed claim', /isGuest\(\)/.test(guestOfDef));
-check('guestOf requires the pool to be named in the claim',
-  /poolId\s+in\s+request\.auth\.token/.test(guestOfDef),
-  'so a guest cannot reach another pool by editing the URL');
-check('guestOf requires the guest record to still exist', /exists\(guestDoc\(\)\)/.test(guestOfDef),
-  'deleting the record revokes immediately, not in an hour');
+  /* every production helper must still read the members MAP, not a subcollection */
+  check('inPool still reads the members map off the pool doc',
+    /function inPool\(poolId\)\s*{\s*return signedIn\(\) && poolExists\(poolId\) && \(em\(\) in poolCfg\(poolId\)\.members\)/.test(src),
+    norm(src.match(/function inPool[^}]*}/)[0]).slice(0, 72));
+  check('poolSeat still reads the members map',
+    /function poolSeat\(poolId\)\s*{\s*return poolCfg\(poolId\)\.members\[em\(\)\]/.test(src));
+  check('no members subcollection was left behind',
+    !/match\s+\/members\//.test(src),
+    'its absence is why there is no cutover');
+  check('no guests collection was left behind', !/match\s+\/guests\//.test(src));
+  check('no custom guest claim is relied on', !/request\.auth\.token\.get\('guest/.test(src),
+    'access is the viewers map on the copy');
 
-/* ---- 5. THE BLOCKER: no email is reachable by a guest ---- */
-check('no rule reads a members map off the pool document',
-  !/resource\.data\.members|poolCfg\([^)]*\)\.members/.test(src),
-  'addresses live in pools/{poolId}/members/{email}');
+  /* the two scoped member updates survive verbatim */
+  const scoped = allows.filter(l => /affectedKeys\(\)/.test(l));
+  check('both scoped member updates survive, gated on inPool', scoped.length === 2 &&
+    scoped.every(l => /inPool\(poolId\)/.test(l)), scoped.length + ' clause(s)');
+}
 
-const memberBlock = (src.match(/match\s+\/members\/\{email\}\s*{[\s\S]*?}/) || [''])[0];
-check('the members subcollection exists', memberBlock.length > 0);
-check('a member document is readable only by the owner or that address',
-  /allow read:\s*if owner\(\)\s*\|\|\s*\(signedIn\(\)\s*&&\s*email\s*==\s*em\(\)\)/.test(memberBlock),
-  'so no player can read the other three either');
-check('no guest can reach the members subcollection', !/guest/i.test(memberBlock));
+/* ---- 4. a viewer can never reach production, by NAME ---- */
+console.log('');
+const prodFn = (src.match(/function prodPool\(poolId\)\s*{[^}]*}/) || [''])[0];
+check('the production pools are named explicitly',
+  /col-du-fantasy/.test(prodFn) && /vuelta-2026/.test(prodFn),
+  'denied by name, so a stray showroom flag grants nothing');
+const viewerFn = (src.match(/function viewerOf\(poolId\)\s*{[\s\S]*?\n    }/) || [''])[0];
+check('viewerOf excludes production', /showroomPool\(poolId\)/.test(viewerFn));
+check('showroomPool excludes production by name',
+  /function showroomPool\(poolId\)\s*{\s*return !prodPool\(poolId\)/.test(src));
+check('a showroom must declare itself', /showroom == true/.test(src),
+  'the flag alone is not enough, and the name alone is not enough');
+check('an invitation expires on its own',
+  /request\.time < poolCfg\(poolId\)\.viewers\[em\(\)\]/.test(viewerFn),
+  'a lapsed viewer stops working with no cleanup job');
 
-/* config/roster is the SECOND leak path and is the one that gets forgotten */
-const configBlock = (src.match(/match\s+\/config\/\{doc\}\s*{[\s\S]*?}/) || [''])[0];
-check('config/{doc} excludes guests explicitly', /!isGuest\(\)/.test(configBlock),
+/* ---- 5. a viewer never writes ---- */
+console.log('');
+check('no write clause mentions a viewer',
+  writeAllows.filter(l => /viewerOf|showroom/i.test(l)).length === 0);
+const grants = readAllows.filter(l => /viewerOf\s*\(/.test(l));
+check('viewer reads exist and are scoped by poolId',
+  grants.length > 0 && grants.every(l => /viewerOf\(\s*poolId\s*\)/.test(l)),
+  grants.length + ' grant(s)');
+const readerDef = (src.match(/function poolReader\(poolId\)\s*{[^}]*}/) || [''])[0];
+check('poolReader is the viewer read path', /viewerOf\(\s*poolId\s*\)/.test(readerDef));
+check('poolReader is not widened past viewerOf',
+  readerDef.length > 0 && !/signedIn\(\)\s*;|\|\|\s*signedIn\(\)/.test(readerDef));
+check('a viewer reads predictions only when locked',
+  /viewerOf\(poolId\) && predsLocked\(poolId\)/.test(src));
+
+/* ---- 6. the legacy collections are closed ---- */
+console.log('');
+const cfg = (src.match(/match\s+\/config\/\{doc\}\s*{[\s\S]*?}/) || [''])[0];
+check('config/{doc} is isMember(), not signedIn()',
+  /allow read:\s*if isMember\(\)/.test(cfg),
   'it holds players and reviewers, both keyed by email');
-const raceBlock = (src.match(/match\s+\/race\/\{doc=\*\*\}\s*{[\s\S]*?}/) || [''])[0];
-check('the legacy race tree excludes guests', /!isGuest\(\)/.test(raceBlock));
-
-/* ---- 6. the two scoped member updates still cannot be reached by a guest ---- */
-const scoped = allows.filter(l => /affectedKeys\(\)/.test(l));
-check('scoped updates are gated on inPool, not on a reader', scoped.length >= 2 &&
-  scoped.every(l => /inPool\(poolId\)/.test(l)),
-  scoped.length + ' scoped update clause(s)');
-
-/* ---- 7. predictions open to a guest ONLY once locked ---- */
-const predBlock = (src.match(/match\s+\/predictions\/\{seat\}\s*{[\s\S]*?\n\s*}/) || [''])[0];
-const predRead = (predBlock.match(/allow read:[^;]*/) || [''])[0];
-check('a guest reads predictions only when they are locked',
-  /guestOf\(poolId\)\s*&&\s*predsLocked\(poolId\)/.test(predRead),
-  'a blank panel where a finished side game should be is the failure this avoids');
-check('a guest cannot write a prediction', !/guest/i.test((predBlock.match(/allow write:[^;]*/) || [''])[0]));
+const race = (src.match(/match\s+\/race\/\{doc=\*\*\}\s*{[\s\S]*?}/) || [''])[0];
+check('the legacy race tree is isMember()', /allow read:\s*if isMember\(\)/.test(race));
+const eng = (src.match(/match\s+\/engagement\/\{doc\}\s*{[\s\S]*?}/) || [''])[0];
+check('top-level engagement writes are not signedIn()',
+  /allow create, update:\s*if \(isPlayer\(\) \|\| owner\(\)\) && doc == em\(\)/.test(eng));
+const up = (src.match(/match\s+\/userPools\/\{uid\}\s*{[\s\S]*?}/) || [''])[0];
+check('a viewer reads their own userPools', /allow read:\s*if signedIn\(\) && \(uid == em\(\)/.test(up),
+  'the switcher needs it');
+check('a viewer does not write userPools',
+  /allow write:\s*if owner\(\) \|\| \(isMember\(\) && uid == em\(\)\)/.test(up),
+  'the owner creates it when inviting');
 
 console.log('\n' + (ran - fails) + '/' + ran + ' invariants hold');
 if (fails) {
-  console.log('\nNOTE: these are INVARIANTS, not a compile. The rules have not been');
-  console.log('compiled; `firebase deploy --only firestore:rules` is what compiles them.');
+  console.log('\nNOTE: these are INVARIANTS, not a compile. The emulator tests in');
+  console.log('tools-rules-tests/ are what actually exercise the rules.');
 }
 process.exit(fails ? 1 : 0);

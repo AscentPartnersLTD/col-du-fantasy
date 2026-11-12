@@ -64,11 +64,21 @@ check('no game write is still guarded by a bare myCode test',
   !/if\(!myCode && !isOwner\)/.test(SRC),
   'a bare myCode test lets the owner through inconsistently');
 
-console.log('\nTHE GUEST FLAG COMES FROM THE SERVER');
-check('isGuest is read from a signed claim', /_idr&&_idr\.claims&&_idr\.claims\.guest/.test(SRC),
-  'never from anything the page can decide for itself');
-check('a guest is never the owner', /claims\.guest\)&&!isOwner/.test(SRC));
-check('a guest never resolves a seat', /myCode=isGuest\?null:await resolveSeat\(\)/.test(SRC));
+console.log('\nA VIEWER IS NAMED IN THE VIEWERS MAP');
+/* isGuest was a server-minted claim while the plan had guests reading PRODUCTION pools.
+   Under the showroom design they read a COPY carrying no real addresses, so the flag is
+   derived from the `viewers` map on that copy, the same shape `members` already has.
+   It is not a security boundary and does not need to be: every write is refused by the
+   rules, so editing the flag in devtools renders a copied draft card and nothing more. */
+check('isGuest derives from the viewers map',
+  /isGuest=\(!isOwner && !myCode && !!\(\(pool\.viewers\|\|\{\}\)\[myEmail\]\)\)/.test(SRC),
+  'no claim, so no claim plumbing in the login API');
+check('a seated player is never a viewer', /!isOwner && !myCode &&/.test(SRC),
+  'both halves required, or a player on a showroom reads as a guest');
+check('the owner is never a viewer of his own board', /isGuest=\(!isOwner/.test(SRC));
+check('the viewer state follows the document, not boot',
+  (SRC.match(/isGuest=\(!isOwner && !myCode/g) || []).length >= 2,
+  'set in loadPool AND refreshed by the pool snapshot');
 
 console.log('\nSUPPRESSED BY NOT RENDERING, NEVER BY CSS');
 const draftFn = SRC.slice(SRC.indexOf('function renderDraft()'),
@@ -109,25 +119,55 @@ check('tapping a rider with no seat opens the bio rather than picking',
   /if\(!CAN_PLAY\(\) \|\| isOut\)\{ window\.__merOpen=r; renderMerica\(\); return; \}/.test(SRC),
   'the observer experience the board already had');
 
-console.log('\nNO ADDRESS IS READ FROM THE POOL DOCUMENT');
-/* Checked against the source with BLOCK COMMENTS STRIPPED. The first version of this
-   check failed on the comment that explains the change ("pool.members is GONE from the
-   document"), which is a gate reading its own prose and calling it evidence. Only //
-   line comments are left alone, because stripping them would eat every https:// URL. */
+console.log('\nPRODUCTION READS ARE EXACTLY AS THEY WERE');
+/* THE MIGRATION IS GONE, and this section is what proves it stayed gone. A guest never
+   reads a production pool, so the existing members rule already denies them and the
+   board must read production the way it always did. Reintroducing the subcollection
+   would bring back the five-step cutover that can lock all four players out. */
 const CODE = SRC.replace(/\/\*[\s\S]*?\*\//g, ' ');
-check('the board no longer reads a members map',
-  !/pool\.members|p\.members\|\||\(pool\.members\|\|\{\}\)/.test(CODE),
-  'addresses live in pools/{poolId}/members/{email}');
-check('the second copy of the addresses is gone too', !/memberEmails/.test(CODE),
-  'memberEmails was the same four addresses on the same document');
-check('the seat comes from one member document',
-  /db\.doc\('pools\/'\+poolId\+'\/members\/'\+myEmail\)/.test(SRC),
-  'each session reads exactly its own');
-check('a failed seat read degrades to a watcher, never to an exception',
-  /catch\(e\)\{ diag\('seat read failed[\s\S]{0,60}return null; \}/.test(SRC),
-  'the sign-in path must not throw');
-check('the ORDER fallback carries no addresses',
-  /Object\.keys\(pool\.names\|\|\{\}\)/.test(SRC) && /Object\.keys\(p\.names\|\|\{\}\)/.test(SRC));
+check('the seat still comes from the members map',
+  /myCode=\(pool\.members\|\|\{\}\)\[myEmail\]\|\|null/.test(CODE) &&
+  /myCode=\(p\.members\|\|\{\}\)\[myEmail\]\|\|null/.test(CODE),
+  'loadPool and the pool snapshot, both unchanged');
+check('no member subcollection read was left behind',
+  !/\/members\/'\+myEmail|resolveSeat/.test(CODE),
+  'a stray one would need the cutover to work');
+check('the ORDER fallback is the members map again',
+  /Object\.values\(pool\.members\|\|\{\}\)/.test(CODE) &&
+  /Object\.values\(p\.members\|\|\{\}\)/.test(CODE));
+check('the owner roster heal is back on the members map',
+  /new FP\('members',em\)/.test(CODE) && /memberEmails:FV\.arrayUnion/.test(CODE),
+  'left exactly as it was, per the brief');
+
+console.log('\nTHE GUEST VIEW PILL');
+check('the served HTML carries only an empty mount',
+  /<div id="guestPill"><\/div>/.test(SRC),
+  'built by a viewer session, never hidden by CSS');
+check('the pill is built only for a viewer',
+  /gp\.innerHTML = isGuest[\s\S]{0,120}Guest view[\s\S]{0,30}: '';/.test(SRC));
+check('it says two words and no account state',
+  !/guestMeta[\s\S]{0,40}innerHTML|until[\s\S]{0,20}gv-pill/.test(SRC),
+  'no name, no expiry: that is what diagnostics are for');
+
+console.log('\nTHE INVITE SNIPPET');
+/* A dotted field path cannot carry an email, and escaping the dots does NOT save it:
+   the JavaScript parser resolves '.' before Firestore sees the string, so the
+   write lands as a NESTED map, viewers -> a@b -> com, and the invitation silently does
+   not work because the rule looks for a key and finds a sub-map. Caught by reading the
+   tool's own output rather than by a test; guarded here so it cannot come back. */
+/* Comments stripped first. The tool EXPLAINS the dotted-path bug in its own header,
+   so a gate reading the raw file finds the very string it is forbidding and fails on
+   a correct file. Same mistake as matching "pool.members is GONE" one section up. */
+const INVITE_RAW = fs.readFileSync(path.join(REPO, 'tools', 'showroom-invite.js'), 'utf8');
+const INVITE = INVITE_RAW.replace(/\/\*[\s\S]*?\*\//g, ' ');
+check('the invite writes viewers through FieldPath',
+  /new FP\('viewers', '/.test(INVITE),
+  'segments unparsed, the idiom the board already uses');
+check('it never emits a dotted viewers path', !/'viewers\./.test(INVITE),
+  'that would write viewers -> a@b -> com');
+check('revocation is a key removal', /FV\.delete\(\)/.test(INVITE));
+check('an invitation must carry an expiry', /an expiry date is required/.test(INVITE_RAW));
+check('a past expiry is refused', /is in the past/.test(INVITE_RAW));
 
 console.log('\nTHE SPONSOR BAND');
 check('an empty sponsor list renders nothing at all',

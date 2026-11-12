@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20261112-013858Z -->
+<head><!-- build:20261112-020727Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -901,6 +901,8 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
     <div class="mast-t">
       <div class="h">COL DU <span>FANTASY</span></div>
       <div class="s">Vuelta a España 2026 Edition</div>
+      <!-- Guest view pill. Empty in the served HTML; only a viewer session builds it. -->
+      <div id="guestPill"></div>
     </div>
     <div class="race-ind">
       <span class="cap">This race</span>
@@ -1192,6 +1194,12 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
       .opc-picks{font-size:13px;line-height:1.5;margin-top:2px}
       .opc-sub{font-size:11.5px;color:var(--mute);margin-top:2px}
       .opc-warn{margin-top:11px;padding:11px 12px;border-radius:10px;background:rgba(178,31,43,.08);border:1px solid rgba(178,31,43,.35);font-size:13px;line-height:1.55;color:var(--ink)}
+      .gv-pill{display:inline-flex;align-items:center;gap:6px;margin-top:7px;
+        font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;
+        letter-spacing:.12em;font-size:9.5px;color:var(--ink);
+        background:var(--paper2);border:1px solid var(--line2);
+        border-radius:999px;padding:4px 11px}
+      .gv-dot{width:6px;height:6px;border-radius:50%;background:var(--red);flex:none}
       .opc-read{margin-top:10px}
       .opc-rl{font-size:12px;color:var(--mute);line-height:1.45;margin-bottom:4px}
       .opc-ta{width:100%;box-sizing:border-box;font:inherit;font-size:16px;line-height:1.45;
@@ -2236,9 +2244,17 @@ function wireRiderSearch(input,ac,onPick,opts){
   input.addEventListener('blur',function(){ setTimeout(close,150); });
 }
 let myEmail=null,isOwner=false,poolId=null,pool=null,STAGE=null,ORDER=[],SNAKE=[],PMETA={},JUDGE=null,myCode=null,isJudge=false,draft=null,unsub=null,chosen=null;
-/* A GUEST is an OBSERVER: the whole reading experience, and no way to change the game
-   for AA, JB, JJ or JP. isGuest comes from a server-minted claim, never from anything
-   the page can decide for itself.
+/* A VIEWER is an OBSERVER: the whole reading experience, and no way to change the game.
+   They are only ever on a SHOWROOM pool, a copy that carries no real addresses, so the
+   production pools are untouched by any of this and their existing members rule already
+   denies a viewer outright.
+   isGuest is DERIVED from the pool's `viewers` map, the same shape `members` already
+   has. It was a server-minted claim while the plan had guests reading production; with a
+   showroom there is nothing for a claim to protect that the copy does not already.
+   NOT A SECURITY BOUNDARY, and it does not need to be: every write is refused by the
+   rules, and the worst a viewer can do by editing this flag in devtools is render a
+   COPIED draft card. Same class as client-side isOwner, which renders the operator card
+   and can do nothing with it.
    CAN_PLAY IS THE ONE PREDICATE. It gates exactly one question: can this session change
    the GAME. Not "does it write" - a chart toggle or a remembered tab is a write to
    localStorage and is nobody else's business. Every game write and every pick-entry
@@ -2253,7 +2269,12 @@ const DEFAULT_POOL='vuelta-2026';
 // switcher used to send every pool to the generic /board.html, so the Vuelta
 // loaded its data inside the Tour's gold shell. boardPath on the pool doc wins
 // when set; POOL_PAGE is the fallback so routing is correct with no data edit.
-const POOL_PAGE={'col-du-fantasy':'/tour.html','vuelta-2026':'/vuelta.html'};
+const POOL_PAGE={'col-du-fantasy':'/tour.html','vuelta-2026':'/vuelta.html',
+  /* The SHOWROOM copies are read by invited viewers and share the production
+     boards: the board file is the same, only the pool id differs, and the id
+     arrives as ?pool=. Both entries are needed by poolHref(), which is what the
+     account switcher and the not-a-member reroute both call. */
+  'tour-showroom':'/tour.html','vuelta-showroom':'/vuelta.html'};
 function poolHref(pid,path){ var p=path||POOL_PAGE[pid]||'/board.html'; return location.origin+p+'?pool='+encodeURIComponent(pid); }
 // True when this page is already the right board file for that pool. Lets the
 // checked entry still navigate when the pool is right but the shell is wrong.
@@ -2308,10 +2329,9 @@ auth.onAuthStateChanged(async user=>{
   try{ showLoading('Loading your board...'); }catch(e){}
   var _idr=null; try{ _idr=await user.getIdTokenResult(); }catch(e){}
   myEmail=(((_idr&&_idr.claims&&_idr.claims.email)||user.email||'').toLowerCase()); isOwner=(myEmail===OWNER_EMAIL);
-  /* The guest claim is minted by /auth/verify and re-minted by /auth/token on every
-     refresh, so revoking a guest record takes effect within one token lifetime. It is
-     read here and nowhere else. A guest is never the owner. */
-  isGuest=!!(_idr&&_idr.claims&&_idr.claims.guest)&&!isOwner;
+  /* isGuest is not known yet: it comes from the pool document, so it is set in
+     loadPool once `pool` and `myCode` are both resolved. */
+  isGuest=false;
   // Roster heal (2026-07-19): idempotent owner-only repairs. Runs in the
   // BACKGROUND (not awaited) so a slow or hung Firestore write on mobile can
   // never stall the board load. Allen plays AA under a second email the
@@ -2320,15 +2340,10 @@ auth.onAuthStateChanged(async user=>{
     const HEAL={ 'col-du-fantasy': {'allenlabbott@gmail.com':'AA'} };
     for(const pid of Object.keys(HEAL)){
       const ref=db.doc('pools/'+pid); const s=await ref.get(); if(!s.exists) continue;
+      const d=s.data(); const FP=firebase.firestore.FieldPath;
       for(const em of Object.keys(HEAL[pid])){
-        /* HEALS THE SUBCOLLECTION, not the old members map. Addresses moved off the
-           pool document so a guest reading it cannot be handed four private ones, and
-           a heal that kept writing the dead field would quietly recreate the thing the
-           move exists to remove. memberEmails is dropped for the same reason: it was a
-           second copy of the same addresses on the same document. */
-        const md=db.doc('pools/'+pid+'/members/'+em);
-        const cur=await md.get();
-        if(!cur.exists) await md.set({seat:HEAL[pid][em]});
+        if(!(d.members||{})[em]){ await ref.update(new FP('members',em), HEAL[pid][em]); }
+        if(!(d.memberEmails||[]).includes(em)){ await ref.update({memberEmails:FV.arrayUnion(em)}); }
         db.doc('userPools/'+em).set({pools:FV.arrayUnion(pid)},{merge:true}).catch(()=>{});
       }
     }
@@ -2519,6 +2534,16 @@ async function buildAcctMenu(){
     var fab=$('acctFab'); if(!fab) return;
     var who=$('acctWho'); if(who) who.textContent=myEmail||'';
     var ft=$('acctFabTxt'); if(ft) ft.textContent=(myCode || (myEmail? myEmail[0].toUpperCase() : 'CDF'));
+  /* THE GUEST VIEW PILL. Built only for a viewer, so a player and the owner get no
+     node at all rather than a hidden one. Deliberately two words: naming the reader or
+     printing an expiry would put account state on the board, which is what diagnostics
+     are for. */
+  (function(){
+    var gp=$('guestPill'); if(!gp) return;
+    gp.innerHTML = isGuest
+      ? '<span class="gv-pill"><span class="gv-dot"></span>Guest view</span>'
+      : '';
+  })();
     var pools=[];
     if(isOwner){ var all=await db.collection('pools').get(); all.forEach(function(d){ pools.push({id:d.id,name:(d.data().name||d.id),path:(d.data().boardPath||'')}); }); }
     else { var idx=await db.doc('userPools/'+myEmail).get(); var list=(idx.exists&&idx.data().pools)||[];
@@ -2614,13 +2639,15 @@ async function loadPool(id){
     const ml=document.querySelector('link[rel="manifest"]');
     if(ml) ml.setAttribute('href', poolId+'.webmanifest');
   }
-  /* pool.members is GONE from the document. The fallback is the names map, which
-     carries seat codes and no addresses; an empty order renders as nothing, which is
-     the correct failure. */
-  ORDER=(pool.order&&pool.order.length)?pool.order.slice():Object.keys(pool.names||{});
+  ORDER=(pool.order&&pool.order.length)?pool.order.slice():Object.values(pool.members||{});
   SNAKE=ORDER.concat(ORDER.slice().reverse()); JUDGE=pool.judge||null;
   PMETA={}; { const seats=ORDER.slice().sort(); ORDER.forEach(c=>{ PMETA[c]={n:(pool.names&&pool.names[c])||c,c:PALETTE[seats.indexOf(c)%PALETTE.length]}; }); }
-  myCode=isGuest?null:await resolveSeat(); isJudge=(myCode&&myCode===JUDGE);
+  myCode=(pool.members||{})[myEmail]||null; isJudge=(myCode&&myCode===JUDGE);
+  /* A VIEWER holds no seat and is named in `viewers`. Both halves are required: a
+     seated player on a showroom pool is a player there, and the owner is never a
+     viewer of his own board. */
+  isGuest=(!isOwner && !myCode && !!((pool.viewers||{})[myEmail]));
+  guestMeta=isGuest?{email:myEmail, until:((pool.viewers||{})[myEmail])}:null;
 }
 /* Shared race intel for the upcoming stage (same for every pool). Update per stage until the
    boards are unified (Phase 2); mirrors the master's UPCOMING route/type/km/intel. */
@@ -2868,20 +2895,6 @@ function noteSnapshot(d){
 
    It never writes, so it cannot itself loop. */
 let unsubPool=null;
-/* THE SEAT. Addresses moved off the pool document into pools/{poolId}/members/{email}
-   because Firestore rules cannot hide a field, so any rule letting a guest read the pool
-   doc would hand them four private addresses. Each session reads exactly ONE member
-   document: its own. A player can no longer read the other three either.
-   IT FAILS CLOSED TO A WATCHER. A refused or missing read leaves myCode null, which is
-   the seatless state the board already handles everywhere, so the worst case is a
-   player who can read but not draft. It is never an exception on the sign-in path. */
-async function resolveSeat(){
-  if(!poolId||!myEmail) return null;
-  try{
-    const m=await db.doc('pools/'+poolId+'/members/'+myEmail).get();
-    return (m.exists && (m.data()||{}).seat) || null;
-  }catch(e){ diag('seat read failed: '+(e&&(e.code||e.message||e))); return null; }
-}
 function subscribePool(){
   if(unsubPool) unsubPool();
   unsubPool=db.doc('pools/'+poolId).onSnapshot(snap=>{
@@ -2889,14 +2902,14 @@ function subscribePool(){
     const p=snap.data()||{};
     const beforeOrder=ORDER.join(',');
     pool=p;                                   // the cached doc every later read goes through
-    ORDER=(p.order&&p.order.length)?p.order.slice():Object.keys(p.names||{});
+    ORDER=(p.order&&p.order.length)?p.order.slice():Object.values(p.members||{});
     SNAKE=ORDER.concat(ORDER.slice().reverse());
     JUDGE=p.judge||null;
     PMETA={}; { const seats=ORDER.slice().sort(); ORDER.forEach(c=>{ PMETA[c]={n:(p.names&&p.names[c])||c,c:PALETTE[seats.indexOf(c)%PALETTE.length]}; }); }
-    /* myCode is NOT re-derived here. It lives in a subcollection this listener does
-       not watch, and re-reading it on every pool write would be a read per snapshot to
-       learn a value that cannot change during a race. isJudge still follows the doc. */
-    isJudge=(myCode&&myCode===JUDGE);
+    myCode=(p.members||{})[myEmail]||null; isJudge=(myCode&&myCode===JUDGE);
+    /* The viewers map can change under an open session, the same way the order can, so
+       the viewer state follows the document rather than being fixed at boot. */
+    isGuest=(!isOwner && !myCode && !!((p.viewers||{})[myEmail]));
     if(ORDER.join(',')!==beforeOrder){
       /* Say it out loud. A session silently changing its mind about the pick order is
          exactly as confusing as one silently refusing to. */
