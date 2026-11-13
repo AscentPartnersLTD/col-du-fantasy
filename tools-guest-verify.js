@@ -25,6 +25,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 const REPO = __dirname;
 const SRC = fs.readFileSync(path.join(REPO, 'vuelta.html'), 'utf8');
 
@@ -240,6 +241,32 @@ check('index.html is still byte-identical to tour.html',
 check('the showroom manifests exist',
   fs.existsSync(path.join(REPO, 'tour-showroom.webmanifest')) &&
   fs.existsSync(path.join(REPO, 'vuelta-showroom.webmanifest')));
+
+/* The --emit snippet is JavaScript that nothing compiles until it is pasted into a
+   console on the day. So it is PARSED HERE. A snippet that only fails when pasted is
+   worse than no snippet, because it fails at the moment of least patience. */
+console.log('\nTHE SHOWROOM COPY --emit SNIPPET');
+const EMIT = execFileSync(process.execPath,
+  [path.join(REPO, 'tools', 'showroom-copy.js'), '--emit'],
+  { cwd: REPO, encoding: 'utf8' });
+let emitParses = true, emitWhy = String(EMIT.split('\n').length) + ' lines';
+try { new Function('db', EMIT); } catch (e) { emitParses = false; emitWhy = e.message; }
+check('the emitted snippet parses', emitParses, emitWhy);
+check('it is dry run first', /const APPLY = false/.test(EMIT),
+  'the destructive direction is never what a forgotten flag gives you');
+check('it refuses a production target before any work',
+  /is a production pool/.test(EMIT) && EMIT.indexOf('is a production pool') < EMIT.indexOf('function scrub'),
+  'checked first, not after the read');
+check('the scrub is SPLICED, not a second copy',
+  /function scrub\(value, report, path\)/.test(EMIT) && /function findEmails/.test(EMIT),
+  'a second scrubber is one that drifts, and the drifted one misses a field');
+check('it re-scans and refuses a surviving address',
+  /an address survived the scrub/.test(EMIT));
+check('it empties the members map', /pool\.members = \{\};/.test(EMIT));
+check('it drops memberEmails', /delete pool\.memberEmails;/.test(EMIT));
+check('it does not copy engagement', !/"engagement"/.test(EMIT.split('COPY_COLLECTIONS')[1] || '') &&
+  /its document ids are addresses/.test(EMIT));
+check('it reads back what it wrote', /the write did not land/.test(EMIT));
 
 console.log('\nTHE SPONSOR BAND');
 check('an empty sponsor list renders nothing at all',

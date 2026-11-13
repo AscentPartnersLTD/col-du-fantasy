@@ -4,6 +4,7 @@
  *   node tools/showroom-copy.js                     DRY RUN, both pools
  *   node tools/showroom-copy.js --only vuelta       DRY RUN, one pair
  *   node tools/showroom-copy.js --apply             write it
+ *   node tools/showroom-copy.js --emit              print a console snippet instead
  *
  * DRY RUN IS THE DEFAULT and prints every intended write. The destructive direction is
  * never what you get by forgetting a flag, which is the same call `dryRun` makes in
@@ -34,6 +35,8 @@
  *     node tools/showroom-copy.js --apply
  */
 'use strict';
+
+const fs = require('fs');   /* --emit splices the scrub out of this very file */
 
 const PROJECT = 'col-du-fantasy';
 
@@ -129,9 +132,16 @@ const encodeDoc = (o) => {
   return { fields };
 };
 
-/* ------------------------------------------------------------------ scrubbing -- */
-/* Seat codes are what the showroom shows instead of a person. A map KEYED by email,
-   which is what `members` is, keeps its value and loses its key. */
+/* --- SCRUB BLOCK START -------------------------------------------- scrubbing --
+   EVERYTHING BETWEEN THESE TWO MARKERS IS SPLICED VERBATIM INTO THE --emit SNIPPET.
+   That is the whole reason the markers exist. A browser snippet with its own second
+   copy of the scrub is a copy that drifts, and the one that drifts is the one that
+   misses a field. Do not edit this block without re-running tools-guest-verify.js,
+   which asserts the emitted snippet still contains it.
+   The guard for a Firestore Timestamp is written to satisfy BOTH callers: the REST
+   path marks one with `__ts`, and the browser hands back a real Timestamp object,
+   which is recognised by its toDate function. Recursing into either would walk its
+   internals and emit a mangled object rather than the date. */
 function placeholderFor(seatOrIndex) {
   return String(seatOrIndex).toLowerCase().replace(/[^a-z0-9]/g, '') + '@showroom.invalid';
 }
@@ -149,7 +159,7 @@ function scrub(value, report, path) {
   }
   if (Array.isArray(value)) return value.map((v, i) => scrub(v, report, path + '[' + i + ']'));
   if (value && typeof value === 'object') {
-    if (value.__ts || value.__ref) return value;
+    if (value.__ts || value.__ref || typeof value.toDate === "function") return value;
     const out = {};
     for (const [k, v] of Object.entries(value)) {
       let key = k;
@@ -183,7 +193,7 @@ function findEmails(value, hits, path) {
   }
   if (Array.isArray(value)) { value.forEach((v, i) => findEmails(v, hits, path + '[' + i + ']')); return; }
   if (value && typeof value === 'object') {
-    if (value.__ts || value.__ref) return;
+    if (value.__ts || value.__ref || typeof value.toDate === "function") return;
     for (const [k, v] of Object.entries(value)) {
       EMAIL_RE.lastIndex = 0;
       if (EMAIL_RE.test(k) && !/@showroom\.invalid$/i.test(k)) hits.push(path + '.<key> = ' + k);
@@ -191,6 +201,124 @@ function findEmails(value, hits, path) {
       findEmails(v, hits, (path ? path + '.' : '') + k);
     }
   }
+}
+
+/* --- SCRUB BLOCK END ----------------------------------------------------------- */
+
+/* ------------------------------------------------------------------- --emit ---- */
+/* WHY THIS EXISTS. The REST path above needs an access token, and the documented way
+   to get one is `gcloud auth print-access-token`. gcloud is NOT installed on Dragon,
+   which made step 3 of the go-live runbook impossible on the machine the rest of the
+   work happens on.
+   The owner already holds the credential that can do this: `allow write: if owner()`
+   on pools/{poolId}, and he is signed in on a board tab. So --emit prints the whole
+   copy as a console snippet, which is how close-stage.js already applies a write and
+   how guest-add.js grants a viewer. No new credential, no new install, nothing stored.
+   IT IS THE SAME SCRUB. The functions are spliced out of this file between the two
+   markers above rather than rewritten, because a second copy of a scrubber is a copy
+   that drifts, and the one that drifts is the one that misses a field.
+   IT REFUSES THE SAME THINGS. Production ids as targets, checked first; and the
+   re-scan, which refuses to write any document where an address survived. */
+function emit() {
+  const self = fs.readFileSync(__filename, 'utf8');
+  const a = self.indexOf('/* --- SCRUB BLOCK START');
+  const b = self.indexOf('/* --- SCRUB BLOCK END');
+  if (a < 0 || b < 0 || b <= a) {
+    console.error('REFUSED: the scrub block markers are missing from this file.');
+    process.exit(2);
+  }
+  /* Start AFTER the marker comment closes, not at the next newline: slicing from the
+     newline left the rest of that block comment dangling and unterminated, which is a
+     syntax error in the emitted snippet rather than a missing line. */
+  const afterMarker = self.indexOf('*/', a);
+  if (afterMarker < 0 || afterMarker > b) {
+    console.error('REFUSED: the scrub block marker comment is not closed.');
+    process.exit(2);
+  }
+  const scrubSrc = self.slice(afterMarker + 2, b).replace(/^\s*\n/, '');
+
+  const out = [];
+  const p = (l) => out.push(l);
+  p('/* SHOWROOM COPY. Paste the WHOLE block into a signed-in OWNER board console.');
+  p(' * DRY RUN FIRST: it reads production, scrubs, reports, and writes NOTHING until');
+  p(' * APPLY is set true and it is run again. Production is only ever READ.');
+  p(' */');
+  p('');
+  p('const APPLY = false;   // <- flip to true on the second run');
+  p('');
+  p('(async () => {');
+  p('  const PAIRS = ' + JSON.stringify(PAIRS) + ';');
+  p('  const NEVER_A_TARGET = ' + JSON.stringify(NEVER_A_TARGET) + ';');
+  p('  const COPY_COLLECTIONS = ' + JSON.stringify(COPY_COLLECTIONS) + ';');
+  p('  const EMAIL_RE = ' + String(EMAIL_RE) + ';');
+  p('');
+  p('  /* THE REFUSAL THAT MATTERS, before any work. A copy tool pointed the wrong way');
+  p('     is the one thing in this design that could overwrite four players\' season. */');
+  p('  for (const [src, dst] of Object.entries(PAIRS)) {');
+  p('    if (NEVER_A_TARGET.includes(dst)) { console.error("REFUSED: " + dst + " is a production pool."); return; }');
+  p('    if (src === dst) { console.error("REFUSED: " + src + " would copy onto itself."); return; }');
+  p('  }');
+  p('');
+  /* spliced, not rewritten */
+  scrubSrc.split('\n').forEach((l) => p(l ? '  ' + l : ''));
+  p('');
+  p('  let planned = 0, refused = 0;');
+  p('  for (const [src, dst] of Object.entries(PAIRS)) {');
+  p('    const snap = await db.doc("pools/" + src).get();');
+  p('    if (!snap.exists) { console.error("REFUSED: " + src + " does not exist."); return; }');
+  p('    const rep = [];');
+  p('    const pool = scrub(snap.data(), rep, "");');
+  p('    pool.showroom = true;');
+  p('    pool.name = (snap.data().name || src) + " (showroom)";');
+  p('    pool.copiedFrom = src;');
+  p('    pool.copiedAt = new Date();');
+  p('    if (!pool.viewers) pool.viewers = {};');
+  p('    delete pool.memberEmails;');
+  p('    /* EMPTY, never deleted: an absent members field makes inPool() an evaluation');
+  p('       error rather than a false. See the long note in this tool. */');
+  p('    pool.members = {};');
+  p('');
+  p('    const hits = [];');
+  p('    findEmails(pool, hits, "pool");');
+  p('    if (hits.length) { console.error("REFUSED " + dst + ": an address survived the scrub: " + hits[0]); refused++; continue; }');
+  p('    console.log(src + " -> " + dst + ": pool doc, " + rep.length + " value(s) scrubbed");');
+  p('    planned++;');
+  p('    if (APPLY) await db.doc("pools/" + dst).set(pool);');
+  p('');
+  p('    for (const coll of COPY_COLLECTIONS) {');
+  p('      const docs = await db.collection("pools/" + src + "/" + coll).get();');
+  p('      let blocked = 0;');
+  p('      for (const d of docs.docs) {');
+  p('        const r2 = [], h2 = [];');
+  p('        const clean = scrub(d.data(), r2, "");');
+  p('        findEmails(clean, h2, coll + "/" + d.id);');
+  p('        if (h2.length) { console.error("REFUSED " + coll + "/" + d.id + ": " + h2[0]); blocked++; continue; }');
+  p('        if (APPLY) await db.doc("pools/" + dst + "/" + coll + "/" + d.id).set(clean);');
+  p('      }');
+  p('      refused += blocked; planned += docs.size - blocked;');
+  p('      console.log("  " + coll + ": " + docs.size + " document(s)" + (blocked ? ", " + blocked + " REFUSED" : ""));');
+  p('    }');
+  p('    console.log("  engagement: skipped, its document ids are addresses");');
+  p('  }');
+  p('');
+  p('  if (!APPLY) { console.log((refused ? "REFUSED " + refused + ". " : "") + "DRY RUN: would write " + planned + " document(s). Nothing was written. Set APPLY = true and run it again."); return; }');
+  p('  console.log("WROTE " + planned + " document(s)" + (refused ? ", REFUSED " + refused : ""));');
+  p('');
+  p('  /* READ IT BACK. A write that returned is not a write that landed. */');
+  p('  for (const dst of Object.values(PAIRS)) {');
+  p('    const s2 = await db.doc("pools/" + dst).get();');
+  p('    if (!s2.exists) { console.error(dst + ": MISSING, the write did not land"); continue; }');
+  p('    const d2 = s2.data();');
+  p('    const stageCount = (await db.collection("pools/" + dst + "/stages").get()).size;');
+  p('    const draftCount = (await db.collection("pools/" + dst + "/drafts").get()).size;');
+  p('    console.log(dst, {');
+  p('      showroom: d2.showroom, members: Object.keys(d2.members || {}).length,');
+  p('      memberEmails: d2.memberEmails === undefined ? "dropped" : "STILL THERE",');
+  p('      viewers: Object.keys(d2.viewers || {}).length, order: (d2.order || []).join(">"),');
+  p('      stages: stageCount, drafts: draftCount });');
+  p('  }');
+  p('})();');
+  console.log(out.join('\n'));
 }
 
 /* --------------------------------------------------------------------- the run -- */
@@ -212,6 +340,7 @@ async function listDocs(poolId, coll) {
 
 async function main() {
   const args = process.argv.slice(2);
+  if (args.includes('--emit')) { emit(); return; }
   const apply = args.includes('--apply');
   const only = args.includes('--only') ? String(args[args.indexOf('--only') + 1] || '') : '';
 

@@ -15,7 +15,28 @@ cd C:\Users\bogie\cdf-guest
 node tools-rules-tests/run.js
 ```
 
-**Read-back:** `108/108 rules assertions passed` and `17/17 showroom-copy assertions
+and the second suite, which reproduces the live membership shapes rather than a clean
+fixture, and pairs every grant with a proof it denies when the grant is removed:
+
+```
+node_modules/.bin/firebase emulators:exec --only firestore "node tools-guest-access-test.js"
+```
+
+**Read-back:** `149 checks, 149 passed, 0 failed`.
+
+and the two static gates, which take a second each:
+
+```
+node tools-rules-guard.js
+```
+
+```
+node tools-guest-verify.js
+```
+
+**Read-back:** `25/25 invariants hold` and `66/66 checks passed`.
+
+**Read-back:** `108/108 rules assertions passed` and `19/19 showroom-copy assertions
 passed`, exit 0. If the emulator says port 8080 is taken, a previous run is still up:
 kill the `java` process on 8080 and re-run.
 
@@ -105,6 +126,19 @@ firebase deploy --only firestore:rules
 This needs your own Firebase login as `allen@ascentpartnersltd.com`. If it asks you to
 log in, CLAUDE.md has the `--no-localhost` procedure and the libuv crash to expect.
 
+**The Firebase CLI is not installed globally on Dragon and is not logged in there.**
+`cdf-guest` has a local copy at `node_modules/.bin/firebase`, used by the test suites,
+and `firebase login:list` on it says `No authorized accounts`. So either log that one in:
+
+```
+cd C:\Users\bogie\cdf-guest
+node_modules\.bin\firebase login
+node_modules\.bin\firebase deploy --only firestore:rules --project col-du-fantasy
+```
+
+or run the deploy from Gerald, which has done it before. Either way it is one sign-in,
+and it is the only step in this runbook that cannot be done from a board tab.
+
 **Read-back 1, the ruleset itself.** Read the live rules back and compare them with the
 repo copy, per CLAUDE.md: never trust the console, and never trust that the deploy
 printed success.
@@ -126,18 +160,49 @@ signature, and the fix is in `firestore.rules` at the `userPools` write.
 
 ## 3. Build the showrooms
 
-The copy tool reads production and writes the two copies. It needs a token, which **you**
-produce; the tool never reads your stored firebase login.
+The copy tool reads production and writes the two copies. Production is only ever read.
+
+**There are two ways to run it. Use the first one.**
+
+### 3a. The console snippet, which needs nothing installed
+
+```
+cd C:\Users\bogie\col-du-fantasy
+node tools/showroom-copy.js --emit
+```
+
+This writes nothing and talks to nothing. It prints a snippet to paste into a signed-in
+**owner** board console, which already holds the one credential that can do this:
+`allow write: if owner()` on `pools/{poolId}`. Same shape as `close-stage.js --emit` and
+`guest-add.js`.
+
+It is **dry run first**: `APPLY = false` at the top. Paste it, read what it says it would
+do, then set `APPLY = true` and paste it again.
+
+**Why this is the default route now:** the token route below wants
+`gcloud auth print-access-token`, and **gcloud is not installed on Dragon**. That made
+this step impossible on the machine the rest of the work happens on. The snippet uses the
+session you are already in.
+
+The snippet carries the **same scrub**, spliced out of the tool rather than rewritten, so
+the two cannot drift. `tools-guest-verify.js` parses the emitted snippet and asserts the
+splice is still there.
+
+**Read-back, dry run:** one line per pair, a document count per subcollection, how many
+values were scrubbed, and `DRY RUN: would write n document(s). Nothing was written.`
+**If it prints `REFUSED`, stop and read the line.** A refusal means an address survived
+the scrub and that document was not copied.
+
+**Read-back, apply:** `WROTE n document(s)` with the same `n`, then a printed summary per
+showroom: `showroom: true`, `members: 0`, `memberEmails: "dropped"`, the seat order, and
+the stage and draft counts. `members: 0` is not cosmetic. Anything in that map is a key
+that could match a caller, and membership is what grants a draft write.
+
+### 3b. The token route, if gcloud is ever installed
 
 ```
 cd C:\Users\bogie\col-du-fantasy
 $env:CDF_ADMIN_TOKEN = (gcloud auth print-access-token)
-```
-
-If `gcloud` is not installed, any access token for the project with Firestore write scope
-works. Check it is set without printing it:
-
-```
 powershell -c "if($env:CDF_ADMIN_TOKEN){'token set, '+$env:CDF_ADMIN_TOKEN.Length+' chars'}else{'NOT SET'}"
 ```
 
@@ -178,20 +243,44 @@ Inviting is a separate, deliberate act.
 
 The guest allowlist lives in `coldufantasy-login`, in `api/auth/[action].js`.
 
-**First, confirm whether anything needs changing at all.** `isMember(email)` already
-returns true for any address with a non-empty `userPools/{email}`, and step 5 writes
-exactly that. So a guest may already be able to request a sign-in code with no change.
-Verify against the deployed code rather than assuming:
+**A change IS needed, and it is already written and committed on branch `guest-access`
+in that repo. It is NOT pushed.**
+
+`isMember(email)` returned true for any address with a non-empty `userPools/{email}`,
+which is exactly what `guest-add.js` writes, so a guest could already get a sign-in code
+with no change at all. That is how it was left, and it was wrong.
+
+**An invitation expires. `userPools` does not.** The expiry lives in the showroom pool's
+`viewers` map; `userPools` is only a hint for the pool switcher and grants nothing. So a
+lapsed guest would keep getting a code, sign in, have every read refused by
+`firestore.rules`, and land on "You are not in a pool yet."
+
+Not a security hole. The rules are the boundary and were already denying them. It is the
+wrong **answer**: an expired guest must get the same silent nothing as anyone off the
+roster, and must get it before an email is sent.
+
+The fix resolves `userPools` rather than trusting it. Each pool it names is opened, and
+the address qualifies if it is a **member** of that pool (every player, unchanged) or a
+**live viewer** of it. A non-timestamp expiry is refused there exactly as the rule
+refuses it, so the two cannot drift. The two named-pool fallbacks stay for a member whose
+`userPools` entry was never written.
 
 ```
 cd C:\Users\bogie\coldufantasy-login
-git fetch origin && git status -sb
-node -e "const s=require('fs').readFileSync('api/auth/[action].js','utf8');console.log(/userPools\/' \+ email/.test(s)?'isMember reads userPools: no change needed':'CHECK: isMember does not read userPools')"
+git log --oneline -1 guest-access
+git diff main..guest-access -- "api/auth/[action].js"
 ```
 
-If no change is needed, skip to the read-back. If one is needed, make it, commit, push,
-and remember **Vercel deploys this repo from git**, confirmed by polling production until
-the route changes, which took about forty seconds.
+Read the diff, then push it. **Vercel deploys this repo from git**, confirmed by polling
+production until the route changed, which took about forty seconds.
+
+```
+git checkout main && git merge --ff-only guest-access && git push
+```
+
+**Read-back, the one that matters: a PLAYER must still be able to sign in.** This touches
+the allowlist every player goes through. Have a Grand Tour player and a Lowry City Rollers
+member each sign out and request a code, before any guest is invited.
 
 **Read-back:** with a test address that has a `userPools` entry, request a code and
 confirm one arrives. The endpoint always answers 204 so it never leaks membership, which
