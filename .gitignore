@@ -8,3 +8,10 @@ close-stage-*.snippet.js
 
 # Machine-readable close payloads, regenerated on demand alongside the snippet.
 close-stage-*.payload.json
+
+# Dev-only tooling for the guest access gate. The boards are static HTML and ship
+# nothing from here; node_modules is machine-specific and never committed.
+node_modules/
+package-lock.json
+firebase-debug.log
+firestore-debug.log

@@ -1,0 +1,14 @@
+{
+  "name": "col-du-fantasy-tools",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Dev-only tooling for the Col du Fantasy boards. Nothing here is served; the boards are static HTML. This file exists so the Firestore rules suite can import the official testing library instead of hand-rolling an evaluator.",
+  "type": "commonjs",
+  "scripts": {
+    "guest-access-test": "node tools-guest-access-test.js"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "firebase-tools": "^15.36.0"
+  }
+}

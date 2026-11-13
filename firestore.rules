@@ -33,6 +33,48 @@ service cloud.firestore {
     function poolSeat(poolId)    { return poolCfg(poolId).members[em()]; }
     function predsLocked(poolId) { return poolCfg(poolId).predictionsLocked == true; }
 
+    /* --- GUEST ACCESS, added 2026-11-13 ---------------------------------------------
+       A guest is NEVER in a pool members map, and that is structural rather than tidy.
+       Every member may write pools/{poolId}/drafts, so a guest in members on a
+       production pool could change real picks; and the members map IS email to seat, so
+       anyone who can read the pool doc reads the other players addresses.
+       Guests are listed in viewers, which ONLY the showroom and demo pools carry. No
+       production pool has the field, so every statement below is unreachable on
+       col-du-fantasy and vuelta-2026 as a matter of DATA, not of a condition a reader
+       has to evaluate correctly. Same reasoning as the sex filter living in the persona
+       rows rather than in the draw.
+       viewers maps a guest email to the ISO date their access ENDS, inclusive of that
+       day. Rules cannot parse a date string, so it is compared as a YYYYMMDD integer. A
+       malformed or short value fails the size test or makes int() error, and either way
+       the statement DENIES, which is the direction this project fails in on purpose. */
+    function ymd(d)   { return int(d.split('-')[0]) * 10000 + int(d.split('-')[1]) * 100 + int(d.split('-')[2]); }
+    function nowYmd() { return request.time.year() * 10000 + request.time.month() * 100 + request.time.day(); }
+    function viewerMap(poolId) { return poolCfg(poolId).viewers; }
+    function isViewer(poolId) {
+      return signedIn() && poolExists(poolId)
+        && ('viewers' in poolCfg(poolId))
+        && (em() in viewerMap(poolId))
+        && viewerMap(poolId)[em()] is string
+        && viewerMap(poolId)[em()].size() == 10
+        && nowYmd() <= ymd(viewerMap(poolId)[em()]);
+    }
+    /* A demo pool is the only place a guest may write anything. The seat comes from
+       viewerSeats and NOT from members, so inPool() stays false for a guest and every
+       member-gated statement above stays dead for them. */
+    /* The 'demo' in ... guard is not decoration. Without it, a pool with no demo flag
+       made this an EVALUATION ERROR rather than a false. It denied either way, but an
+       error that happens to deny is not the same claim as a rule that denies, and the
+       next error at the same line would be indistinguishable from this one. */
+    function isDemoPool(poolId)  { return ('demo' in poolCfg(poolId)) && poolCfg(poolId).demo == true; }
+    function hasDemoSeat(poolId) { return isDemoPool(poolId) && ('viewerSeats' in poolCfg(poolId)) && (em() in poolCfg(poolId).viewerSeats); }
+    function demoSeat(poolId)    { return poolCfg(poolId).viewerSeats[em()]; }
+    function allFourPreds(poolId) {
+      return exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JJ)
+        && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JB)
+        && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JP)
+        && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/AA);
+    }
+
     match /pools/{poolId} {
       allow read:  if owner() || (signedIn() && em() in resource.data.members);
       allow write: if owner();
@@ -42,22 +84,45 @@ service cloud.firestore {
         && request.resource.data.personaLedger.order is list
         && request.resource.data.personaLedger.by is map
         && request.resource.data.personaLedger.seen is map;
+      /* Added LAST on purpose: Firestore stops at the first granting statement, so a
+         production read is answered by the members statement above and never evaluates
+         a guest condition or pays for its get(). */
+      allow read: if isViewer(poolId);
+      /* The reveal lock, for a demo pool only. The predictionsLocked statement above is
+         untouched; this is a sibling with the SAME four existence checks, so a guest own
+         fourth submission fires the lock exactly the way a player submission does. */
+      allow update: if isViewer(poolId) && hasDemoSeat(poolId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['predictionsLocked']) && request.resource.data.predictionsLocked == true && allFourPreds(poolId);
       match /drafts/{stage} {
         allow read:  if poolMember(poolId);
         allow write: if poolMember(poolId);
+        allow read:  if isViewer(poolId);
+        /* A draft document holds all four seats in one picks array, so a rule cannot
+           cheaply scope a write to one seat. In a demo pool the other three seats are
+           bots in a throwaway copy, so this is an ACCEPTED trade and not an oversight,
+           the same way the personaLedger rule accepts cross-seat writes in a four
+           person pool. It grants nothing in a showroom pool, which has no demo flag. */
+        allow write: if isViewer(poolId) && hasDemoSeat(poolId);
       }
       match /stages/{stage} {
         allow read:  if poolMember(poolId);
         allow write: if owner();
+        allow read:  if isViewer(poolId);
       }
       match /engagement/{doc} {
         allow read:           if poolMember(poolId);
         allow create, update: if inPool(poolId) && doc == em();
         allow delete:         if owner();
+        allow read:           if isViewer(poolId);
       }
       match /predictions/{seat} {
       allow read:  if poolMember(poolId) && ( poolSeat(poolId) == seat || predsLocked(poolId) );
       allow write: if inPool(poolId) && poolSeat(poolId) == seat && !predsLocked(poolId);
+      /* The privacy rule is MIRRORED rather than relaxed: a guest sees another seat
+         predictions only once the pool is locked, which is the behaviour the feature is
+         being shown off for. Before the lock a guest sees their own demo seat and
+         nothing else, and in a showroom they have no seat, so they see nothing. */
+      allow read:  if isViewer(poolId) && ( predsLocked(poolId) || ( hasDemoSeat(poolId) && demoSeat(poolId) == seat ) );
+      allow write: if isViewer(poolId) && hasDemoSeat(poolId) && demoSeat(poolId) == seat && !predsLocked(poolId);
       }
           }
 
