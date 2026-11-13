@@ -3823,16 +3823,43 @@ one a list would miss, because it is set from the drafting session's own email d
 a picks array. So every value is walked recursively, anything email-shaped is replaced,
 and the result is RE-SCANNED. A surviving address refuses that document.
 
-A map KEYED by email keeps its value and loses its key: `members` stays a seat mapping
-with `jj@showroom.invalid` in place of a person. `engagement` is NOT copied at all,
-because its document IDS are addresses and nothing a viewer sees reads it.
+A map KEYED by email keeps its value and loses its key. `engagement` is NOT copied at
+all, because its document IDS are addresses, no id is scrubbable without breaking the
+`doc == em()` write rule it depends on, and nothing a viewer sees reads it.
+
+`members` IS A SPECIAL CASE AND IS EMPTIED, not scrubbed into placeholders. The first
+build put `jj@showroom.invalid` in place of each person and kept the seat mapping. Two
+reasons that was wrong. `inPool()` is what grants WRITE on `pools/{poolId}/drafts`, so
+anything in that map is a key that could one day match a signed-in caller, and keeping a
+guest out of `members` is the entire point of the viewer role. And the placeholders
+COLLIDED SILENTLY: they were built from the seat, so the two addresses that both hold AA
+in col-du-fantasy produced one key and the second overwrote the first. Nothing needs the
+map anyway: the board renders seats from `order` and `names`, and `members` is read only
+by `myCode`, which must be null for a guest.
+
+IT IS SET TO AN EMPTY MAP, NEVER DELETED. A pool document with no `members` field makes
+`em() in poolCfg(poolId).members` an EVALUATION ERROR rather than a false, proved on the
+emulator: "Property members is undefined on object". It denies either way, but an error
+that happens to deny is not the same claim as a rule that denies. `inPool()` is a
+production function and is not being touched to paper over a field the copy tool owns.
 
 CREDENTIALS ARE SUPPLIED, NEVER DISCOVERED. It takes a token from `CDF_ADMIN_TOKEN` and
 deliberately does not read the firebase CLI's stored login. With `FIRESTORE_EMULATOR_HOST`
 set it runs against the emulator, which is how it was tested end to end.
 
-`tools/showroom-invite.js` prints the console snippet that grants or revokes one viewer.
-It writes nothing itself. THE VIEWER KEY IS WRITTEN THROUGH `FieldPath`, NOT A DOTTED
+`tools/guest-add.js` and `tools/guest-remove.js` print the console snippet that grants or
+revokes one viewer. They write nothing themselves, and the snippet is DRY RUN FIRST:
+`APPLY = false` at the top, a read and a report, and nothing written until it is set true
+and run again. Each one ends with a READ-BACK, because a write that returned is not a
+write that landed.
+
+THE SNIPPET REFUSES AN ADDRESS THAT IS ALREADY IN SOME POOL'S `members` MAP, and that
+check has to live in the snippet rather than in the tool, because only a signed-in owner
+can read every members map. A guest who is also a member holds BOTH grants and the member
+one can write a draft, so a test with such an address proves nothing about guests. It is
+why the test guest in GO-LIVE-GUESTS.md is `info@ascentpartnersltd.com`, an address in no
+pool at all. `guest-remove.js` refuses a member too: that is a player, and removing one is
+a different and much larger decision than revoking a guest. THE VIEWER KEY IS WRITTEN THROUGH `FieldPath`, NOT A DOTTED
 STRING: a dotted path cannot carry an email, and escaping the dots does not save it,
 because the JavaScript parser resolves `\u002e` before Firestore sees the string, so
 `viewers.a@b\u002ecom` arrives as `viewers.a@b.com` and writes a NESTED map. The
@@ -3841,8 +3868,17 @@ sub-map. Found by reading the tool's own output, and guarded in `tools-guest-ver
 
 ### Rules tests, on the real emulator
 
-`node tools-rules-tests/run.js` starts the Firestore emulator, runs both suites and stops
-it. 97 rules assertions and 17 for the copy tool. THE DEPLOY IS NO LONGER THE COMPILE STEP
+THERE ARE TWO SUITES AND THEY ARE NOT DUPLICATES. `node tools-rules-tests/run.js` starts
+the emulator and runs 108 rules assertions plus 19 for the copy tool. Then, separately,
+`node_modules/.bin/firebase emulators:exec --only firestore "node tools-guest-access-test.js"`
+runs 149 checks that reproduce the LIVE MEMBERSHIP SHAPES rather than a clean fixture: a
+seated member off the roster, an unseated one, a seated roster reviewer, and one seat held
+by two addresses in two pools. EVERY GRANT IN THAT SUITE IS PAIRED WITH ITS REMOVAL,
+because twice on this project a denial was reported as proof a rule worked and both times
+it was default-deny from no matching rule. A denial proves nothing about WHICH rule denied.
+`node tools-rules-guard.js` is the cheap static gate over the same file, 25 invariants, and
+`node tools-guest-verify.js` is 57 checks over the BUILT boards, both of them, not just the
+Vuelta. THE DEPLOY IS NO LONGER THE COMPILE STEP
 and four players are no longer the canary.
 
 It needs a JDK, which was installed for this: `winget install EclipseAdoptium.Temurin.21.JDK`.
@@ -3882,11 +3918,26 @@ A plain GUEST VIEW pill, two words, built only for a viewer and absent from the 
 HTML. No name and no expiry: that is account state, and account state belongs in
 diagnostics.
 
-STILL HELD, at Allen's instruction: the guest login allowlist in `coldufantasy-login`.
-`isMember()` there returns true for any email with a non-empty `userPools/{email}`, which
-is what the invite writes, so a guest can already be sent a sign-in code with NO change to
-that repo. It is listed as Phase 1 work because it should be CONFIRMED against the
-deployed code rather than assumed from reading it.
+### The login allowlist, and the expiry it was missing
+
+`isMember()` in `coldufantasy-login` returned true for any address with a non-empty
+`userPools/{email}.pools`, which is exactly what the invite writes. That is how a guest
+gets a sign-in code with no roster change at all, and it is also what was WRONG.
+
+An invitation expires. The expiry lives in the showroom pool's `viewers` map; `userPools`
+is only a hint for the pool switcher, grants nothing, and does not expire. So a lapsed
+guest kept getting a code, signed in, had every read refused by firestore.rules, and
+landed on "You are not in a pool yet." Not a security hole, because the rules are the
+boundary and were already denying them. The wrong ANSWER: an expired guest must get the
+same silent nothing as anyone off the roster, and must get it before an email is sent.
+
+`userPools` is now RESOLVED rather than trusted. Each pool it names is opened and the
+address qualifies if it is a member of that pool, unchanged for every player, or a LIVE
+viewer of it. A non-timestamp expiry is refused there exactly as the rule refuses it, so
+the two cannot drift. The two named-pool fallbacks stay for a member whose `userPools`
+entry was never written.
+
+That change is on branch `guest-access` in the login repo and is NOT pushed.
 
 ## Per-race scoring profiles
 

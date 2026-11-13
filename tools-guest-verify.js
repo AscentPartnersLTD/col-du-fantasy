@@ -158,16 +158,88 @@ console.log('\nTHE INVITE SNIPPET');
 /* Comments stripped first. The tool EXPLAINS the dotted-path bug in its own header,
    so a gate reading the raw file finds the very string it is forbidding and fails on
    a correct file. Same mistake as matching "pool.members is GONE" one section up. */
-const INVITE_RAW = fs.readFileSync(path.join(REPO, 'tools', 'showroom-invite.js'), 'utf8');
-const INVITE = INVITE_RAW.replace(/\/\*[\s\S]*?\*\//g, ' ');
+/* showroom-invite.js was SPLIT into guest-add.js and guest-remove.js, the two names the
+   brief and the runbook use. Both are checked, because a revocation that silently does
+   nothing is worse than one that errors. */
+const ADD_RAW = fs.readFileSync(path.join(REPO, 'tools', 'guest-add.js'), 'utf8');
+const RM_RAW = fs.readFileSync(path.join(REPO, 'tools', 'guest-remove.js'), 'utf8');
+const ADD = ADD_RAW.replace(/\/\*[\s\S]*?\*\//g, ' ');
+const RM = RM_RAW.replace(/\/\*[\s\S]*?\*\//g, ' ');
 check('the invite writes viewers through FieldPath',
-  /new FP\('viewers', '/.test(INVITE),
+  /new FP\("viewers", EMAIL\)/.test(ADD),
   'segments unparsed, the idiom the board already uses');
-check('it never emits a dotted viewers path', !/'viewers\./.test(INVITE),
+check('it never emits a dotted viewers path', !/["']viewers\./.test(ADD),
   'that would write viewers -> a@b -> com');
-check('revocation is a key removal', /FV\.delete\(\)/.test(INVITE));
-check('an invitation must carry an expiry', /an expiry date is required/.test(INVITE_RAW));
-check('a past expiry is refused', /is in the past/.test(INVITE_RAW));
+check('revocation is a key removal', /FV\.delete\(\)/.test(RM));
+check('an invitation must carry an expiry', /an expiry date is required/.test(ADD_RAW));
+check('a past expiry is refused', /is in the past/.test(ADD_RAW));
+/* THE REFUSAL THE BRIEF ASKED FOR. A guest who is also a member holds the member grant
+   too, and that is a draft WRITE. The check has to run in the owner's session because
+   only an owner can read every members map, so it lives inside the emitted snippet. */
+check('the invite refuses an address already in some pool members map',
+  /already a MEMBER of/.test(ADD) && /db\.collection\("pools"\)\.get\(\)/.test(ADD),
+  'read live, in the owner session, before anything is written');
+check('the revoke refuses to touch a member too', /is a MEMBER of/.test(RM),
+  'that is a player, and removing one is a different decision');
+check('both snippets are dry run first',
+  /const APPLY = false/.test(ADD) && /const APPLY = false/.test(RM),
+  'the destructive direction is never what a forgotten flag gives you');
+check('both snippets read back what they wrote',
+  /the write did not land/.test(ADD) && /the write did not land/.test(RM),
+  'a write that returned is not a write that landed');
+check('the expiry is written as a real Date, not an ISO string',
+  /UNTIL = new Date\(/.test(ADD),
+  'firestore.rules requires `is timestamp` by name');
+check('the owner cannot be invited as a guest of his own boards',
+  /that is the owner address/.test(ADD_RAW));
+
+/* ===================================================================================
+   THE TOUR BOARD, which this gate did not look at until now.
+   tour.html, index.html and tour-staging.html are all built from board.src.html, and
+   POOL_PAGE sends tour-showroom to tour.html. So a guest opening the Tour showroom gets
+   a DIFFERENT file with its own write sites: no jersey predictions, no Kassei, no pool
+   subscription, but a snake draft, a Merica side game and a bump control that the
+   Vuelta checks above say nothing about.
+   Checking only the Vuelta and calling the feature verified is the exact shape of
+   "a partial feed is not a feed".
+   =================================================================================== */
+console.log('\nTHE TOUR BOARD (board.src.html -> tour.html)');
+const TOUR = fs.readFileSync(path.join(REPO, 'tour.html'), 'utf8');
+check('CAN_PLAY exists on the Tour board', /function CAN_PLAY\(\)\{ return !!myCode \|\| isOwner; \}/.test(TOUR),
+  'the same one predicate, not a second idea of who may play');
+check('isGuest is derived from the viewers map',
+  /isGuest=\(!isOwner && !myCode && !!\(\(pool\.viewers\|\|\{\}\)\[myEmail\]\)\)/.test(TOUR));
+check('isGuest is reset when a session signs in', /\n  isGuest=false;/.test(TOUR),
+  'so switching back from a showroom cannot carry the flag');
+check('the snake draft pick is gated', /async function submitPick\(forCode,label\)\{ if\(!CAN_PLAY\(\)\) return;/.test(TOUR));
+check('the judge bump is gated', /async function doBump\(\)\{ if\(!CAN_PLAY\(\)\) return;/.test(TOUR));
+check('opening a missing draft is gated', /if\(!snap\.exists\)\{ if\(CAN_PLAY\(\)\)\{/.test(TOUR));
+check('rewriting the pick order is gated', /JSON\.stringify\(ORDER\)\)\{ if\(CAN_PLAY\(\)\)\{/.test(TOUR));
+check('the Merica pick is gated', /if\(!CAN_PLAY\(\) \|\| isOut\)\{ window\.__merOpen=r;/.test(TOUR),
+  'and still opens the bio, which is the observer experience');
+check('the userPools write is gated', /if\(CAN_PLAY\(\)\)\{ db\.doc\('userPools\/'\+myEmail\)/.test(TOUR));
+check('the Tour live draft builds NO node for a guest',
+  /if\(isGuest\)\{\s*if\(done && picks\.length\)\{ renderMini\(picks\); return; \}/.test(TOUR),
+  'mount emptied and returned, not hidden');
+check('the Tour guest branch sits ABOVE the draft-done POST',
+  TOUR.indexOf('if(isGuest){') < TOUR.indexOf('__cdfDonePing'),
+  'so a watcher never fires it');
+check('the Tour board has the guest pill mount', /<div id="guestPill"><\/div>/.test(TOUR));
+check('the Tour pill is built only for a viewer',
+  /gp\.innerHTML = isGuest/.test(TOUR));
+check('tour-showroom routes to the Tour board',
+  /'tour-showroom':'\/tour\.html'/.test(TOUR) && /'vuelta-showroom':'\/vuelta\.html'/.test(TOUR),
+  'POOL_PAGE, which poolHref and the reroute both call');
+check('the Vuelta board routes the showrooms too',
+  /'tour-showroom':'\/tour\.html'/.test(SRC) && /'vuelta-showroom':'\/vuelta\.html'/.test(SRC),
+  'both files carry the map; a guest can land on either');
+/* index.html and tour.html must stay byte-identical, which build_boards.py guarantees
+   and nothing else checks once a hand edit is possible. */
+check('index.html is still byte-identical to tour.html',
+  fs.readFileSync(path.join(REPO, 'index.html'), 'utf8') === TOUR);
+check('the showroom manifests exist',
+  fs.existsSync(path.join(REPO, 'tour-showroom.webmanifest')) &&
+  fs.existsSync(path.join(REPO, 'vuelta-showroom.webmanifest')));
 
 console.log('\nTHE SPONSOR BAND');
 check('an empty sponsor list renders nothing at all',

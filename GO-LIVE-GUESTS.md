@@ -199,17 +199,33 @@ means **the email arriving is the only proof**, not the HTTP status.
 
 ---
 
-## 5. End to end, with your own test address, before any real guest
+## 5. End to end, with the test address, before any real guest
 
-Use a personal address you control. Nothing from Life Time or THEMOVE yet.
+**The test guest is `info@ascentpartnersltd.com`, and the reason is not arbitrary: it is
+an address that is in NO pool's `members` map.** That matters more than it looks.
+
+A member can write `pools/{poolId}/drafts`. If the test address is also somebody's seat
+anywhere, it holds the member grant AND the viewer grant at once, and a test that passes
+proves nothing about what a guest can do: it proves what a member can do. Your personal
+Gmail is a member of all four pools, so it cannot be the test guest.
+
+`info@ascentpartnersltd.com` also shares a domain with the owner address, and the rules
+compare the owner EXACTLY. The emulator suite proves another address on that domain gets
+no owner rights, so this run is the live confirmation of the same thing.
+
+`guest-add.js` enforces this rather than trusting it: the snippet it prints reads every
+pool's members map before writing anything, and refuses outright if the address is a
+member of any of them.
 
 ```
 cd C:\Users\bogie\col-du-fantasy
-node tools/showroom-invite.js you+guesttest@gmail.com "Test Guest" 2027-01-31
+node tools/guest-add.js info@ascentpartnersltd.com "Test Guest" 2027-01-31
 ```
 
-Paste the printed snippet into a signed-in **owner** board console. It prints its own
-read-back; expect a timestamp for that address on both showrooms.
+Paste the printed snippet into a signed-in **owner** board console. It is **dry run
+first**: it reads, prints what it would do, and writes nothing until you set
+`APPLY = true` and run it again. The second run prints its own read-back; expect a
+timestamp for that address on both showrooms.
 
 Then, **in a browser where you are not signed in as yourself** (a private window is
 enough, since the session cookie is per-browser):
@@ -240,10 +256,11 @@ enough, since the session cookie is per-browser):
 Then revoke and prove revocation works:
 
 ```
-node tools/showroom-invite.js --revoke you+guesttest@gmail.com
+node tools/guest-remove.js info@ascentpartnersltd.com
 ```
 
-Paste it, then reload the guest's board. **Read-back:** refused.
+Paste it, run the dry run, then set `APPLY = true` and run it again. Reload the guest's
+board. **Read-back:** refused.
 
 ---
 
@@ -252,10 +269,15 @@ Paste it, then reload the guest's board. **Read-back:** refused.
 One at a time, each with an expiry date you choose:
 
 ```
-node tools/showroom-invite.js <address> "<Name>" <YYYY-MM-DD>
+node tools/guest-add.js <address> "<Name>" <YYYY-MM-DD>
 ```
 
-Paste each snippet into an owner console and check its read-back before doing the next.
+Paste each snippet into an owner console, run the dry run, then set `APPLY = true` and
+run it again. Check its read-back before doing the next one.
+
+If a snippet refuses with "is already a MEMBER of", that address belongs to a player.
+Do not work around it: pick another address. A guest who is also a member can write a
+draft, which is the one thing this whole design exists to prevent.
 
 **Read-back, all of them at once:**
 
@@ -274,7 +296,7 @@ Expect one line per guest with a future date.
 - `https://coldufantasy.com/vuelta.html?pool=vuelta-showroom`
 - `https://coldufantasy.com/tour.html?pool=tour-showroom`
 
-**To remove one:** `node tools/showroom-invite.js --revoke <address>`, paste, and confirm
+**To remove one:** `node tools/guest-remove.js <address>`, paste, and confirm
 their key is gone from both maps. Access stops on their next request; the rule reads the
 map, so removing the key is the whole revocation. Expiry does the same thing on its own
 if you forget.
