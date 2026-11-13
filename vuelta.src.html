@@ -901,6 +901,8 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
     <div class="mast-t">
       <div class="h">COL DU <span>FANTASY</span></div>
       <div class="s">Vuelta a España 2026 Edition</div>
+      <!-- Guest view pill. Empty in the served HTML; only a viewer session builds it. -->
+      <div id="guestPill"></div>
     </div>
     <div class="race-ind">
       <span class="cap">This race</span>
@@ -1192,6 +1194,12 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
       .opc-picks{font-size:13px;line-height:1.5;margin-top:2px}
       .opc-sub{font-size:11.5px;color:var(--mute);margin-top:2px}
       .opc-warn{margin-top:11px;padding:11px 12px;border-radius:10px;background:rgba(178,31,43,.08);border:1px solid rgba(178,31,43,.35);font-size:13px;line-height:1.55;color:var(--ink)}
+      .gv-pill{display:inline-flex;align-items:center;gap:6px;margin-top:7px;
+        font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;
+        letter-spacing:.12em;font-size:9.5px;color:var(--ink);
+        background:var(--paper2);border:1px solid var(--line2);
+        border-radius:999px;padding:4px 11px}
+      .gv-dot{width:6px;height:6px;border-radius:50%;background:var(--red);flex:none}
       .opc-read{margin-top:10px}
       .opc-rl{font-size:12px;color:var(--mute);line-height:1.45;margin-bottom:4px}
       .opc-ta{width:100%;box-sizing:border-box;font:inherit;font-size:16px;line-height:1.45;
@@ -2236,12 +2244,37 @@ function wireRiderSearch(input,ac,onPick,opts){
   input.addEventListener('blur',function(){ setTimeout(close,150); });
 }
 let myEmail=null,isOwner=false,poolId=null,pool=null,STAGE=null,ORDER=[],SNAKE=[],PMETA={},JUDGE=null,myCode=null,isJudge=false,draft=null,unsub=null,chosen=null;
+/* A VIEWER is an OBSERVER: the whole reading experience, and no way to change the game.
+   They are only ever on a SHOWROOM pool, a copy that carries no real addresses, so the
+   production pools are untouched by any of this and their existing members rule already
+   denies a viewer outright.
+   isGuest is DERIVED from the pool's `viewers` map, the same shape `members` already
+   has. It was a server-minted claim while the plan had guests reading production; with a
+   showroom there is nothing for a claim to protect that the copy does not already.
+   NOT A SECURITY BOUNDARY, and it does not need to be: every write is refused by the
+   rules, and the worst a viewer can do by editing this flag in devtools is render a
+   COPIED draft card. Same class as client-side isOwner, which renders the operator card
+   and can do nothing with it.
+   CAN_PLAY IS THE ONE PREDICATE. It gates exactly one question: can this session change
+   the GAME. Not "does it write" - a chart toggle or a remembered tab is a write to
+   localStorage and is nobody else's business. Every game write and every pick-entry
+   surface asks CAN_PLAY; nothing in the reading experience does.
+   It is a function rather than a constant because myCode is resolved asynchronously
+   after loadPool, and a constant captured at parse time would be false forever. */
+let isGuest=false, guestMeta=null;
+function CAN_PLAY(){ return !!myCode || isOwner; }
+window.__canPlay=CAN_PLAY;
 const DEFAULT_POOL='{{DEFAULT_POOL}}';
 // Pool routing. A pool with its own skinned board file must open THAT file: the
 // switcher used to send every pool to the generic /board.html, so the Vuelta
 // loaded its data inside the Tour's gold shell. boardPath on the pool doc wins
 // when set; POOL_PAGE is the fallback so routing is correct with no data edit.
-const POOL_PAGE={'col-du-fantasy':'/tour.html','vuelta-2026':'/vuelta.html'};
+const POOL_PAGE={'col-du-fantasy':'/tour.html','vuelta-2026':'/vuelta.html',
+  /* The SHOWROOM copies are read by invited viewers and share the production
+     boards: the board file is the same, only the pool id differs, and the id
+     arrives as ?pool=. Both entries are needed by poolHref(), which is what the
+     account switcher and the not-a-member reroute both call. */
+  'tour-showroom':'/tour.html','vuelta-showroom':'/vuelta.html'};
 function poolHref(pid,path){ var p=path||POOL_PAGE[pid]||'/board.html'; return location.origin+p+'?pool='+encodeURIComponent(pid); }
 // True when this page is already the right board file for that pool. Lets the
 // checked entry still navigate when the pool is right but the shell is wrong.
@@ -2296,6 +2329,9 @@ auth.onAuthStateChanged(async user=>{
   try{ showLoading('Loading your board...'); }catch(e){}
   var _idr=null; try{ _idr=await user.getIdTokenResult(); }catch(e){}
   myEmail=(((_idr&&_idr.claims&&_idr.claims.email)||user.email||'').toLowerCase()); isOwner=(myEmail===OWNER_EMAIL);
+  /* isGuest is not known yet: it comes from the pool document, so it is set in
+     loadPool once `pool` and `myCode` are both resolved. */
+  isGuest=false;
   // Roster heal (2026-07-19): idempotent owner-only repairs. Runs in the
   // BACKGROUND (not awaited) so a slow or hung Firestore write on mobile can
   // never stall the board load. Allen plays AA under a second email the
@@ -2319,7 +2355,7 @@ auth.onAuthStateChanged(async user=>{
     diag('pool='+id+', loading...');
     await withTimeout(loadPool(id), 12000, 'loadPool(pools/'+id+')');
     diag('pool loaded, building board...');
-    if(myCode){ db.doc('userPools/'+myEmail).set({pools:FV.arrayUnion(poolId)},{merge:true}).catch(()=>{}); }
+    if(CAN_PLAY()){ db.doc('userPools/'+myEmail).set({pools:FV.arrayUnion(poolId)},{merge:true}).catch(()=>{}); }
     const CDF=await withTimeout(buildCDF(), 15000, 'buildCDF');
     diag('board built, revealing');
     document.documentElement.classList.remove('gated'); document.body.classList.remove('gated');
@@ -2498,6 +2534,16 @@ async function buildAcctMenu(){
     var fab=$('acctFab'); if(!fab) return;
     var who=$('acctWho'); if(who) who.textContent=myEmail||'';
     var ft=$('acctFabTxt'); if(ft) ft.textContent=(myCode || (myEmail? myEmail[0].toUpperCase() : 'CDF'));
+  /* THE GUEST VIEW PILL. Built only for a viewer, so a player and the owner get no
+     node at all rather than a hidden one. Deliberately two words: naming the reader or
+     printing an expiry would put account state on the board, which is what diagnostics
+     are for. */
+  (function(){
+    var gp=$('guestPill'); if(!gp) return;
+    gp.innerHTML = isGuest
+      ? '<span class="gv-pill"><span class="gv-dot"></span>Guest view</span>'
+      : '';
+  })();
     var pools=[];
     if(isOwner){ var all=await db.collection('pools').get(); all.forEach(function(d){ pools.push({id:d.id,name:(d.data().name||d.id),path:(d.data().boardPath||'')}); }); }
     else { var idx=await db.doc('userPools/'+myEmail).get(); var list=(idx.exists&&idx.data().pools)||[];
@@ -2597,6 +2643,11 @@ async function loadPool(id){
   SNAKE=ORDER.concat(ORDER.slice().reverse()); JUDGE=pool.judge||null;
   PMETA={}; { const seats=ORDER.slice().sort(); ORDER.forEach(c=>{ PMETA[c]={n:(pool.names&&pool.names[c])||c,c:PALETTE[seats.indexOf(c)%PALETTE.length]}; }); }
   myCode=(pool.members||{})[myEmail]||null; isJudge=(myCode&&myCode===JUDGE);
+  /* A VIEWER holds no seat and is named in `viewers`. Both halves are required: a
+     seated player on a showroom pool is a player there, and the owner is never a
+     viewer of his own board. */
+  isGuest=(!isOwner && !myCode && !!((pool.viewers||{})[myEmail]));
+  guestMeta=isGuest?{email:myEmail, until:((pool.viewers||{})[myEmail])}:null;
 }
 /* Shared race intel for the upcoming stage (same for every pool). Update per stage until the
    boards are unified (Phase 2); mirrors the master's UPCOMING route/type/km/intel. */
@@ -2856,6 +2907,9 @@ function subscribePool(){
     JUDGE=p.judge||null;
     PMETA={}; { const seats=ORDER.slice().sort(); ORDER.forEach(c=>{ PMETA[c]={n:(p.names&&p.names[c])||c,c:PALETTE[seats.indexOf(c)%PALETTE.length]}; }); }
     myCode=(p.members||{})[myEmail]||null; isJudge=(myCode&&myCode===JUDGE);
+    /* The viewers map can change under an open session, the same way the order can, so
+       the viewer state follows the document rather than being fixed at boot. */
+    isGuest=(!isOwner && !myCode && !!((p.viewers||{})[myEmail]));
     if(ORDER.join(',')!==beforeOrder){
       /* Say it out loud. A session silently changing its mind about the pick order is
          exactly as confusing as one silently refusing to. */
@@ -2871,13 +2925,14 @@ function subscribePool(){
 function subscribe(){
   if(unsub) unsub();
   unsub=draftRef().onSnapshot(async snap=>{
-    if(!snap.exists){ if(isOwner||myCode){ try{ await draftRef().set(draftInit()); }catch(e){ $('draftMount').innerHTML=warn('Could not open the draft: '+esc(e.message)); } return; } $('draftMount').innerHTML='<div class="draft"><div class="allin"><div class="sm">The draft has not been opened yet.</div></div></div>'; return; }
+    if(!snap.exists){ if(CAN_PLAY()){ try{ await draftRef().set(draftInit()); }catch(e){ $('draftMount').innerHTML=warn('Could not open the draft: '+esc(e.message)); } return; } $('draftMount').innerHTML='<div class="draft"><div class="allin"><div class="sm">The draft has not been opened yet.</div></div></div>'; return; }
     draft=snap.data();
     try{ window.__livePicks={stage:Number(draft.n||STAGE), picks:(draft.picks||[]).map(function(p){return {p:p.player, rider:p.rider};})}; }catch(e){}
     noteSnapshot(draft);
     if(draft.status==='pending'&&(draft.picks||[]).length===0&&JSON.stringify(draft.order||[])!==JSON.stringify(ORDER)){
-      if(isOwner||myCode){
+      if(CAN_PLAY()){
         if(mayResetDraft()){
+          if(!CAN_PLAY()) return;   /* a watcher never rewrites the pick order */
           noteResetAttempt(); window.__draftDiag.resets++;
           /* LOGGED, both ways. The silent catch here is half the reason a 750-writes-a-
              minute storm ran unnoticed: the failure said nothing and the success said
@@ -3050,7 +3105,7 @@ function renderMerica(){
       const r=ch.getAttribute('data-r');
       const isOut=ch.getAttribute('data-out')==='1';
       // abandoned riders: open the bio for reading, never selectable (Allen, 2026-07-23)
-      if(!myCode || isOut){ window.__merOpen=r; renderMerica(); return; }
+      if(!CAN_PLAY() || isOut){ window.__merOpen=r; renderMerica(); return; }
       if(!draft) return;
       window.__merOpen=null; // a real pick clears any bio-preview so the top card shows your call
       try{ await draftRef().update(new firebase.firestore.FieldPath('merica', myCode), r); }
@@ -3217,6 +3272,7 @@ async function jpSave(){
   if(!JP_JERSEYS.every(function(j){ return picks[j.k]; })){
     if(msg) msg.textContent='All four jerseys need a rider before this can be submitted.'; return;
   }
+  if(!CAN_PLAY()){ if(msg) msg.textContent='Only pool seats can submit picks.'; return; }
   JP_BUSY=true; if(msg) msg.textContent='Saving...';
   try{
     picks.seat=myCode; picks.at=Date.now();
@@ -3241,6 +3297,7 @@ async function jpSave(){
    not by the database: every seat runs this same code, so the behavior is correct, but
    the rule would still permit an early flip. See CLAUDE.md if that needs tightening. */
 async function jpTryLock(){
+  if(!CAN_PLAY()) return;          /* a watcher never flips the pool doc */
   if(!(await jpDeadlineMet())) return;
   try{
     await db.doc('pools/'+poolId).update({predictionsLocked:true});
@@ -3477,7 +3534,7 @@ function renderKassei(){
   mm.querySelectorAll('.kp-x').forEach(x=>{
     x.addEventListener('click', async e=>{
       e.stopPropagation();
-      if(!myCode||!draft) return;
+      if(!CAN_PLAY()||!draft) return;
       const slot=parseInt(x.getAttribute('data-slot'),10);
       const newPicks=slot===1?[null,pick2]:[pick1,null];
       try{ await draftRef().update(new firebase.firestore.FieldPath('kassei', myCode), newPicks); }
@@ -3492,7 +3549,7 @@ function renderKassei(){
       // Abandoned riders: bio preview only, never selectable
       if(isOut){ window.__kasOpen=r; renderKassei(); return; }
       // Observer: bio preview
-      if(!myCode){ window.__kasOpen=r; renderKassei(); return; }
+      if(!CAN_PLAY()){ window.__kasOpen=r; renderKassei(); return; }
       if(!draft) return;
       // Already selected? Release it
       if(r===pick1){ try{ await draftRef().update(new firebase.firestore.FieldPath('kassei', myCode), [null,pick2]); }catch(e){} return; }
@@ -3602,6 +3659,19 @@ function renderDraft(){
   }
   const picks=draft.picks||[], queue=draft.queue||[]; const clock=queue[0]||null; const status=draft.status||'pending';
   const done=status==='complete'||queue.length===0; const pending=status==='pending'&&picks.length===0; const leadoff=ORDER[0];
+  /* A GUEST GETS THE LOCKED STRIP AND NOTHING ELSE. It is the most-read card on the
+     board and it is pure story: eight names, portraits, teams, no controls. The LIVE
+     draft is suppressed by creating NO NODE, not by hiding one, because a hidden
+     control is still in the DOM and one stylesheet mistake from being reachable.
+     This sits ABOVE the draft-done ping on purpose, so a watcher never fires a POST.
+     KNOWN: the live and locked draft are the same Firestore document, so a guest with
+     devtools can read unlocked picks. The board never renders them and the rule cannot
+     separate the two states. Recorded in firestore.rules rather than glossed. */
+  if(isGuest){
+    if(done && picks.length){ renderMini(picks); return; }
+    const gm=$('draftMount'); if(gm) gm.innerHTML='';
+    return;
+  }
   // Draft-completion ping (2026-07-18): the moment the final slot fills, whoever
   // is viewing tells the col-break Worker, which queues the post-draft step for
   // Claude's hourly watcher. Fire-and-forget, once per page load, idempotent on
@@ -3641,10 +3711,10 @@ function wireSearch(forCode){ const input=$('s'),ac=$('ac'),lock=$('lock'); if(!
       emptyNote:'No match ('+RIDERS.length+' riders on the board)',
       onInput:function(){ chosen=null; lock.disabled=true; } });
   lock.addEventListener('click',()=>submitPick(forCode,label)); }
-async function submitPick(forCode,label){ if(!chosen) return; const code=forCode||myCode; const lock=$('lock'); if(lock){lock.disabled=true;lock.textContent='Saving...';} const ref=draftRef(); const picked=chosen;
+async function submitPick(forCode,label){ if(!CAN_PLAY()) return; if(!chosen) return; const code=forCode||myCode; const lock=$('lock'); if(lock){lock.disabled=true;lock.textContent='Saving...';} const ref=draftRef(); const picked=chosen;
   try{ await db.runTransaction(async tx=>{ const d=(await tx.get(ref)).data(); if(d.status==='complete') throw new Error('draft closed'); if(d.queue[0]!==code) throw new Error('not your turn'); if((d.picks||[]).some(p=>p.rider===picked.r)) throw new Error('already taken'); const pnum=(d.picks||[]).length+1; const pick={n:pnum,player:code,rider:picked.r,team:picked.t,photo:picked.p||'',color:picked.c||'',by:myEmail,admin:code!==myCode}; const queue=d.queue.slice(1); const upd={picks:(d.picks||[]).concat([pick]),queue,status:queue.length?'live':'complete'}; upd['lockAt.'+pnum]=FV.serverTimestamp(); tx.update(ref,upd); }); }
   catch(e){ alert('Could not lock pick: '+(e.message||e)); const l=$('lock'); if(l){l.disabled=false;l.textContent=label||'Lock pick';} } }
-async function doBump(){ const ref=draftRef(); try{ await db.runTransaction(async tx=>{ const d=(await tx.get(ref)).data(); if(!d.queue.length) return; const q=d.queue.slice(); q.push(q.shift()); tx.update(ref,{queue:q,bumpedAt:FV.serverTimestamp()}); }); }catch(e){ alert('Bump failed: '+(e.message||e)); } }
+async function doBump(){ if(!CAN_PLAY()) return; const ref=draftRef(); try{ await db.runTransaction(async tx=>{ const d=(await tx.get(ref)).data(); if(!d.queue.length) return; const q=d.queue.slice(); q.push(q.shift()); tx.update(ref,{queue:q,bumpedAt:FV.serverTimestamp()}); }); }catch(e){ alert('Bump failed: '+(e.message||e)); } }
 
 
 /* ================= OPERATOR CLOSE CARD =================================
@@ -4884,10 +4954,15 @@ document.getElementById('heroLead').innerHTML = `
           : '<div class="spon-tile" title="'+esc(s.name||'Sponsor')+'">'+inner+'</div>';
       }).join('');
     }else{
-      if(sub){ sub.textContent='This space is available.'; sub.style.display=''; }
-      var slots=3, out='';
-      for(var i=0;i<slots;i++){ out+='<div class="spon-tile empty"><span>Available</span></div>'; }
-      row.innerHTML=out;
+      /* AN EMPTY BAND RENDERS NOTHING AT ALL. It used to draw "This space is
+         available." over three tiles reading "Available", which is unsold advertising
+         inventory on a board people are being invited to look at, and it is the first
+         thing a visitor reads below the analysis. The section removes itself, so there
+         is no empty frame either. Adding a sponsor to boardConfig brings it straight
+         back with no rebuild, which is what makes this safe to do. */
+      var band=document.getElementById('sponsorBand');
+      if(band) band.remove(); else { row.innerHTML=''; if(sub) sub.textContent=''; }
+      return;
     }
   }catch(e){ console.error('sponsors render',e); }
 })();
@@ -6918,7 +6993,7 @@ const PERSONA_BY = (function(){
 (async function persistPersonaLedger(){
   try{
     if(typeof db==='undefined' || !poolId || typeof PERSONA_BY==='undefined') return;
-    if(!myCode && !isOwner) return;                 // watchers never write
+    if(!CAN_PLAY()) return;                         // watchers never write
     var want={}; PL4.forEach(function(p){ if(PERSONA_BY[p]) want[p]=PERSONA_BY[p].id; });
     var have=(typeof PERSONA_LEDGER!=='undefined' && PERSONA_LEDGER && PERSONA_LEDGER.by)||{};
     var sameBy = PL4.every(function(p){ return want[p]===have[p]; })

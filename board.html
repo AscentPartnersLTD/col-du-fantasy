@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260913-215449Z -->
+<head><!-- build:20261112-020729Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -1341,7 +1341,12 @@ const DEFAULT_POOL='';
 // switcher used to send every pool to the generic /board.html, so the Vuelta
 // loaded its data inside the Tour's gold shell. boardPath on the pool doc wins
 // when set; POOL_PAGE is the fallback so routing is correct with no data edit.
-const POOL_PAGE={'col-du-fantasy':'/tour.html','vuelta-2026':'/vuelta.html'};
+const POOL_PAGE={'col-du-fantasy':'/tour.html','vuelta-2026':'/vuelta.html',
+  /* The SHOWROOM copies are read by invited viewers and share the production
+     boards: the board file is the same, only the pool id differs, and the id
+     arrives as ?pool=. Both entries are needed by poolHref(), which is what the
+     account switcher and the not-a-member reroute both call. */
+  'tour-showroom':'/tour.html','vuelta-showroom':'/vuelta.html'};
 function poolHref(pid,path){ var p=path||POOL_PAGE[pid]||'/board.html'; return location.origin+p+'?pool='+encodeURIComponent(pid); }
 // True when this page is already the right board file for that pool. Lets the
 // checked entry still navigate when the pool is right but the shell is wrong.

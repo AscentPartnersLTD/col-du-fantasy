@@ -1,0 +1,30 @@
+{
+  "name": "Col du Fantasy",
+  "short_name": "Fantasy Tour Showroom",
+  "description": "Tour de France 2026, read-only showroom",
+  "start_url": "./tour.html?pool=tour-showroom",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#f6f3ea",
+  "theme_color": "#1b1a17",
+  "icons": [
+    {
+      "src": "tour-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "tour-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "tour-icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

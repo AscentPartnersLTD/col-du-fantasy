@@ -3737,6 +3737,157 @@ name those five jobs; get the list from Allen before assuming what they are.
 positional-ambiguity audit that is only partly done and the automation phases. Delete
 that file once its items close.
 
+## Guest access is a SHOWROOM, and production is never read
+
+Built on the `guest-access` branch, NOT deployed. Allen deploys the rules himself.
+
+Allen is showing the board to the hosts of THEMOVE. A guest reads `tour-showroom` and
+`vuelta-showroom`, which are COPIES, and never `col-du-fantasy` or `vuelta-2026`.
+
+THE COPY DESIGN IS WHAT REMOVED THE RISK, and that is the whole lesson of this rework.
+The first build let guests read the PRODUCTION pools. Because Firestore rules cannot hide
+a field, and the pool document carries a `members` map of email to seat, that forced a
+migration of every address into a subcollection, a scrub of the production documents, and
+a FIVE-STEP CUTOVER in which any other ordering locked all four players out of their own
+board. All of that existed to make a guest safe on a pool they are now never given.
+
+ON A COPY THE EXISTING RULE ALREADY DENIES THEM. `allow read: if owner() || (signedIn()
+&& em() in resource.data.members)` is unchanged from what is deployed, and a guest is in
+nobody's members map. The production block needed no edit at all.
+
+WHEN A FEATURE FORCES A MIGRATION, CHECK WHETHER IT IS THE FEATURE OR THE PLACEMENT. The
+migration was a correct solution to a problem that did not have to exist. Nothing about
+"show five people the board" required them to be on the live pool, and the question worth
+asking first is which data they actually have to touch.
+
+### What a viewer is, and how the rule knows
+
+`viewers` on the showroom pool document, email to an EXPIRY TIMESTAMP, which is the same
+shape `members` already has. `viewerOf(poolId)` requires THREE things:
+
+- the pool is NOT one of the two production pools, BY NAME
+- the pool document declares `showroom: true`
+- the caller is in `viewers` AND `request.time` is before their date
+
+THE NAME CHECK AND THE FLAG ARE BOTH LOAD-BEARING, and the test suite proves it rather
+than assuming it. Removing the name check from `showroomPool()` did NOT fail the first
+version of the suite, because the production pools happen not to carry a `showroom` flag,
+which is a fact about the DATA and not about the rule. The suite now stages the accident
+deliberately: it writes `showroom: true` and a viewers map onto each production pool and
+asserts a viewer is STILL refused. That test caught the staged regression the rest of the
+suite slept through.
+
+EXPIRY IS ENFORCED IN THE RULE, not by a cleanup job, so a lapsed invitation stops working
+on its own and revoking one early is a single map key.
+
+NO CUSTOM CLAIM. The first build minted a `guest` claim server side, which was the right
+shape while a guest was reading production and the rule had to trust something unforgeable.
+On a copy there is nothing for a claim to protect that the copy does not already, so
+`isGuest` on the board DERIVES from the viewers map and the login API needs no claim
+plumbing. It is not a security boundary and does not need to be: every write is refused by
+the rules, so editing the flag in devtools renders a COPIED draft card and nothing else.
+
+### The second leak path, which the copy design does NOT close
+
+`config/roster` holds `players` and `reviewers`, BOTH KEYED BY EMAIL, under what was
+`allow read: if signedIn()`. A guest is signed in. This has nothing to do with pools and
+nothing about the showroom touches it, so it is closed here: `isMember()`, which needs no
+guest predicate because a guest is in neither map and is denied by the same test that
+admits a player.
+
+THE AUDIT OF EVERY REMAINING `signedIn()` GRANT, asked for and answered:
+
+| Rule | Was | Now | Should a guest read it |
+|---|---|---|---|
+| `config/{doc}` | `signedIn()` | `isMember()` | NO, it is keyed by address |
+| `race/{doc=**}` | `signedIn()` | `isMember()` | NO, legacy, no guest path reads it |
+| `engagement/{doc}` create,update | `signedIn() && doc == em()` | `(isPlayer() \|\| owner()) && doc == em()` | NO, a viewer writes nothing |
+| `userPools/{uid}` read | `signedIn() && uid == em()` | unchanged | YES, their own only: the switcher needs it |
+| `userPools/{uid}` write | `signedIn() && uid == em()` | `isMember() && uid == em()` | NO, the owner creates it when inviting |
+| `drafts/{stage}`, top-level | `isMember()` | unchanged | already closed |
+| `pools/{poolId}` and subcollections | members map | unchanged, plus `viewerOf` | only on a showroom |
+
+`tools-rules-guard.js` now fails on ANY clause granting on `signedIn()` with no further
+term naming the caller, so a new one cannot be added quietly.
+
+### The copy tool
+
+`tools/showroom-copy.js`. DRY RUN BY DEFAULT and prints every intended write; `--apply`
+writes. It HARD-REFUSES `col-du-fantasy` and `vuelta-2026` as targets, before any work,
+with a non-zero exit.
+
+NO ADDRESS REACHES THE COPY, AND THAT IS ENFORCED RATHER THAN LISTED. Scrubbing a known
+set of fields would be a curated list, which is the hazard this file keeps recording:
+`members`, `memberEmails` AND a draft pick's `by` each carry one today, and `by` is the
+one a list would miss, because it is set from the drafting session's own email deep inside
+a picks array. So every value is walked recursively, anything email-shaped is replaced,
+and the result is RE-SCANNED. A surviving address refuses that document.
+
+A map KEYED by email keeps its value and loses its key: `members` stays a seat mapping
+with `jj@showroom.invalid` in place of a person. `engagement` is NOT copied at all,
+because its document IDS are addresses and nothing a viewer sees reads it.
+
+CREDENTIALS ARE SUPPLIED, NEVER DISCOVERED. It takes a token from `CDF_ADMIN_TOKEN` and
+deliberately does not read the firebase CLI's stored login. With `FIRESTORE_EMULATOR_HOST`
+set it runs against the emulator, which is how it was tested end to end.
+
+`tools/showroom-invite.js` prints the console snippet that grants or revokes one viewer.
+It writes nothing itself. THE VIEWER KEY IS WRITTEN THROUGH `FieldPath`, NOT A DOTTED
+STRING: a dotted path cannot carry an email, and escaping the dots does not save it,
+because the JavaScript parser resolves `\u002e` before Firestore sees the string, so
+`viewers.a@b\u002ecom` arrives as `viewers.a@b.com` and writes a NESTED map. The
+invitation then silently does not work, since the rule looks for a key and finds a
+sub-map. Found by reading the tool's own output, and guarded in `tools-guest-verify.js`.
+
+### Rules tests, on the real emulator
+
+`node tools-rules-tests/run.js` starts the Firestore emulator, runs both suites and stops
+it. 97 rules assertions and 17 for the copy tool. THE DEPLOY IS NO LONGER THE COMPILE STEP
+and four players are no longer the canary.
+
+It needs a JDK, which was installed for this: `winget install EclipseAdoptium.Temurin.21.JDK`.
+The first attempt FAILED with winget exit 12 and installer 1602, which is a dismissed UAC
+elevation prompt and not a policy block; the wrapper looks in `C:\Program Files\Eclipse
+Adoptium` as well as PATH, because a fresh shell does not inherit the install.
+
+WHAT IS COVERED: a guest denied on both production pools, their subcollections and
+`config/roster`; read-only on both showrooms, with every write refused one by one; a
+LAPSED viewer refused; a signed-in stranger refused; a viewers map on an unflagged pool
+granting nothing; each of the four players unchanged on their production pool, including
+drafting and the persona ledger; the owner unchanged everywhere.
+
+PROVED TO FAIL, which is the only way to know a suite is worth having. Three regressions
+were injected and each was caught: reopening `config/roster` to `signedIn()` (92/93),
+removing the name guard from `showroomPool()` (93/97), and dropping the expiry check from
+`viewerOf()` (96/97).
+
+NO REAL ADDRESS IS IN THE TEST FILE. The cast is synthetic and seeded by the test. The
+production pool IDS are real and have to be, because the rule denies by NAME.
+
+### The board
+
+`CAN_PLAY()` and its guarded sites are unchanged from the first build and are exactly the
+showroom viewer mode. The board already had most of it: `myCode === null` was a designed
+state, the two side-game cards already opened a bio instead of writing on a tap, and the
+locked predictions matrix already rendered above the seat check.
+
+`POOL_PAGE` carries both showroom ids mapped to the production board files, because the
+board file is the same and only `?pool=` differs. Both entries are load-bearing: a guest
+landing on a bare URL is refused on the default pool, and the catch then reads `userPools`
+and reroutes through `poolHref()`, which reads that map. `tour-showroom.webmanifest` and
+`vuelta-showroom.webmanifest` carry the `?pool=` in their `start_url` so an installed app
+opens the copy.
+
+A plain GUEST VIEW pill, two words, built only for a viewer and absent from the served
+HTML. No name and no expiry: that is account state, and account state belongs in
+diagnostics.
+
+STILL HELD, at Allen's instruction: the guest login allowlist in `coldufantasy-login`.
+`isMember()` there returns true for any email with a non-empty `userPools/{email}`, which
+is what the invite writes, so a guest can already be sent a sign-in code with NO change to
+that repo. It is listed as Phase 1 work because it should be CONFIRMED against the
+deployed code rather than assumed from reading it.
+
 ## Per-race scoring profiles
 
 The two races do NOT score the same way. Never apply one race's rule to the other.

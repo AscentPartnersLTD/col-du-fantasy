@@ -51,23 +51,30 @@ const LOWRY = 'lowry-city-rollers';
 const SANDBOX = 'sandbox';
 const SHOW_TOUR = 'tour-showroom';
 const SHOW_VUELTA = 'vuelta-showroom';
+/* PHASE 2. The demo pools and the viewerSeats write grant are NOT in the shipped
+   ruleset: this branch finishes the READ-ONLY showroom. The design and the checks that
+   went with it are kept verbatim in PHASE2-DEMO.md so nothing has to be rediscovered.
+   They are named here only so the deferred section can say what it is deferring. */
 const DEMO_TOUR = 'tour-demo';
 const DEMO_VUELTA = 'vuelta-demo';
 const PRODUCTION = [TOUR, VUELTA, LOWRY, SANDBOX];
 const SHOWROOMS = [SHOW_TOUR, SHOW_VUELTA];
-const DEMOS = [DEMO_TOUR, DEMO_VUELTA];
+const DEMOS = [];   /* phase 2 */
 
 /* ---------- dates -------------------------------------------------------------- */
-/* Computed from today so the suite does not rot into a pass. The expiry is INCLUSIVE
-   of its own day, so "today" must be allowed and "yesterday" must not. */
-function iso(offsetDays) {
+/* Computed from today so the suite does not rot into a pass. The expiry is a Firestore
+   TIMESTAMP, built the SAME WAY tools/showroom-invite.js builds it: the END of the named
+   day, 23:59:59Z, so an invitation "until 2027-03-31" is good for the whole of that day.
+   An ISO STRING here would be the field type that firestore.rules now refuses by name,
+   which is what the malformed-expiry check below exists to prove. */
+function atEndOf(offsetDays) {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
+  return new Date(d.toISOString().slice(0, 10) + 'T23:59:59Z');
 }
-const FUTURE = iso(30);
-const TODAY = iso(0);
-const YESTERDAY = iso(-1);
+const FUTURE = atEndOf(30);
+const TODAY = atEndOf(0);
+const YESTERDAY = atEndOf(-1);
 
 /* ---------- harness ------------------------------------------------------------ */
 let env;
@@ -89,6 +96,16 @@ function short(e) { return String((e && e.message) || e).split('\n')[0].slice(0,
 function as(email) { return env.authenticatedContext(uidFor(email), { email, email_verified: true }).firestore(); }
 function anon() { return env.unauthenticatedContext().firestore(); }
 const uidFor = (e) => 'cdf_' + e.replace(/[^a-z0-9]/gi, '_');
+
+/* Reading firestore.rules as TEXT, for the phase 2 deferral assertion only. An allow
+   clause runs from `allow` to its semicolon and often spans several lines, so whole
+   statements are matched rather than lines, and comments are stripped first: comments
+   carry the words "viewer" and "showroom" everywhere by design, and a gate that reads
+   its own prose proves nothing. */
+const stripComments = (t) => t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+const ALLOW_CLAUSE = /allow\s[^;]*;/g;
+const WRITE_VERB = /\b(write|create|update|delete)\b/;
+const VIEWER_WORD = /viewerOf|viewerSeats|showroom/i;
 
 const rd = (db, p) => () => getDoc(doc(db, p));
 const ls = (db, p) => () => getDocs(collection(db, p));
@@ -158,14 +175,6 @@ async function seed() {
     await setDoc(doc(db, 'pools/' + SHOW_VUELTA), poolDoc({
       members: {}, memberEmails: [], showroom: true, viewers, predictionsLocked: false,
     }));
-    await setDoc(doc(db, 'pools/' + DEMO_TOUR), poolDoc({
-      members: {}, memberEmails: [], demo: true, viewers,
-      viewerSeats: { [GUEST]: 'AA', [EXPIRED]: 'AA', [MALFORMED]: 'AA' },
-    }));
-    await setDoc(doc(db, 'pools/' + DEMO_VUELTA), poolDoc({
-      members: {}, memberEmails: [], demo: true, viewers,
-      viewerSeats: { [GUEST]: 'AA', [EXPIRED]: 'AA', [MALFORMED]: 'AA' },
-    }));
 
     /* Subcollections on every pool, so a read or write has something to land on and a
        denial is never just an absent document. */
@@ -174,14 +183,15 @@ async function seed() {
       await setDoc(doc(db, 'pools/' + p + '/stages/3'), { route: 'A to B', type: 'flat', days: { JJ: 1 }, picks: { JJ: [] } });
       await setDoc(doc(db, 'pools/' + p + '/engagement/' + AA2), { seen: 1 });
       await setDoc(doc(db, 'pools/' + p + '/engagement/' + GUEST), { seen: 1 });
-      /* tour-demo deliberately has THREE predictions: the guest's own AA submission is
-         the fourth, which is what fires the lock. vuelta-demo has all four already. */
-      const seats = (p === DEMO_TOUR) ? ['JJ', 'JB', 'JP'] : ['JJ', 'JB', 'JP', 'AA'];
-      for (const s of seats) await setDoc(doc(db, 'pools/' + p + '/predictions/' + s), { seat: s, gc: 'A rider' });
+      for (const s of ['JJ', 'JB', 'JP', 'AA']) await setDoc(doc(db, 'pools/' + p + '/predictions/' + s), { seat: s, gc: 'A rider' });
     }
-    await setDoc(doc(db, 'userPools/' + GUEST), { pools: SHOWROOMS.concat(DEMOS) });
+    await setDoc(doc(db, 'userPools/' + GUEST), { pools: SHOWROOMS });
     await setDoc(doc(db, 'userPools/' + AA2), { pools: PRODUCTION });
-    await setDoc(doc(db, 'race/demo'), { note: 'phase 2 replay lands here' });
+    await setDoc(doc(db, 'race/demo'), { note: 'the legacy race tree' });
+    /* The LEGACY single-pool collections. A denial against a document that does not
+       exist is indistinguishable from a denial by rule, so each one is real. */
+    await setDoc(doc(db, 'drafts/4'), { n: 4, picks: [] });
+    await setDoc(doc(db, 'engagement/' + JJ), { seen: 1 });
   });
 }
 
@@ -301,7 +311,16 @@ async function run() {
     await deny('same-domain guest writes config/roster', wr(db, 'config/roster', { players: {} }));
     await deny('same-domain guest writes a production pool doc', up(db, 'pools/' + VUELTA, { name: 'x' }));
     await deny('same-domain guest deletes an engagement doc', wr(db, 'pools/' + TOUR + '/engagement/' + AA2, { seen: 9 }));
-    await allow('same-domain guest reads config (any signed-in user may)', rd(db, 'config/roster'));
+    /* THIS WAS allow AND IS NOW deny, and it is the single most valuable line in the
+       suite. config/roster holds `players` and `reviewers` KEYED BY EMAIL, under what was
+       a blanket signedIn() read. Inviting anybody at all to sign in turned that into a
+       handout of every player's address, by a path that has nothing to do with pool
+       membership and that the showroom design does not touch. Closing it is a change to
+       a PRODUCTION rule, made deliberately. */
+    await deny('same-domain guest reads config/roster (the address list)', rd(db, 'config/roster'));
+    await deny('same-domain guest reads the legacy race tree', rd(db, 'race/demo'));
+    await deny('same-domain guest reads the legacy top-level drafts', rd(db, 'drafts/4'));
+    await deny('same-domain guest writes legacy top-level engagement as themselves', wr(db, 'engagement/' + GUEST, { seen: 1 }));
   }
 
   console.log('\n=== 3. the guest in a SHOWROOM pool: reads everything, writes nothing ===');
@@ -311,7 +330,12 @@ async function run() {
       await allow('guest reads ' + p + ' pool doc', rd(db, 'pools/' + p));
       await allow('guest reads ' + p + ' drafts', ls(db, 'pools/' + p + '/drafts'));
       await allow('guest reads ' + p + ' stages', ls(db, 'pools/' + p + '/stages'));
-      await allow('guest reads ' + p + ' engagement', ls(db, 'pools/' + p + '/engagement'));
+      /* ENGAGEMENT IS NOT READABLE BY A VIEWER, and it is not copied either. Its
+         DOCUMENT IDS ARE EMAIL ADDRESSES, so the collection cannot be handed to a
+         guest without handing over the addresses, and no id is scrubbable without
+         breaking the "doc == em()" write rule it depends on. Nothing a viewer sees
+         reads it. Two independent denials, the rule and the absence of the data. */
+      await deny('guest reads ' + p + ' engagement (ids are addresses)', ls(db, 'pools/' + p + '/engagement'));
       await deny('guest WRITES ' + p + ' draft', up(db, 'pools/' + p + '/drafts/4', { status: 'open' }));
       await deny('guest WRITES ' + p + ' stage', wr(db, 'pools/' + p + '/stages/3', { days: {} }));
       await deny('guest WRITES ' + p + ' predictions', wr(db, 'pools/' + p + '/predictions/AA', { seat: 'AA' }));
@@ -343,49 +367,45 @@ async function run() {
       await deny('guest WRITES ' + p + ' predictions', wr(db, 'pools/' + p + '/predictions/AA', { seat: 'AA' }));
     }
   }
-
-  console.log('\n=== 5. the guest in a DEMO pool: their seat only ===');
+  /* THE CHECK THAT MATTERS MOST, and the reason prodPool() names the two pools instead
+     of inferring them. Write BOTH halves of a valid invitation onto the real
+     col-du-fantasy: the showroom flag, and the guest in viewers with a live expiry. A
+     design that trusted the flag would hand over the season here. */
+  console.log('  -- a showroom flag and a live invitation written onto PRODUCTION --');
+  await mutatePool(TOUR, (d) => { d.showroom = true; d.viewers = { [GUEST]: FUTURE }; });
   {
     const db = as(GUEST);
-    for (const p of DEMOS) {
-      await allow('guest reads ' + p + ' pool doc', rd(db, 'pools/' + p));
-      await allow('guest WRITES ' + p + ' draft', up(db, 'pools/' + p + '/drafts/4', { status: 'open' }));
-      await allow('guest reads ' + p + ' stages', ls(db, 'pools/' + p + '/stages'));
-      await deny('guest WRITES ' + p + ' stage', wr(db, 'pools/' + p + '/stages/3', { days: {} }));
-      await deny('guest WRITES ' + p + ' personaLedger', up(db, 'pools/' + p, { personaLedger: { order: [], by: {}, seen: {} } }));
-      await deny('guest WRITES ' + p + ' arbitrary pool field', up(db, 'pools/' + p, { name: 'x' }));
-      await deny('guest WRITES ' + p + ' engagement', wr(db, 'pools/' + p + '/engagement/' + GUEST, { seen: 5 }));
-    }
-    await allow('guest writes their OWN seat predictions in tour-demo', wr(db, 'pools/' + DEMO_TOUR + '/predictions/AA', { seat: 'AA', gc: 'X' }));
-    await deny('guest writes ANOTHER seat predictions in tour-demo', wr(db, 'pools/' + DEMO_TOUR + '/predictions/JJ', { seat: 'JJ' }));
-    await allow('guest reads their OWN seat predictions before the lock', rd(db, 'pools/' + DEMO_TOUR + '/predictions/AA'));
-    await deny('guest reads ANOTHER seat predictions before the lock', rd(db, 'pools/' + DEMO_TOUR + '/predictions/JJ'));
-    /* The lock. vuelta-demo has all four seat documents, tour-demo is one short until
-       the write above lands, and the rule names the same four seats as production. */
-    await allow('guest fires the lock in vuelta-demo, all four present', up(db, 'pools/' + DEMO_VUELTA, { predictionsLocked: true }));
-    await deny('guest cannot set predictionsLocked FALSE', up(db, 'pools/' + DEMO_VUELTA, { predictionsLocked: false }));
-    await allow('guest reads another seat predictions AFTER the lock', rd(db, 'pools/' + DEMO_VUELTA + '/predictions/JJ'));
+    await deny('FLAGGED PRODUCTION: guest still cannot read col-du-fantasy', rd(db, 'pools/' + TOUR));
+    await deny('FLAGGED PRODUCTION: guest still cannot read its drafts', ls(db, 'pools/' + TOUR + '/drafts'));
+    await deny('FLAGGED PRODUCTION: guest still cannot read its stages', ls(db, 'pools/' + TOUR + '/stages'));
+    await deny('FLAGGED PRODUCTION: guest still cannot read its predictions', rd(db, 'pools/' + TOUR + '/predictions/JJ'));
   }
-  console.log('  -- lock refused when a seat document is missing --');
-  await env.withSecurityRulesDisabled(async (ctx) => {
-    const { deleteDoc } = require('firebase/firestore');
-    await deleteDoc(doc(ctx.firestore(), 'pools/' + DEMO_TOUR + '/predictions/AA'));
-    await updateDoc(doc(ctx.firestore(), 'pools/' + DEMO_TOUR), { predictionsLocked: false });
-  });
-  await deny('lock refused in tour-demo with only three seats in', up(as(GUEST), 'pools/' + DEMO_TOUR, { predictionsLocked: true }));
+  await mutatePool(TOUR, (d) => { delete d.showroom; delete d.viewers; });
+  await allow('members still read col-du-fantasy after the flag is removed', rd(as(AA2), 'pools/' + TOUR));
 
-  console.log('  -- grant removed: drop viewerSeats, keep viewers --');
-  await mutatePool(DEMO_VUELTA, (d) => { delete d.viewerSeats; });
+  console.log('\n=== 5. the DEMO pools: DEFERRED to phase 2 ===');
+  /* NOT skipped quietly. The viewerSeats write grant was designed, built and passed here,
+     and was then LEFT OUT of the shipped ruleset on purpose: this branch finishes the
+     READ-ONLY showroom, no demo pool exists yet, and tools-rules-guard.js can only assert
+     "not one allow-write clause mentions a viewer" while that stays true. A write grant
+     for a pool type that does not exist cannot be proved unreachable against live data,
+     because there is no live data. The rules block and these checks are kept verbatim in
+     PHASE2-DEMO.md.
+     The deferral is ASSERTED, not asserted around: if a viewer write grant appears in
+     firestore.rules while this file still calls it phase 2, these FAIL. */
   {
-    const db = as(GUEST);
-    await allow('REMOVED seat: guest still READS the demo pool', rd(db, 'pools/' + DEMO_VUELTA));
-    await deny('REMOVED seat: guest can no longer write the draft', up(db, 'pools/' + DEMO_VUELTA + '/drafts/4', { status: 'open' }));
-    await deny('REMOVED seat: guest can no longer write predictions', wr(db, 'pools/' + DEMO_VUELTA + '/predictions/AA', { seat: 'AA' }));
+    const rules = stripComments(fs.readFileSync(path.join(__dirname, 'firestore.rules'), 'utf8'));
+    const writeClauses = (rules.match(ALLOW_CLAUSE) || [])
+      .filter((l) => WRITE_VERB.test(l.split(':')[0]));
+    const viewerWrites = writeClauses.filter((l) => VIEWER_WORD.test(l));
+    record('phase 2 really is deferred: no viewer write clause ships', viewerWrites.length === 0,
+      viewerWrites.join(' | ') || 'none of ' + writeClauses.length + ' write clauses');
+    record('phase 2 really is deferred: viewerSeats is nowhere in the rules',
+      rules.indexOf('viewerSeats') === -1);
+    record('the phase 2 design is written down, not just dropped',
+      fs.existsSync(path.join(__dirname, 'PHASE2-DEMO.md')), 'PHASE2-DEMO.md');
   }
-  console.log('  -- grant removed: drop the demo flag, keep viewers and viewerSeats --');
-  await mutatePool(DEMO_VUELTA, (d) => { d.viewerSeats = { [GUEST]: 'AA' }; delete d.demo; });
-  await deny('REMOVED demo flag: no draft write even with a seat', up(as(GUEST), 'pools/' + DEMO_VUELTA + '/drafts/4', { status: 'open' }));
-  await mutatePool(DEMO_VUELTA, (d) => { d.demo = true; });
+
 
   console.log('\n=== 6. expiry, and a malformed expiry ===');
   {
@@ -429,6 +449,12 @@ async function run() {
       const members = Object.keys(d.members || {});
       const emails = (d.memberEmails || []);
       const viewers = Object.keys(d.viewers || {});
+      /* PRESENT and EMPTY are two separate claims. Absent, `members` makes
+         `em() in poolCfg(poolId).members` an evaluation error rather than a false,
+         which is proved on the emulator and is why the copy writes {} and never
+         deletes the field. inPool() is production and is not touched for this. */
+      record(p + ': members field is PRESENT', !!d.members && typeof d.members === 'object',
+        d.members === undefined ? 'ABSENT: inPool() would error here' : 'present');
       record(p + ': members map is empty', members.length === 0, members.length + ' keys');
       record(p + ': memberEmails is empty', emails.length === 0, emails.length + ' entries');
       const leaked = viewers.filter((v) => ![GUEST, EXPIRED, MALFORMED].includes(v));

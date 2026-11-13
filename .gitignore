@@ -9,9 +9,16 @@ close-stage-*.snippet.js
 # Machine-readable close payloads, regenerated on demand alongside the snippet.
 close-stage-*.payload.json
 
-# Dev-only tooling for the guest access gate. The boards are static HTML and ship
-# nothing from here; node_modules is machine-specific and never committed.
+# Dev-only tooling for the guest access gates. The boards are static HTML and ship
+# nothing from here; node_modules is machine-specific and never committed. There are
+# TWO suites with separate dependency trees, so there are two node_modules to ignore.
 node_modules/
 package-lock.json
+tools-rules-tests/node_modules/
+tools-rules-tests/package-lock.json
+
+# Firestore emulator artifacts, written into the repo root by emulators:exec.
 firebase-debug.log
 firestore-debug.log
+ui-debug.log
+database-debug.log

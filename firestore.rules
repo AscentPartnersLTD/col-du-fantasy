@@ -2,10 +2,37 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    /* =====================================================================
+       WHO IS ASKING
+       ===================================================================== */
     function signedIn() { return request.auth != null; }
     function em() { return request.auth.token.email; }
     function owner() { return signedIn() && em() == 'allen@ascentpartnersltd.com'; }
 
+    /* =====================================================================
+       THE PRODUCTION POOLS ARE NEVER READ BY A GUEST.
+       That is the whole design, and it is why this file carries no migration.
+       A guest reads a SHOWROOM, which is a copy holding no real addresses, so
+       the production rule below, read only if your email is in members, already
+       denies them with no change at all.
+       Named explicitly rather than inferred, so that a `showroom` flag written
+       onto a production pool by accident still grants nobody anything.
+       ===================================================================== */
+    function prodPool(poolId) {
+      return poolId == 'col-du-fantasy' || poolId == 'vuelta-2026';
+    }
+
+    /* =====================================================================
+       LEGACY SINGLE-POOL COLLECTIONS
+       config/roster holds `players` and `reviewers`, BOTH KEYED BY EMAIL. A
+       blanket signedIn() read there hands every player's address to anyone who
+       can sign in, which now includes invited guests. It is a leak path entirely
+       separate from pool membership, and nothing about the showroom design
+       closes it, so it is closed here.
+       isMember() is the right gate and needs no guest predicate: a guest is in
+       neither `players` nor `reviewers`, so they are denied by the same test
+       that admits a player.
+       ===================================================================== */
     function hasRoster() { return exists(/databases/$(database)/documents/config/roster); }
     function roster()    { return get(/databases/$(database)/documents/config/roster).data; }
     function isPlayer()   { return signedIn() && hasRoster() && (em() in roster().players); }
@@ -13,7 +40,7 @@ service cloud.firestore {
     function isMember()   { return owner() || isPlayer() || isReviewer(); }
 
     match /config/{doc} {
-      allow read:  if signedIn();
+      allow read:  if isMember();
       allow write: if owner();
     }
     match /drafts/{stage} {
@@ -21,11 +48,24 @@ service cloud.firestore {
       allow write: if isPlayer() || owner();
     }
     match /engagement/{doc} {
-      allow read:          if isMember();
-      allow create, update: if signedIn() && doc == em();
-      allow delete:        if owner();
+      allow read:           if isMember();
+      /* was signedIn(): a guest could create their own document here. A viewer
+         writes nothing anywhere, so the gate matches the drafts rule above. */
+      allow create, update: if (isPlayer() || owner()) && doc == em();
+      allow delete:         if owner();
+    }
+    match /race/{doc=**} {
+      /* was signedIn(). Legacy single-pool race data; no guest path reads it. */
+      allow read:  if isMember();
+      allow write: if owner();
     }
 
+    /* =====================================================================
+       POOLS
+       The production block is UNCHANGED from what is deployed today. The only
+       addition anywhere is viewerOf(), and it can never be true on a production
+       pool because prodPool() denies it by name.
+       ===================================================================== */
     function poolCfg(poolId)    { return get(/databases/$(database)/documents/pools/$(poolId)).data; }
     function poolExists(poolId) { return exists(/databases/$(database)/documents/pools/$(poolId)); }
     function inPool(poolId)     { return signedIn() && poolExists(poolId) && (em() in poolCfg(poolId).members); }
@@ -33,107 +73,97 @@ service cloud.firestore {
     function poolSeat(poolId)    { return poolCfg(poolId).members[em()]; }
     function predsLocked(poolId) { return poolCfg(poolId).predictionsLocked == true; }
 
-    /* --- GUEST ACCESS, added 2026-11-13 ---------------------------------------------
-       A guest is NEVER in a pool members map, and that is structural rather than tidy.
-       Every member may write pools/{poolId}/drafts, so a guest in members on a
-       production pool could change real picks; and the members map IS email to seat, so
-       anyone who can read the pool doc reads the other players addresses.
-       Guests are listed in viewers, which ONLY the showroom and demo pools carry. No
-       production pool has the field, so every statement below is unreachable on
-       col-du-fantasy and vuelta-2026 as a matter of DATA, not of a condition a reader
-       has to evaluate correctly. Same reasoning as the sex filter living in the persona
-       rows rather than in the draw.
-       viewers maps a guest email to the ISO date their access ENDS, inclusive of that
-       day. Rules cannot parse a date string, so it is compared as a YYYYMMDD integer. A
-       malformed or short value fails the size test or makes int() error, and either way
-       the statement DENIES, which is the direction this project fails in on purpose. */
-    function ymd(d)   { return int(d.split('-')[0]) * 10000 + int(d.split('-')[1]) * 100 + int(d.split('-')[2]); }
-    function nowYmd() { return request.time.year() * 10000 + request.time.month() * 100 + request.time.day(); }
-    function viewerMap(poolId) { return poolCfg(poolId).viewers; }
-    function isViewer(poolId) {
-      return signedIn() && poolExists(poolId)
-        && ('viewers' in poolCfg(poolId))
-        && (em() in viewerMap(poolId))
-        && viewerMap(poolId)[em()] is string
-        && viewerMap(poolId)[em()].size() == 10
-        && nowYmd() <= ymd(viewerMap(poolId)[em()]);
+    /* A VIEWER is named in the showroom pool's `viewers` map, email to an EXPIRY
+       TIMESTAMP, which is the same shape `members` already has. Three conditions,
+       all required:
+         - the pool is not one of the two production pools, by name
+         - the pool document declares itself a showroom
+         - the caller is named in viewers AND that date has not passed
+       Expiry is enforced HERE rather than by a cleanup job, so a lapsed invitation
+       stops working on its own and revoking one early is a single map key. */
+    function showroomPool(poolId) {
+      /* Same guard as viewerOf: a pool with no `showroom` field makes this an
+         evaluation error rather than a false. Both deny; only one of them is a claim. */
+      return !prodPool(poolId) && poolExists(poolId)
+        && ('showroom' in poolCfg(poolId)) && poolCfg(poolId).showroom == true;
     }
-    /* A demo pool is the only place a guest may write anything. The seat comes from
-       viewerSeats and NOT from members, so inPool() stays false for a guest and every
-       member-gated statement above stays dead for them. */
-    /* The 'demo' in ... guard is not decoration. Without it, a pool with no demo flag
-       made this an EVALUATION ERROR rather than a false. It denied either way, but an
-       error that happens to deny is not the same claim as a rule that denies, and the
-       next error at the same line would be indistinguishable from this one. */
-    function isDemoPool(poolId)  { return ('demo' in poolCfg(poolId)) && poolCfg(poolId).demo == true; }
-    function hasDemoSeat(poolId) { return isDemoPool(poolId) && ('viewerSeats' in poolCfg(poolId)) && (em() in poolCfg(poolId).viewerSeats); }
-    function demoSeat(poolId)    { return poolCfg(poolId).viewerSeats[em()]; }
-    function allFourPreds(poolId) {
-      return exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JJ)
+    function viewerOf(poolId) {
+      return signedIn()
+        && showroomPool(poolId)
+        /* Each term is GUARDED so that bad data DENIES as a rule rather than erroring.
+           An absent `viewers`, or an expiry written as a string by a hand-edit, makes
+           the comparison an evaluation error: it denies either way, but an error that
+           happens to deny is not the same claim as a rule that denies, and the next
+           error at this line would be indistinguishable from this one. */
+        && ('viewers' in poolCfg(poolId))
+        && (em() in poolCfg(poolId).viewers)
+        && poolCfg(poolId).viewers[em()] is timestamp
+        && request.time < poolCfg(poolId).viewers[em()];
+    }
+    function poolReader(poolId) { return poolMember(poolId) || viewerOf(poolId); }
+
+    match /pools/{poolId} {
+      allow read:  if owner() || (signedIn() && em() in resource.data.members) || viewerOf(poolId);
+      allow write: if owner();
+
+      /* Two scoped member updates, unchanged. Multiple `allow update` statements
+         are ORed, which is why these sit alongside `allow write: if owner()`
+         without either weakening the other. A VIEWER satisfies neither, because
+         viewerOf() is not inPool(). */
+      allow update: if inPool(poolId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['predictionsLocked'])
+        && request.resource.data.predictionsLocked == true
+        && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JJ)
         && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JB)
         && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JP)
         && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/AA);
-    }
-
-    match /pools/{poolId} {
-      allow read:  if owner() || (signedIn() && em() in resource.data.members);
-      allow write: if owner();
-      allow update: if inPool(poolId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['predictionsLocked']) && request.resource.data.predictionsLocked == true && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JJ) && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JB) && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/JP) && exists(/databases/$(database)/documents/pools/$(poolId)/predictions/AA);
-      allow update: if inPool(poolId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personaLedger'])
+      allow update: if inPool(poolId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personaLedger'])
         && request.resource.data.personaLedger.keys().hasOnly(['order','by','seen'])
         && request.resource.data.personaLedger.order is list
         && request.resource.data.personaLedger.by is map
         && request.resource.data.personaLedger.seen is map;
-      /* Added LAST on purpose: Firestore stops at the first granting statement, so a
-         production read is answered by the members statement above and never evaluates
-         a guest condition or pays for its get(). */
-      allow read: if isViewer(poolId);
-      /* The reveal lock, for a demo pool only. The predictionsLocked statement above is
-         untouched; this is a sibling with the SAME four existence checks, so a guest own
-         fourth submission fires the lock exactly the way a player submission does. */
-      allow update: if isViewer(poolId) && hasDemoSeat(poolId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['predictionsLocked']) && request.resource.data.predictionsLocked == true && allFourPreds(poolId);
+
       match /drafts/{stage} {
-        allow read:  if poolMember(poolId);
+        allow read:  if poolReader(poolId);
         allow write: if poolMember(poolId);
-        allow read:  if isViewer(poolId);
-        /* A draft document holds all four seats in one picks array, so a rule cannot
-           cheaply scope a write to one seat. In a demo pool the other three seats are
-           bots in a throwaway copy, so this is an ACCEPTED trade and not an oversight,
-           the same way the personaLedger rule accepts cross-seat writes in a four
-           person pool. It grants nothing in a showroom pool, which has no demo flag. */
-        allow write: if isViewer(poolId) && hasDemoSeat(poolId);
       }
       match /stages/{stage} {
-        allow read:  if poolMember(poolId);
+        allow read:  if poolReader(poolId);
         allow write: if owner();
-        allow read:  if isViewer(poolId);
       }
       match /engagement/{doc} {
         allow read:           if poolMember(poolId);
         allow create, update: if inPool(poolId) && doc == em();
         allow delete:         if owner();
-        allow read:           if isViewer(poolId);
       }
+      /* A viewer sees the jersey predictions ONLY once they are locked, which on a
+         finished-season showroom they always are. A blank panel where a completed
+         side game should be is the locked-screen failure this exists to avoid. */
       match /predictions/{seat} {
-      allow read:  if poolMember(poolId) && ( poolSeat(poolId) == seat || predsLocked(poolId) );
-      allow write: if inPool(poolId) && poolSeat(poolId) == seat && !predsLocked(poolId);
-      /* The privacy rule is MIRRORED rather than relaxed: a guest sees another seat
-         predictions only once the pool is locked, which is the behaviour the feature is
-         being shown off for. Before the lock a guest sees their own demo seat and
-         nothing else, and in a showroom they have no seat, so they see nothing. */
-      allow read:  if isViewer(poolId) && ( predsLocked(poolId) || ( hasDemoSeat(poolId) && demoSeat(poolId) == seat ) );
-      allow write: if isViewer(poolId) && hasDemoSeat(poolId) && demoSeat(poolId) == seat && !predsLocked(poolId);
+        allow read:  if (poolMember(poolId) && (poolSeat(poolId) == seat || predsLocked(poolId)))
+                     || (viewerOf(poolId) && predsLocked(poolId));
+        allow write: if inPool(poolId) && poolSeat(poolId) == seat && !predsLocked(poolId);
       }
-          }
-
-    match /userPools/{uid} {
-      allow read:  if signedIn() && (uid == em() || owner());
-      allow write: if owner() || (signedIn() && uid == em());
     }
 
-    match /race/{doc=**} {
-      allow read:  if signedIn();
-      allow write: if owner();
+    match /userPools/{uid} {
+      /* A viewer READS their own so the switcher can move between the two showroom
+         boards, and WRITES only their own, which is what it has always been.
+         THIS WAS TIGHTENED TO isMember() AND REVERTED, because it locked people out.
+         isMember() is the LEGACY config/roster, and every board writes this document
+         on sign-in to keep the switcher and the not-a-member reroute working. A pool
+         member who is not in that roster, which is every Lowry City Rollers member and
+         anyone added to a pool since, would have had the write denied. The board
+         swallows it with catch(), so nothing would error: the entry would simply stop
+         being maintained, and a member whose entry was never written would land on
+         "You are not in a pool yet."
+         IT BOUGHT NOTHING. A guest writing their own userPools grants themselves no
+         access: every read is still checked against members or viewers, and
+         resolvePool skips an id it cannot open. The list is a hint for the switcher,
+         never a permission. */
+      allow read:  if signedIn() && (uid == em() || owner());
+      allow write: if owner() || (signedIn() && uid == em());
     }
 
   }
