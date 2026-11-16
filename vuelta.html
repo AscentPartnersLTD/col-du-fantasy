@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20260913-215808Z -->
+<head><!-- build:20260913-222407Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -922,6 +922,10 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
       <span class="tb-word"><span>Col du Fantasy</span><b>Vuelta 2026</b></span>
     </a>
     <nav class="tabs">
+      <!-- The race-state tab. Its LABEL is set at runtime from the mode, because one tab
+           is two pages: "Race Week" before a race and "The Result" after it. It removes
+           itself entirely while racing is under way, so it is never a dead tab. -->
+      <button id="raceTabBtn" data-tab="race" hidden>The Result</button>
       <button class="on" data-tab="overview">Overview</button>
       <button data-tab="ledger">Stage Ledger</button>
       <button data-tab="stats">Stats &amp; Notes</button>
@@ -933,6 +937,103 @@ function sideGameOn(id){ var g=(RACE_PROFILE&&RACE_PROFILE.sideGames)||{}; retur
 </div>
 
 <div class="wrap">
+  <!-- ==================== THE RACE-STATE TAB ====================
+       One tab, two modes. PRE is the front door before a race, POST is the celebration
+       after it. The whole pane is built at runtime into #raceBody, so nothing but an
+       empty mount ships in the served HTML. -->
+  <section class="tab" id="tab-race">
+    <style>
+      #tab-race{--pod-gold:#c9971a}
+      .rp-head{margin:2px 0 18px}
+      .rp-kicker{font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;
+        letter-spacing:.14em;font-size:10.5px;color:var(--red)}
+      .rp-title{font-family:'Montserrat',sans-serif;font-weight:800;font-size:26px;line-height:1.1;margin-top:4px}
+      .rp-sub{font-size:12.5px;color:var(--mute);margin-top:6px;line-height:1.55;max-width:640px}
+
+      /* ---- the podium ---- */
+      .podium{background:var(--card);border:1px solid var(--line);border-radius:15px;
+        box-shadow:var(--sh);padding:18px 16px 0;margin-bottom:18px;overflow:hidden}
+      .pod-note{font-size:11px;color:var(--mute);text-align:center;margin-bottom:14px;line-height:1.5}
+      .pod-note b{color:var(--ink)}
+      /* Three steps, tallest in the MIDDLE, so the order across is 2nd, 1st, 3rd.
+         `order` puts the winner centre while the markup stays in finishing order, which
+         is what a screen reader and the DOM should see. */
+      .pod-steps{display:flex;align-items:flex-end;justify-content:center;gap:8px}
+      .pod-step{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center}
+      .pod-step.p1{order:2} .pod-step.p2{order:1} .pod-step.p3{order:3}
+      .pod-av{width:54px;height:54px;border-radius:50%;overflow:hidden;border:2px solid var(--line2);
+        background:var(--paper);display:flex;align-items:center;justify-content:center;margin-bottom:7px}
+      .pod-step.p1 .pod-av{width:66px;height:66px;border-color:var(--pod-gold);
+        box-shadow:0 0 0 3px rgba(201,151,26,.18)}
+      .pod-av svg,.pod-av img{width:100%;height:100%;object-fit:cover;display:block}
+      .pod-seat{font-family:'Montserrat',sans-serif;font-weight:800;font-size:17px;line-height:1}
+      .pod-step.p1 .pod-seat{font-size:20px}
+      .pod-persona{font-size:10.5px;color:var(--mute);font-style:italic;line-height:1.3;margin-top:3px;
+        max-width:15ch;overflow-wrap:anywhere}
+      .pod-pts{font-family:'Montserrat',sans-serif;font-weight:800;font-variant-numeric:tabular-nums;
+        font-size:18px;margin-top:5px}
+      .pod-step.p1 .pod-pts{font-size:22px;color:var(--red)}
+      .pod-block{width:100%;margin-top:9px;border-radius:7px 7px 0 0;
+        background:linear-gradient(180deg,var(--paper2),var(--paper));
+        border:1px solid var(--line);border-bottom:none;
+        display:flex;align-items:flex-start;justify-content:center;padding-top:7px;
+        font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;color:var(--mute)}
+      .pod-step.p1 .pod-block{height:74px;background:linear-gradient(180deg,#f6e6bd,var(--paper));
+        border-color:var(--pod-gold);color:var(--pod-gold)}
+      .pod-step.p2 .pod-block{height:54px}
+      .pod-step.p3 .pod-block{height:40px}
+
+      /* ---- lanterne rouge: beside the podium, not beneath it as a footnote ---- */
+      .lanterne{display:flex;align-items:center;gap:12px;background:var(--paper);
+        border:1px solid var(--line);border-left:3px solid var(--red);border-radius:11px;
+        padding:11px 13px;margin:16px 0 18px}
+      .lant-av{width:44px;height:44px;border-radius:50%;overflow:hidden;flex:none;
+        border:2px solid var(--line2);background:var(--card)}
+      .lant-av svg,.lant-av img{width:100%;height:100%;object-fit:cover;display:block}
+      .lant-t{font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px}
+      .lant-d{font-size:11.5px;color:var(--mute);line-height:1.5;margin-top:2px}
+      .lant-pts{margin-left:auto;font-family:'Montserrat',sans-serif;font-weight:800;
+        font-variant-numeric:tabular-nums;font-size:17px;color:var(--mute)}
+
+      /* ---- jersey features ---- */
+      .jf-h{font-family:'Montserrat',sans-serif;font-weight:800;text-transform:uppercase;
+        letter-spacing:1.2px;font-size:12px;color:var(--red);margin:26px 0 4px;
+        padding-top:14px;border-top:1px solid var(--line)}
+      .jf-hs{font-size:12px;color:var(--mute);margin-bottom:14px;line-height:1.55;max-width:640px}
+      .jf-grid{display:grid;grid-template-columns:1fr;gap:14px}
+      .jf{background:var(--card);border:1px solid var(--line);border-radius:14px;
+        box-shadow:var(--sh);padding:15px 16px;display:flex;gap:14px;align-items:flex-start}
+      /* The art at a size where it READS. 60px is the trophy-case thumbnail and is not
+         enough for a feature; 104 lets the chest motif carry, which is the only part of
+         a jersey legible below about 90px. */
+      .jf-art{width:104px;flex:none}
+      .jf-art img{width:100%;height:auto;display:block;border-radius:7px;
+        filter:drop-shadow(0 3px 8px rgba(0,0,0,.16))}
+      .jf-body{min-width:0;flex:1}
+      .jf-name{font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;line-height:1.2}
+      .jf-win{display:flex;align-items:center;gap:7px;margin-top:6px}
+      .jf-seat{font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;
+        background:var(--red);color:#fff;border-radius:999px;padding:3px 9px;line-height:1}
+      .jf-fig{font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+      .jf-story{font-size:13px;color:var(--ink2);line-height:1.6;margin-top:9px}
+      .jf-story.todo{color:var(--mute);font-style:italic}
+
+      @media(min-width:760px){ .jf-grid{grid-template-columns:1fr 1fr} }
+      @media(min-width:1180px){ .rp-title{font-size:32px} .pod-steps{gap:14px} }
+      /* At phone width the podium keeps its shape rather than stacking: three steps is
+         the whole idea, and it still fits because the blocks shrink, not the layout. */
+      @media(max-width:430px){
+        .pod-av{width:44px;height:44px} .pod-step.p1 .pod-av{width:54px;height:54px}
+        .pod-seat{font-size:15px} .pod-step.p1 .pod-seat{font-size:17px}
+        .pod-pts{font-size:15px} .pod-step.p1 .pod-pts{font-size:18px}
+        .pod-persona{font-size:9.5px;max-width:12ch}
+        .jf{flex-direction:column;align-items:center;text-align:center}
+        .jf-art{width:120px} .jf-win{justify-content:center} .jf-story{text-align:left}
+      }
+    </style>
+    <div id="raceBody"></div>
+  </section>
+
   <section class="tab on" id="tab-overview">
     <style>
       /* Captain 'Merica side-game card (bragging rights only) */
@@ -7966,6 +8067,137 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
     b.classList.add('on'); document.getElementById('tab-'+b.dataset.tab).classList.add('on');
   });
 });
+
+/* ===================== THE RACE-STATE TAB ==========================================
+   THREE STATES, DERIVED, WITH NO NEW FLAG. A flag nobody sets is the
+   config-with-no-consumer shape this repo keeps hitting, and a flag somebody must set on
+   the right day is worse: it is only correct while an operator remembers it.
+
+     POST    RACE_OVER, which buildCDF already derives from startStage running past the
+             last calendar row. Nothing new at all.
+     PRE     the race exists and nothing has happened in it yet: no stage has been scored
+             AND the open draft has taken no picks. Both halves are needed. Scored-count
+             alone would call stage 1 "pre" while four people are drafting it, which is
+             exactly when the front door should have got out of the way.
+     RACING  everything else, which is the common case and needs no test of its own.
+
+   The tab REMOVES ITSELF while racing, so it is never a dead tab, and it is the landing
+   tab in the other two states. */
+const RACE_MODE=(function(){
+  if(RACE_OVER) return 'post';
+  const scored=(typeof COMPLETED!=='undefined'&&COMPLETED.length)?COMPLETED.length:0;
+  const up=(typeof UPCOMING!=='undefined')?UPCOMING:null;
+  const drafted=up&&up.picks?Object.keys(up.picks).some(k=>(up.picks[k]||[]).length):false;
+  return (scored===0&&!drafted)?'pre':'racing';
+})();
+window.__RACE_MODE=RACE_MODE;
+
+(function(){
+  const btn=document.getElementById('raceTabBtn');
+  const body=document.getElementById('raceBody');
+  const pane=document.getElementById('tab-race');
+  if(!btn||!body||!pane) return;
+  if(RACE_MODE==='racing'){ btn.remove(); pane.remove(); return; }
+
+  btn.hidden=false;
+  btn.textContent = RACE_MODE==='post' ? 'The Result' : 'Race Week';
+
+  body.innerHTML = RACE_MODE==='post' ? postRaceHTML() : preRaceHTML();
+
+  /* Landing tab. Done by clicking the real button rather than by setting classes, so
+     there is one code path that decides what "a tab is open" means. */
+  document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('section.tab').forEach(x=>x.classList.remove('on'));
+  btn.classList.add('on'); pane.classList.add('on');
+
+  /* ---------------------------------------------------------------- POST ---- */
+  function postRaceHTML(){
+    const order=FAN_STANDING.order;
+    const steps=order.slice(0,3), lant=order[order.length-1];
+    const av=k=>{
+      const p=PERSONA_BY[k], art=p?ART[p.id]:null;
+      return art?art:'<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="23" fill="#e9e4d8"/></svg>';
+    };
+    const personaOf=k=>{ const p=PERSONA_BY[k]; return p?p.epithet:''; };
+
+    const podium=`<div class="podium">
+      <div class="pod-note">Ranked on <b>Fantasy Points</b>, the system of record on this race and the only board the red jersey answers to.</div>
+      <div class="pod-steps">${steps.map((k,i)=>`
+        <div class="pod-step p${i+1}">
+          <div class="pod-av">${av(k)}</div>
+          <div class="pod-seat">${esc(k)}</div>
+          <div class="pod-persona">${esc(personaOf(k))}</div>
+          <div class="pod-pts">${esc(OURS.fantasy[k])}</div>
+          <div class="pod-block">${i+1}</div>
+        </div>`).join('')}</div>
+    </div>`;
+
+    const lanterne=`<div class="lanterne">
+      <div class="lant-av">${av(lant)}</div>
+      <div>
+        <div class="lant-t">${esc(lant)} takes the Lanterne Rouge</div>
+        <div class="lant-d">The red lantern of the last train, carried by the rider who finishes last and keeps going. An honour with a long history and no apology in it.</div>
+      </div>
+      <div class="lant-pts">${esc(OURS.fantasy[lant])}</div>
+    </div>`;
+
+    /* THE JERSEYS COME FROM carriedJerseys, filtered to this race, so the feature list
+       cannot drift from the trophy cases. Shared awards collapse to ONE feature carrying
+       both seats, which is what "AA and JJ, seven cobbles each" actually is. */
+    const thisRace=RACE_PROFILE.year+' '+RACE_PROFILE.shortName;
+    const byType={};
+    PL4.forEach(k=>((CDF.carriedJerseys&&CDF.carriedJerseys[k])||[]).forEach(j=>{
+      if(!j||String(j.sub||'').indexOf(thisRace)!==0) return;
+      (byType[j.type]=byType[j.type]||{type:j.type,label:j.label,seats:[],note:j.note}).seats.push(k);
+    }));
+    const feats=Object.keys(byType).map(t=>byType[t]);
+
+    const cards=feats.map(f=>`<div class="jf">
+      <div class="jf-art">${(JERSEY_ICONS[f.type]||'').replace('class="jsy"','')}</div>
+      <div class="jf-body">
+        <div class="jf-name">${esc(f.label)}</div>
+        <div class="jf-win">${f.seats.map(s=>`<span class="jf-seat">${esc(s)}</span>`).join('')}
+          <span class="jf-fig">${esc(f.note||'')}</span></div>
+        <div class="jf-story todo">Narrative to come.</div>
+      </div></div>`).join('');
+
+    return `<div class="rp-head">
+        <div class="rp-kicker">${esc(RACE_PROFILE.name)} ${esc(RACE_PROFILE.year)} &middot; Final</div>
+        <div class="rp-title">${esc(FAN_STANDING.order[0])} wins the ${esc(RACE_PROFILE.shortName)}</div>
+        <div class="rp-sub">Twenty one stages, ${esc(COMPLETED.length)} of them scored, ${esc(RACE_PROFILE.startCity)} to ${esc(RACE_PROFILE.finishCity)}.</div>
+      </div>
+      ${podium}
+      ${lanterne}
+      <div class="jf-h">The jerseys</div>
+      <div class="jf-hs">Every classification settled, and how each one was won.</div>
+      <div class="jf-grid">${cards}</div>`;
+  }
+
+  /* ----------------------------------------------------------------- PRE ---- */
+  /* SHELL ONLY, deliberately. The Giro gets the slots; what goes in them is a decision
+     nobody has made yet, and inventing it here would be a player-facing surface nobody
+     asked for. Each slot names what it is for so the shape is reviewable now. */
+  function preRaceHTML(){
+    const first=(typeof RACE!=='undefined'&&RACE.length)?RACE[0]:null;
+    return `<div class="rp-head">
+        <div class="rp-kicker">${esc(RACE_PROFILE.name)} ${esc(RACE_PROFILE.year)} &middot; Race week</div>
+        <div class="rp-title">${esc(RACE_PROFILE.stageCount)} stages, ${esc(RACE_PROFILE.startCity)} to ${esc(RACE_PROFILE.finishCity)}</div>
+        <div class="rp-sub">${first?('Stage 1 opens '+esc(first.date)+', '+esc(first.route)+'.'):'The calendar is not seeded yet.'}</div>
+      </div>
+      <div class="jf-h">Shell only</div>
+      <div class="jf-hs">These slots exist so the Giro has them. Nothing is written into them yet.</div>
+      <div class="jf-grid">
+        <div class="jf"><div class="jf-body"><div class="jf-name">Countdown to stage 1</div>
+          <div class="jf-story todo">Days, then hours, derived from the calendar date.</div></div></div>
+        <div class="jf"><div class="jf-body"><div class="jf-name">The route</div>
+          <div class="jf-story todo">Where it goes and which days decide it.</div></div></div>
+        <div class="jf"><div class="jf-body"><div class="jf-name">What to watch</div>
+          <div class="jf-story todo">News and form going in.</div></div></div>
+        <div class="jf"><div class="jf-body"><div class="jf-name">Last time out</div>
+          <div class="jf-story todo">Who carries what into this race.</div></div></div>
+      </div>`;
+  }
+})();
 
 ;
 
