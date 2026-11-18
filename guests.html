@@ -121,13 +121,29 @@ function mins(n){
   return Math.floor(n/60)+'h '+(n%60)+'m';
 }
 
-/* ---- sign in as the owner, through the same cookie the board uses --------------- */
+/* ---- sign in as the owner, the same two ways the board does --------------------
+   FIREBASE'S OWN PERSISTENCE FIRST, THEN THE COOKIE, and that order is not a detail.
+   The first version of this page asked /auth/token only, and it said "Not signed in" to
+   an owner who was signed in on the board in the next tab: the board restores from
+   Firebase's in-window persistence, which is per-origin and shared across tabs, and
+   only falls back to the cookie. An owner whose cdf_session has lapsed while that
+   persistence is intact is therefore signed in everywhere except here.
+
+   Found by opening the page as the owner rather than by reasoning about it, which is
+   the standard this repo sets: a structural check passes on a broken feature. */
 async function boot(){
   let signedIn=false;
-  try{
-    const r=await fetch(AUTH_API+'/auth/token',{credentials:'include'});
-    if(r.ok){ const d=await r.json(); if(d&&d.firebaseToken){ await auth.signInWithCustomToken(d.firebaseToken); signedIn=true; } }
-  }catch(e){}
+  signedIn = await new Promise((resolve)=>{
+    let done=false;
+    const stop=auth.onAuthStateChanged((u)=>{ if(u&&!done){ done=true; stop(); resolve(true); } });
+    setTimeout(()=>{ if(!done){ done=true; try{ stop(); }catch(e){} resolve(!!auth.currentUser); } }, 1800);
+  });
+  if(!signedIn){
+    try{
+      const r=await fetch(AUTH_API+'/auth/token',{credentials:'include'});
+      if(r.ok){ const d=await r.json(); if(d&&d.firebaseToken){ await auth.signInWithCustomToken(d.firebaseToken); signedIn=true; } }
+    }catch(e){}
+  }
   if(!signedIn){
     msg('<b>Not signed in.</b><br>Open the board and sign in first, then come back to this page. '+
         'It reads your session from the same cookie the board uses.');
