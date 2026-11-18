@@ -397,9 +397,29 @@ async function run() {
     const rules = stripComments(fs.readFileSync(path.join(__dirname, 'firestore.rules'), 'utf8'));
     const writeClauses = (rules.match(ALLOW_CLAUSE) || [])
       .filter((l) => WRITE_VERB.test(l.split(':')[0]));
-    const viewerWrites = writeClauses.filter((l) => VIEWER_WORD.test(l));
+    /* NARROWED 2026-11-17, and narrowed rather than relaxed. This read
+       `VIEWER_WORD.test(l)`, which is /viewerOf|viewerSeats|showroom/i, so it refused
+       any write clause that merely said the word showroom. The owner may now seed a
+       showroom copy's predictions, because the copy tool empties `members` and that is
+       exactly what leaves nobody able to write them; that clause names showroomPool()
+       and is correct, and it was failing a check about a different thing.
+       A VIEWER write is still refused outright, and a clause naming a showroom without
+       requiring owner() counts as one. */
+    const viewerWrites = writeClauses.filter((l) =>
+      /viewerOf|viewerSeats/.test(l) || (/showroom/i.test(l) && !/owner\(\)/.test(l)));
     record('phase 2 really is deferred: no viewer write clause ships', viewerWrites.length === 0,
       viewerWrites.join(' | ') || 'none of ' + writeClauses.length + ' write clauses');
+    /* And the clause that DOES ship is described, not merely tolerated: a check that
+       only says what must not exist stops noticing what does. One clause, owner-gated,
+       and inside the predictions block rather than loose in the pool. */
+    const showroomWrites = writeClauses.filter((l) => /showroom/i.test(l));
+    record('exactly one showroom write clause ships, owner-gated',
+      showroomWrites.length === 1 && /owner\(\)/.test(showroomWrites[0]),
+      showroomWrites.join(' | ') || 'absent');
+    record('and it sits inside the predictions block',
+      /match \/predictions\/\{seat\}[^}]*allow write: if owner\(\) && showroomPool\(poolId\);/
+        .test(rules),
+      'not loose in the pool, where it would cover every subcollection');
     record('phase 2 really is deferred: viewerSeats is nowhere in the rules',
       rules.indexOf('viewerSeats') === -1);
     record('the phase 2 design is written down, not just dropped',

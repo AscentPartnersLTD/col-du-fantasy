@@ -124,8 +124,35 @@ check('an invitation expires on its own',
 
 /* ---- 5. a viewer never writes ---- */
 console.log('');
+/* THIS USED TO REFUSE BOTH `viewerOf` AND `showroom` in any write clause, and the
+   second half was too broad. The invariant is that a VIEWER never writes, not that the
+   word showroom may not appear: the owner may seed a showroom copy's predictions, which
+   names showroomPool() in a write clause and is correct. So the two halves are now
+   separate, and the second is NARROWER than what it replaced rather than relaxed: a
+   write clause may name a showroom only while it also requires owner(). */
 check('no write clause mentions a viewer',
-  writeAllows.filter(l => /viewerOf|showroom/i.test(l)).length === 0);
+  writeAllows.filter(l => /viewerOf/.test(l)).length === 0);
+const showroomWrites = writeAllows.filter(l => /showroom/i.test(l));
+/* THE COUNT IS ASSERTED, and that is not tidiness. Written as `.every()` alone these
+   two checks PASSED VACUOUSLY on an injected regression: dropping `&& showroomPool`
+   leaves `allow write: if owner();`, which this filter does not match, so the array is
+   empty and every() is true. 27/27 held while the rule granted the owner predictions on
+   BOTH production pools. The emulator suite caught it with four named failures and this
+   gate did not, which is the fail-open shape in the gate written to catch it. */
+check('exactly one write clause names a showroom', showroomWrites.length === 1,
+  showroomWrites.length + ' clause(s); zero means the scope was dropped, not that none exists');
+check('and it is owner-gated',
+  showroomWrites.length === 1 && /owner\(\)/.test(showroomWrites[0]),
+  'a viewer never writes, whatever the pool is flagged');
+check('and it is not scoped by a seat the copy no longer carries',
+  showroomWrites.length === 1 && !/poolSeat|inPool/.test(showroomWrites[0]),
+  'the copy scrubs members, so a seat grant there is nobody');
+/* The grant must reach ONLY predictions. Loose in the pool block it would cover every
+   subcollection of every showroom. */
+check('the showroom write is inside the predictions block',
+  /match \/predictions\/\{seat\}[^}]*allow write: if owner\(\) && showroomPool\(poolId\);/
+    .test(src),
+  'one subcollection, not the whole copy');
 const grants = readAllows.filter(l => /viewerOf\s*\(/.test(l));
 check('viewer reads exist and are scoped by poolId',
   grants.length > 0 && grants.every(l => /viewerOf\(\s*poolId\s*\)/.test(l)),

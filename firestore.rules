@@ -144,6 +144,24 @@ service cloud.firestore {
         allow read:  if (poolMember(poolId) && (poolSeat(poolId) == seat || predsLocked(poolId)))
                      || (viewerOf(poolId) && predsLocked(poolId));
         allow write: if inPool(poolId) && poolSeat(poolId) == seat && !predsLocked(poolId);
+        /* THE OWNER MAY SEED A SHOWROOM'S PREDICTIONS, and nowhere else. A showroom is
+           a COPY, and the copy tool scrubs every address out of `members`, which is the
+           whole reason a guest is safe on it; that same scrub is what leaves nobody able
+           to write these documents, because the clause above grants on a seat held
+           through `members`. So the predictions matrix arrived empty on a board whose
+           locked matrix is one of the things a guest is meant to see.
+
+           showroomPool() carries BOTH halves of the guard: not a production pool by
+           NAME, and the pool document declares `showroom: true`. Either alone is not
+           enough, which is the property the emulator suite stages deliberately by
+           writing a showroom flag onto the production pools and asserting a refusal.
+
+           It is an `allow write` of its own rather than a widening of the clause above,
+           because multiple allow-write statements are ORed: the seat rule keeps working
+           exactly as it does today and this adds nothing to a production pool. The
+           owner still cannot write predictions on col-du-fantasy or vuelta-2026, where
+           they hold no seat, and that is asserted rather than assumed. */
+        allow write: if owner() && showroomPool(poolId);
       }
     }
 

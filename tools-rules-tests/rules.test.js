@@ -318,6 +318,49 @@ async function run() {
     await expect('owner writes a ' + pid + ' stage',
       setDoc(doc(o, 'pools', pid, 'stages', '21'), { n: 21, win: 'owner' }), true);
   }
+  /* PREDICTIONS ON A SHOWROOM, which is the one grant the owner did not have.
+     Asserted in all three directions, because a grant is only as good as the two
+     refusals beside it: the production pools must stay closed, and a viewer must
+     never reach it however the flag is written. */
+  for (const pid of SHOWROOMS) {
+    await expect('owner WRITES predictions on ' + pid,
+      setDoc(doc(o, 'pools', pid, 'predictions', 'JJ'),
+        { seat: 'JJ', gc: 'a rider' }), true, 'the copy has no seat holder');
+    await expect('owner writes a second seat on ' + pid,
+      setDoc(doc(o, 'pools', pid, 'predictions', 'AA'), { seat: 'AA' }), true);
+  }
+  for (const pid of PROD) {
+    await expect('owner still CANNOT write predictions on ' + pid,
+      setDoc(doc(o, 'pools', pid, 'predictions', 'JJ'), { seat: 'JJ' }), false,
+      'they hold no seat there, and the new clause excludes it by name');
+  }
+  await expect('owner CANNOT write predictions on an unflagged copy',
+    setDoc(doc(o, 'pools', 'unflagged-copy', 'predictions', 'JJ'), { seat: 'JJ' }), false,
+    'the showroom flag is required, not just the absence of a production name');
+  /* THE FLAG ALONE MUST NOT BE ENOUGH. Staged deliberately: a production pool is given
+     `showroom: true`, exactly the accident the name guard exists for, and the owner is
+     still refused. Without prodPool() in showroomPool() this is the check that fails. */
+  await env.withSecurityRulesDisabled(async (c) => {
+    await updateDoc(doc(c.firestore(), 'pools', PROD[0]), { showroom: true });
+  });
+  await expect('a showroom flag on ' + PROD[0] + ' grants the owner nothing',
+    setDoc(doc(o, 'pools', PROD[0], 'predictions', 'JJ'), { seat: 'JJ' }), false,
+    'denied by NAME, so a stray flag cannot open a production pool');
+  await expect('and a viewer still cannot write predictions there',
+    setDoc(doc(ctx(GUEST), 'pools', PROD[0], 'predictions', 'JJ'), { seat: 'JJ' }), false);
+  await env.withSecurityRulesDisabled(async (c) => {
+    await updateDoc(doc(c.firestore(), 'pools', PROD[0]), { showroom: deleteField() });
+  });
+
+  /* A VIEWER NEVER WRITES PREDICTIONS, on the pool they are actually invited to.
+     The guest block above covers this too; it is repeated here because the clause
+     that moved is this one, and a grant added beside a refusal is where a refusal
+     quietly stops being tested. */
+  for (const pid of SHOWROOMS) {
+    await expect('guest CANNOT write predictions on ' + pid,
+      setDoc(doc(ctx(GUEST), 'pools', pid, 'predictions', 'JJ'), { seat: 'JJ' }), false);
+  }
+
   await expect('owner reads config/roster', getDoc(doc(o, 'config/roster')), true);
   await expect('owner writes config/roster',
     setDoc(doc(o, 'config/roster'), { players: {}, reviewers: {} }), true);
