@@ -15,7 +15,10 @@
  *     the migration that used to live here is what made a five-step cutover
  *     necessary. If this check fails, somebody has reintroduced that risk.
  *  2. A VIEWER CAN NEVER REACH A PRODUCTION POOL, denied by NAME and not by a flag.
- *  3. A VIEWER NEVER WRITES. Not one allow-write clause mentions one.
+ *  3. A VIEWER NEVER WRITES. No allow-write clause names viewerOf, and a clause that
+ *     names a showroom must require owner(): since 2026-11-17 the owner may seed a
+ *     showroom copy's predictions, which the copy tool's own members scrub is what made
+ *     necessary, and that is the only write clause the word showroom may appear in.
  *  4. config/roster is closed. It holds players and reviewers keyed by EMAIL under
  *     what used to be a blanket signedIn() read.
  *  5. NOTHING IS PUBLIC, and nothing still grants on signedIn() alone.

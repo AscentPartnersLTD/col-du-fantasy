@@ -3254,6 +3254,50 @@ where `undefined` stringifies silently instead of throwing. A missing field is n
 in this codebase, it is a five-letter word on a card, which is the fail-open shape this file
 keeps recording, one layer down in the view.
 
+### It was VUELTA ONLY for two months, and the gate could not see the Tour
+
+Ported to `board.src.html` on 2026-11-17. Between those two dates the FINISHED TOUR went on
+inventing a stage 22 on `col-du-fantasy` and on `tour-showroom`: the draft card armed with
+eight empty slots, a stage 22 Captain 'Merica picker with tappable riders, today's order,
+the Next Two card, the weather card and the live break check. TWO OF THOSE ACCEPTED INPUT
+for a stage that will never be raced.
+
+THE REASON IT SURVIVED IS THE PART TO KEEP. `tools-validate-build.js` read ONE FILE:
+
+    const BUILT = { 'vuelta.html': 'vuelta-2026' };
+
+So the whole Tour family was outside the pre-push gate, and a defect fixed on one board
+could sit on the other indefinitely with every check green. A GATE THAT COVERS ONE OF TWO
+BOARDS CANNOT SEE THE BOARD THAT IS WRONG, and its passing report says nothing about the
+file it never opened. It now covers `tour.html`, `index.html`, `tour-staging.html` and
+`board.html` as well, and `board.src.html` beside `vuelta.src.html`, with the operator-card
+block left Vuelta-only because that card does not exist on the Tour at all. 16 checks
+became 52. When a board is added, ADD IT TO THAT TABLE in the same commit.
+
+SEVEN CONSUMERS, NOT NINE. The Tour carries no operator close card and no Kasseistampers
+picker, so those two guards have nothing to guard there.
+
+ONE DELIBERATE DIVERGENCE, and it is a correction rather than a copy. The Vuelta strip
+prints `fanOrder`, which is Fantasy Points, ITS system of record. THE TOUR'S IS PLACEMENT,
+so the Tour prints `placeOrder`. Mirroring the Vuelta literally would have put the wrong
+board's final standing on the Tour, which is the direction trap under Per-race scoring
+profiles, and `fanOrder` does not exist on that board, so it would also have thrown. Any
+further port of a standings-reading surface asks the same question first: WHICH BOARD IS
+THIS RACE'S SYSTEM OF RECORD?
+
+`RACE_PROFILE.stageCount` is the FALLBACK for a pool whose `boardConfig` carries no `race`
+array, and the calendar is tried first, so the fallback can never override a real calendar
+and the two cannot disagree about a race that has one. It is Tour-only on purpose: the
+Vuelta pool has a calendar and a second record of its stage count would be the `FP_SCALE`
+mistake in data.
+
+VERIFIED by `tools-raceover-verify.js`, over BOTH built boards, 41 checks. It LIFTS the
+derivation verbatim out of each built file and EXECUTES it, so it measures shipped code
+rather than a transcription, and it asserts each guard is the OPENING statement of its
+function, because a guard that renders the card and then returns is not a guard. Proved to
+fail on three injected regressions, each giving 40/41: removing the Merica guard, removing
+the break-check guard, and swapping `placeOrder` for `fanOrder`.
+
 ## Automating a manual process drops whatever that process carried in a head
 
 Added 2026-09-10, after the close tool silently stopped writing the reads.
@@ -3858,7 +3902,7 @@ check has to live in the snippet rather than in the tool, because only a signed-
 can read every members map. A guest who is also a member holds BOTH grants and the member
 one can write a draft, so a test with such an address proves nothing about guests. It is
 why the test guest in GO-LIVE-GUESTS.md is `info@ascentpartnersltd.com`, an address in no
-pool at all. `guest-remove.js` refuses a member too: that is a player, and removing one is
+pool at all. `tools/guest-remove.js` refuses a member too: that is a player, and removing one is
 a different and much larger decision than revoking a guest. THE VIEWER KEY IS WRITTEN THROUGH `FieldPath`, NOT A DOTTED
 STRING: a dotted path cannot carry an email, and escaping the dots does not save it,
 because the JavaScript parser resolves `\u002e` before Firestore sees the string, so
@@ -3899,6 +3943,45 @@ removing the name guard from `showroomPool()` (93/97), and dropping the expiry c
 
 NO REAL ADDRESS IS IN THE TEST FILE. The cast is synthetic and seeded by the test. The
 production pool IDS are real and have to be, because the rule denies by NAME.
+
+### The owner seeds the copy's predictions, and nowhere else
+
+Added 2026-11-17. `pools/{poolId}/predictions/{seat}` had ONE write clause, granting on a
+seat held through `members`. THE COPY TOOL EMPTIES `members`, which is the whole reason a
+guest is safe on a showroom, so that same scrub left NOBODY able to write those documents,
+and the locked jersey-predictions matrix, which is one of the things a guest is meant to
+see, arrived on the copy empty.
+
+    allow write: if owner() && showroomPool(poolId);
+
+A SECOND `allow write` rather than a widening of the first, because multiple allow-write
+statements are ORed: the seat rule keeps working exactly as it does and nothing is added to
+a production pool. `showroomPool()` carries BOTH halves of the guard, not a production pool
+BY NAME and the document declaring `showroom: true`, and the suite stages the accident
+deliberately by writing a showroom flag onto `col-du-fantasy` and asserting the owner is
+still refused. It sits INSIDE the predictions match block, asserted, because loose in the
+pool block it would cover every subcollection of every copy.
+
+TWO GATES REFUSED A CORRECT RULE, for the same reason, and both were NARROWED rather than
+relaxed. `tools-rules-guard.js` asserted "no write clause mentions a viewer" as a match on
+`/viewerOf|showroom/i`, and `tools-guest-access-test.js` asserted the phase 2 deferral the
+same way. An owner-gated showroom write is not a viewer write. Each now refuses `viewerOf`
+outright and treats a showroom clause WITHOUT `owner()` as a viewer write, which is
+narrower than the words it replaced. When a check's implementation is broader than its
+name, fix the implementation rather than the rule it is complaining about, and check which
+of the two the name was about.
+
+AND THE FIRST VERSION OF THE NEW STATIC CHECKS PASSED VACUOUSLY, which is worth more than
+the rule. Written as `.every()` over the matching clauses, dropping `&& showroomPool`
+leaves `allow write: if owner();`, which the filter does not match, so the array is EMPTY
+and `every()` is true. 27 of 27 invariants held while the rule granted the owner
+predictions on BOTH production pools. The emulator suite caught that same regression with
+four named failures and the static gate did not: the fail-open shape, in the gate written
+to catch it. ASSERT THE COUNT ALONGSIDE THE PROPERTY, so zero matches is a failure saying
+the scope was dropped rather than a pass saying none exists.
+
+Verified: 119 and 19 on the first emulator suite, 151 on the second, 29 static invariants.
+Proved to FAIL on the dropped scope at 115 and 25, every failure named.
 
 ### The board
 
