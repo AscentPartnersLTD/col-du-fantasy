@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20261113-181538Z -->
+<head><!-- build:20261118-013407Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -1879,12 +1879,41 @@ async function buildCDF(){
   // Firestore wins, the baked SHARED_UPCOMING is the fallback. This is what lets the
   // draft-done endpoint post reads with no board redeploy.
   const dIntel=(draftDoc.intel&&draftDoc.intel.summary)?draftDoc.intel:null;
-  const upcoming={ n:Number(STAGE), order:ORDER.slice(), route:(draftDoc.route||su.route||''), type:(draftDoc.type||su.type||''), km:(draftDoc.km||su.km||0), intel:(dIntel||su.intel||{summary:'',facts:[]}), reads:(draftDoc.reads||su.reads||null), flag:(draftDoc.flag||su.flag||null), picks:upPicks };
+  /* THE RACE IS OVER. Ported from vuelta.src.html 2026-11-17, after the finished Tour
+     went on showing a "Stage 22 draft, not started" card, a stage 22 Captain 'Merica
+     picker, today's order and a live break check, on two pools.
+
+     The consumers were ALREADY WRITTEN FOR THIS here too: the weather card and the Next
+     Two card each open with an `if(!W)` or an `if(!U)` branch that has never run, because
+     nothing ever produced the null they test for. A guard with no producer is the mirror
+     of the config flag with no consumer.
+
+     DERIVED, never written: no flag in Firestore and nothing to set at close time. */
+  const _rr=(pool.boardConfig&&Array.isArray(pool.boardConfig.race))?pool.boardConfig.race.find(r=>Number(r.n)===Number(STAGE)):null;
+  const _calendar=(pool.boardConfig&&Array.isArray(pool.boardConfig.race))?pool.boardConfig.race:[];
+  /* The calendar is the source of truth and is tried FIRST. RACE_PROFILE.stageCount is
+     the fallback and only that: CLAUDE.md carries it "for copy only, so prose has a
+     number to read without a second list that can drift", and a pool whose boardConfig
+     has no race array would otherwise have no last stage and could never finish.
+     Calendar first means the fallback can never override a real calendar, so the two
+     cannot disagree about a race that has one. */
+  const _lastStage=_calendar.reduce((a,r)=>Math.max(a,Number(r&&r.n)||0),0)
+    || Number((typeof RACE_PROFILE!=='undefined'&&RACE_PROFILE.stageCount)||0);
+  /* Past the last stage AND no document for this one: nothing is coming. The second half
+     matters because a calendar that has not been extended yet must not declare a running
+     race finished. */
+  const RACE_OVER=_lastStage>0 && Number(STAGE)>_lastStage && !_rr;
+  /* PUBLISHED ON window BECAUSE THE CONSUMERS SPAN SCRIPT BLOCKS. The draft card and the
+     Merica picker live in THIS block; Today's Order, the weather card, the Next Two card
+     and the break check live in the next one and read CDF.raceOver. One derivation, two
+     ways to read it, and no second computation. */
+  window.__RACE_OVER=RACE_OVER;
+  const upcoming=RACE_OVER?null:{ n:Number(STAGE), order:ORDER.slice(), route:(draftDoc.route||su.route||''), type:(draftDoc.type||su.type||''), km:(draftDoc.km||su.km||0), intel:(dIntel||su.intel||{summary:'',facts:[]}), reads:(draftDoc.reads||su.reads||null), flag:(draftDoc.flag||su.flag||null), picks:upPicks };
   const official=pool.official||{ through:0, placement:Object.assign({},zero), rank:Object.assign({},zero) };
   const ledger=pool.personaLedger||{order:ORDER.slice(),by:{},seen:{}};
   const rp=pool.riderProfile||riderProfile;
   const seats=seatList.slice();
-  return { players, order:ORDER.slice(), seats, riderProfile:rp, personaLedger:ledger, official, stages, upcoming, editorial:pool.editorial||null, boardConfig:pool.boardConfig||null };
+  return { players, order:ORDER.slice(), seats, riderProfile:rp, personaLedger:ledger, official, stages, upcoming, raceOver:RACE_OVER, lastStage:_lastStage, editorial:pool.editorial||null, boardConfig:pool.boardConfig||null };
 }
 /* ---------------- draft engine (per pool) ---------------- */
 function draftRef(){ return db.doc('pools/'+poolId+'/drafts/'+STAGE); }
@@ -1977,6 +2006,15 @@ async function paintPushUI(){
 }
 function warn(t){ return '<div class="draft"><div class="allin"><div class="sm" style="color:var(--red)">'+t+'</div></div></div>'; }
 function renderMerica(){
+  /* With the race over the chips and their handlers are never built, so there is nothing
+     to tap rather than something that looks tappable and quietly does nothing. The season
+     result lives on the palmares cards and in the trophy case, which is where it belongs
+     once the racing stops. */
+  if(window.__RACE_OVER){
+    const gone=document.getElementById('mericaMount');
+    if(gone) gone.remove();
+    return;
+  }
   let mm=document.getElementById('mericaMount');
   if(!mm){ const dm=document.getElementById('draftMount'); if(!dm||!dm.parentNode) return; mm=document.createElement('div'); mm.id='mericaMount'; dm.parentNode.insertBefore(mm, dm.nextSibling); }
   const picks=(draft&&draft.merica)||{};
@@ -2063,6 +2101,18 @@ function renderMini(picks){
     `</div></div>`;
 }
 function renderDraft(){
+  /* A finished race showed "Stage 22 draft" with eight empty slots and a seed button,
+     telling the operator the draft was armed. There is no stage 22. It now accepts
+     NOTHING: no slots, no button, no click targets, because a disabled control still
+     invites the attempt, and a card that takes a pick for a stage that will never be
+     raced is worse than no card at all. */
+  if(window.__RACE_OVER){
+    const m=document.getElementById('draftMount');
+    if(m) m.innerHTML='<div class="dh"><div><div class="dh-t">The racing is done</div>'
+      +'<div class="dh-s">Twenty one stages, and the drafting is closed for this race.</div></div>'
+      +'<span class="dh-badge badge-done">Final</span></div>';
+    return;
+  }
   const picks=draft.picks||[], queue=draft.queue||[]; const clock=queue[0]||null; const status=draft.status||'pending';
   const done=status==='complete'||queue.length===0; const pending=status==='pending'&&picks.length===0; const leadoff=ORDER[0];
   /* A GUEST GETS THE LOCKED STRIP AND NOTHING ELSE. It is the most-read card on the
@@ -2203,6 +2253,16 @@ const RACE_TOP5 = {
 const STAGES = CDF.stages;
 
 const UPCOMING = CDF.upcoming;
+
+/* THE RACE IS OVER. Derived in buildCDF from startStage against the calendar, never
+   written to Firestore and never set by hand. When it is true, UPCOMING is null and
+   every surface that asks "what is next" has to answer that nothing is, rather than
+   invent a stage.
+
+   RACE_OVER_LINE is the one place the finished-season wording lives, so the surfaces
+   cannot drift into several different ways of saying the race has finished. */
+const RACE_OVER = CDF.raceOver === true;
+const RACE_OVER_LINE = RACE_PROFILE.name + ' ' + RACE_PROFILE.year + ' is complete.';
 
 /* Next-stage weather. The widget on the Stats tab fetches a live forecast from
    Open-Meteo (free, no key) for the finish town on `date`. Update place/lat/lon/date
@@ -3188,6 +3248,20 @@ document.getElementById('stages').insertAdjacentHTML('afterbegin',
 /* Today's Order strip (Overview) - the day's pick order, rotates each stage */
 (function(){
   const el=document.getElementById('todayOrder'); if(!el || typeof UPCOMING==='undefined') return;
+  /* With the race over there is no order to take, so the strip names the champion rather
+     than printing "Stage 22 &middot; " with an empty route after it.
+     IT ORDERS BY PLACEMENT, not by the Vuelta's Fantasy Points: Placement is this race's
+     system of record, and fanOrder does not exist on this board at all. */
+  if(RACE_OVER||!UPCOMING){
+    /* Defined HERE rather than reused from the palmares block, whose winIC lives inside
+       that block's IIFE. Reaching across for it is the ReferenceError that blanks the
+       whole board, the same trap recorded against MER and norm in CLAUDE.md. */
+    const cup='<svg viewBox="0 0 24 24" aria-hidden="true" style="width:15px;height:15px;vertical-align:-2px"><path d="M7 3h10v3h4v3a5 5 0 01-5 5h-.4A5 5 0 0113 16.9V19h3v2H8v-2h3v-2.1A5 5 0 019.4 14H9a5 5 0 01-5-5V6h3zM7 8H6v1a3 3 0 002 2.8zM18 8v3.8A3 3 0 0020 9V8z" fill="currentColor"/></svg>';
+    el.innerHTML=`<div class="to-inner"><span class="to-lab">${cup} Final standing</span>`
+      +`<span class="to-seq">${placeOrder.map((k,i)=>`<span class="to-chip${i===0?' first':''}"><i>${i+1}</i>${esc(k)}</span>`).join('')}</span>`
+      +`<span class="to-stage">${esc(RACE_OVER_LINE)}</span></div>`;
+    return;
+  }
   const order=todaysOrder();
   const rot='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>';
   const chips=order.map((k,i)=>`<span class="to-chip${i===0?' first':''}"><i>${i+1}</i>${k}</span>`).join('');
@@ -3440,7 +3514,16 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   const body=document.getElementById('wxBody'); if(!body) return;
   const W=(typeof WEATHER!=='undefined')?WEATHER:null;
   const sub=document.getElementById('wxSub');
-  if(!W){ body.innerHTML='<span class="wx-muted">No upcoming stage set.</span>'; return; }
+  /* The one that goes quietly WRONG rather than merely stale: with no stage 22 it goes on
+     showing the last raced stage's finish as though it were the outlook. A forecast for a
+     stage that has been raced is not a forecast. The whole card retires with the race,
+     because an empty bordered card reads as broken where an absent one reads as finished. */
+  if(RACE_OVER||!W){
+    const box=body.closest('.metricbox')||body.parentElement;
+    if(box&&RACE_OVER) box.remove();
+    else body.innerHTML='<span class="wx-muted">No upcoming stage set.</span>';
+    return;
+  }
   if(sub) sub.innerHTML=`Stage ${W.stage} finish &middot; <span class="wx-place">${W.place}</span>`+(W.finish?` &middot; ${W.finish}`:'');
   function code(c){ if(c===0)return['Clear','sun']; if(c<=3)return['Partly cloudy','pcloud']; if(c<=48)return['Fog','fog']; if(c<=57)return['Drizzle','rain']; if(c<=67)return['Rain','rain']; if(c<=77)return['Snow','snow']; if(c<=82)return['Rain showers','rain']; if(c<=86)return['Snow showers','snow']; return['Thunderstorms','storm']; }
   function fmt(s){ try{const p=s.split('-');const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return m[+p[1]-1]+' '+(+p[2])+', '+p[0];}catch(e){return s;} }
@@ -3472,7 +3555,14 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   const el=document.getElementById('nsBody'); if(!el) return;
   const U=(typeof UPCOMING!=='undefined')?UPCOMING:null;
   const N2=(typeof NEXT2!=='undefined')?NEXT2:null;
-  if(!U){ el.innerHTML='<span class="ns-muted">No upcoming stage set.</span>'; return; }
+  /* "No upcoming stage set" is MISCONFIGURATION copy: it reads as something an operator
+     forgot to do. A finished race is not a missing setting, so the card retires itself and
+     the heading goes with it. */
+  if(RACE_OVER||!U){
+    const box=document.getElementById('nextStageBox');
+    if(box) box.remove(); else el.innerHTML='';
+    return;
+  }
   function orderFor(n){
     try{
       if(n===((U&&U.n)||-1) && typeof todaysOrder==='function') return todaysOrder();
@@ -3681,6 +3771,11 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
 (function(){
   var CARD=document.getElementById('breakWidget');
   if(!CARD || typeof BREAK_WORKER==='undefined' || !BREAK_WORKER){ return; } // hidden until configured
+  /* With the peloton off the road there is nobody up the road: the feed would answer with
+     the last frozen snapshot of a finished stage, which is the stale-groups trap recorded
+     under "live from /api/break is NOT a race-state flag". The card starts hidden and
+     simply never reveals itself, so nothing is removed and nothing flashes. */
+  if(CDF.raceOver===true){ return; }
   CARD.style.display='';
   var BTN=document.getElementById('bwBtn'), BODY=document.getElementById('bwBody');
   var COL=(function(){var _p=['#c9971a','#26347e','#2f8f52','#cf2530'],_s=CDF.order.slice().sort(),o={};_s.forEach(function(c,i){o[c]=_p[i%_p.length];});return o;})();

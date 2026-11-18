@@ -43,8 +43,23 @@ function dashCount(s) {
   return { en, em };
 }
 
-const BUILT = { 'vuelta.html': 'vuelta-2026' };
-const SOURCES = ['vuelta.src.html'];
+/* EVERY BUILT BOARD, and that is the point of this entry. This table read
+   `{ 'vuelta.html': 'vuelta-2026' }` ALONE until 2026-11-17, so the whole Tour family
+   was outside the pre-push gate. That is how a finished Tour went two months showing a
+   stage 22 draft card, a stage 22 Captain 'Merica picker and a live break check, on two
+   pools: the gate that would have seen it was reading the other file. A gate that covers
+   one of two boards cannot see the board that is wrong.
+
+   board.html expects an EMPTY DEFAULT_POOL, which is a value and not an absence, so the
+   per-file pool check below tests against null rather than against falsy. */
+const BUILT = {
+  'vuelta.html': 'vuelta-2026',
+  'tour.html': 'col-du-fantasy',
+  'index.html': 'col-du-fantasy',
+  'tour-staging.html': 'col-du-fantasy',
+  'board.html': '',
+};
+const SOURCES = ['vuelta.src.html', 'board.src.html'];
 
 function checkFile(f, expectPool) {
   const p = path.join(REPO, f);
@@ -61,9 +76,10 @@ function checkFile(f, expectPool) {
   const close = (s.match(/<\/script>/g) || []).length;
   check('script tags balance', open === close, open + ' open, ' + close + ' close');
 
-  if (expectPool) {
+  if (expectPool !== null) {
     const m = s.match(/DEFAULT_POOL\s*=\s*'([^']*)'/);
-    check('DEFAULT_POOL is ' + expectPool, m && m[1] === expectPool, m ? m[1] : 'absent');
+    check('DEFAULT_POOL is ' + (expectPool === '' ? 'empty' : expectPool),
+      m && m[1] === expectPool, m ? JSON.stringify(m[1]) : 'absent');
     check('no unsubstituted placeholders', s.indexOf('{{') < 0);
     check('build stamp present', /<!-- build:\d{8}-\d{6}Z -->/.test(s),
       (s.match(/<!-- build:[^>]*-->/) || [''])[0]);
@@ -72,8 +88,15 @@ function checkFile(f, expectPool) {
 }
 
 SOURCES.forEach(f => checkFile(f, null));
-let built = null;
-Object.keys(BUILT).forEach(f => { built = checkFile(f, BUILT[f]); });
+const allBuilt = {};
+Object.keys(BUILT).forEach(f => {
+  const s = checkFile(f, BUILT[f]);
+  if (s) allBuilt[f] = s;
+});
+/* The operator card section below is VUELTA ONLY, deliberately: that card does not exist
+   on the Tour family at all, so asserting it there would fail on a correct board. Every
+   other section runs per file. */
+const built = allBuilt['vuelta.html'] || null;
 
 /* The operator card, which is the one surface that must never reach a player. */
 if (built) {
@@ -88,7 +111,8 @@ if (built) {
 
 /* Extract every inline script and parse it. */
 console.log('\ninline scripts');
-if (built) {
+Object.keys(allBuilt).forEach(function (bf) {
+  const built = allBuilt[bf];
   const re = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g;
   let m, i = 0, bad = 0;
   while ((m = re.exec(built))) {
@@ -101,8 +125,8 @@ if (built) {
       String(e.stderr || e).split('\n').slice(0, 2).join(' ')); }
     fs.unlinkSync(tmp);
   }
-  check('every inline script parses', bad === 0, i + ' blocks checked');
-}
+  check(bf + ': every inline script parses', bad === 0, i + ' blocks checked');
+});
 
 console.log('\n' + (ran - fails) + '/' + ran + ' checks passed');
 process.exit(fails ? 1 : 0);
