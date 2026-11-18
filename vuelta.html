@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20261113-181553Z -->
+<head><!-- build:20261118-152041Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -9126,7 +9126,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
     stopPoll();   // a fresh pull (manual or scheduled) resets the auto-refresh cycle
     var rf=document.getElementById('bwRefresh'); if(rf) rf.disabled=true;
     BODY.className='bw-body has'; BODY.innerHTML='<div class="bw-muted">Reading the race...</div>';
-    var stage=(typeof UPCOMING!=='undefined'&&UPCOMING.n)?UPCOMING.n:'';
+    var stage=(typeof UPCOMING!=='undefined'&&UPCOMING&&UPCOMING.n)?UPCOMING.n:'';
     try{ var ov=new URLSearchParams(location.search).get('bwstage'); if(ov) stage=ov; }catch(e){}
     var eps=(typeof BREAK_ENDPOINTS!=='undefined'&&BREAK_ENDPOINTS.length)?BREAK_ENDPOINTS.slice():[BREAK_WORKER];
     var bwRaceFail=false;   // set when a reply was readable but described the wrong race
@@ -9192,7 +9192,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
   // NOT advance the rotation count - stages after a void stay in phase.
   function seasonOrder(){
     const base=CDF.order.slice(), m=base.length;
-    const anchor=(typeof UPCOMING!=='undefined'&&UPCOMING.n)?Number(UPCOMING.n):1;
+    const anchor=(typeof UPCOMING!=='undefined'&&UPCOMING&&UPCOMING.n)?Number(UPCOMING.n):1;
     const stages=RACE.slice().sort((a,b)=>a.n-b.n);
     const idx={}; let k=0;
     stages.forEach(st=>{ if(st.voidPool) return; idx[st.n]=k; k++; });
@@ -9207,7 +9207,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
     return ord;
   }
   const ORD=seasonOrder();
-  const firstStage=(typeof UPCOMING!=='undefined'&&UPCOMING.n)?UPCOMING.n:1;
+  const firstStage=(typeof UPCOMING!=='undefined'&&UPCOMING&&UPCOMING.n)?UPCOMING.n:1;
 
   function scopeStages(scope){
     return RACE.slice().sort((a,b)=>a.n-b.n)

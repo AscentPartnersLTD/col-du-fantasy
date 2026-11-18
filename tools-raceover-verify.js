@@ -157,21 +157,9 @@ for (const B of BOARDS) {
      was correct while the only risk was a LATER script block, where UPCOMING really is
      out of scope; RACE_OVER added a third state, in scope and null, it never covered. */
   const bareTypeof = (src.match(/typeof UPCOMING!=='undefined'&&UPCOMING\.[a-z]/g) || []);
-  if (B.race === 'Tour') {
-    check('no UPCOMING read is guarded by typeof alone', bareTypeof.length === 0,
-      bareTypeof.length ? bareTypeof.join(' | ') : 'every one also tests for null');
-  } else {
-    /* THE VUELTA STILL CARRIES THREE, and this asserts the KNOWN STATE rather than
-       passing over it. Measured on the live board 2026-11-17: seasonOrder throws
-       "Cannot read properties of null (reading 'n')" on every load since that race
-       finished, which is the LAST statement in the block, so everything above it had
-       already rendered and only the Draft Tilt strip went missing. Reported to Allen
-       and deliberately NOT fixed here, because this brief says vuelta.html is to be
-       unchanged, the same call recorded for stage 1's combatifNote. WHEN IT IS FIXED
-       THIS CHECK FAILS, and the expectation moves to the Tour's. */
-    check('the Vuelta still carries its three typeof-only reads', bareTypeof.length === 3,
-      'reported, not fixed in this brief; fixing them flips this check');
-  }
+  /* Both boards now. The Vuelta's three typeof-only reads were fixed 2026-11-18, the flip the earlier note promised. */
+  check('no UPCOMING read is guarded by typeof alone', bareTypeof.length === 0,
+    bareTypeof.length ? bareTypeof.join(' | ') : 'every one also tests for null');
 
   check('one wording, in one place',
     /const RACE_OVER_LINE = RACE_PROFILE\.name \+ ' ' \+ RACE_PROFILE\.year \+ ' is complete\.'/.test(src));
