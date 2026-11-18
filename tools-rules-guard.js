@@ -188,6 +188,34 @@ check('the userPools write is the caller own, not isMember()',
   /allow write:\s*if owner\(\) \|\| \(signedIn\(\) && uid == em\(\)\)/.test(up),
   'gating it on the legacy roster is a lockout, not a tightening');
 
+/* ---- 7. the guest pass table and the visit log are OWNER ONLY ---- */
+console.log('');
+/* THE PASS ID IS THE CREDENTIAL. guestPasses is a list of every live link and every
+   synthetic address, so one signed-in reader who should not have it is one reader who
+   can sign in as every guest. guestVisits is a record about a person. Neither is read
+   by a guest for any purpose: /auth/guest checks a pass server side through the admin
+   SDK, which does not consult this file at all.
+
+   ASSERTED BY COUNT AS WELL AS BY SHAPE, because `.every()` over clauses that match a
+   collection passes VACUOUSLY when the match block has been deleted, which is how a
+   27/27 was held on 2026-11-17 while the rule under test had been removed. */
+['guestPasses', 'guestVisits'].forEach(function (coll) {
+  const block = (src.match(new RegExp('match\\s+/' + coll + '/\\{[a-zA-Z]+\\}\\s*\\{[^}]*\\}')) || [''])[0];
+  const clauses = (block.match(/allow\s[^;]*;/g) || []).map(a => a.replace(/\s+/g, ' ').trim());
+  check(coll + ' has a match block', !!block, block ? clauses.length + ' clause(s)' : 'ABSENT');
+  check(coll + ' grants ONLY the owner, read and write',
+    clauses.length === 1 && /allow read, write:\s*if owner\(\);/.test(clauses[0]),
+    clauses[0] || 'no clause');
+  check('nothing else in the file mentions ' + coll,
+    (src.match(new RegExp(coll, 'g')) || []).length === 1,
+    'one match block, no second grant');
+});
+/* And the property that matters most, stated over the WHOLE file rather than per block:
+   no clause anywhere grants a viewer or a member on either collection. */
+check('no clause lets a guest near a pass or a visit',
+  allows.filter(l => /guestPass|guestVisit/i.test(l)).length === 0,
+  'they are reached only through the two match blocks above');
+
 console.log('\n' + (ran - fails) + '/' + ran + ' invariants hold');
 if (fails) {
   console.log('\nNOTE: these are INVARIANTS, not a compile. The emulator tests in');

@@ -184,5 +184,36 @@ service cloud.firestore {
       allow write: if owner() || (signedIn() && uid == em());
     }
 
+    /* =====================================================================
+       GUEST PASSES AND THE VISIT LOG
+       Added 2026-11-18, when a guest stopped signing in with an emailed code and
+       started arriving on a personal LINK.
+
+       OWNER ONLY, BOTH, READ AND WRITE. Not "owner plus the guest it is about",
+       and the distinction is the point:
+
+       - guestPasses/{passId} is a CREDENTIAL TABLE. The document id IS the secret
+         in somebody's link, and the collection is a list of every live link and
+         every synthetic address. One signed-in reader who should not have it is
+         one reader who can sign in as every guest. There is no query a guest
+         needs to make here: their pass is checked SERVER SIDE by /auth/guest,
+         through the admin SDK, which does not consult these rules at all.
+       - guestVisits/{id} is a RECORD ABOUT A PERSON, kept so Allen can see who
+         looked at the preview and for how long. A guest reading it would be
+         reading their own surveillance, and reading each other's.
+
+       SO NO GUEST WRITE IS ADDED ANYWHERE IN THIS FILE, and "a viewer writes
+       nothing" stays literally true: every row in both collections is written by
+       the server with admin credentials, which bypass rules entirely. The owner
+       write grant here is for the console snippets the owner tools emit, which is
+       how a pass is created and revoked.
+       ===================================================================== */
+    match /guestPasses/{passId} {
+      allow read, write: if owner();
+    }
+    match /guestVisits/{visitId} {
+      allow read, write: if owner();
+    }
+
   }
 }

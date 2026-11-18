@@ -56,6 +56,19 @@ const EXTERNAL = {
     'the API copy of tools-combatif-gate.js; byte-parity is asserted by tools-api-parity.js',
   'lib/secret.js':
     'the one place SCORE_KEY resolves, in the coldufantasy-login repo',
+
+  /* The guest pass link, added 2026-11-18. The route and the session reader run on
+     Vercel; the predicates exist in BOTH repos because the owner tools here mint a pass
+     and the functions there check one, and the two cannot share a file.
+     That duplication is asserted rather than trusted: tools-guest-pass-parity.js fails
+     if the shared core differs by one byte, and tools/guest-auth-test.js runs the real
+     handlers against the Firestore emulator. */
+  'lib/guest-pass.js':
+    'the API copy of tools-guest-pass-core.js; byte-parity is asserted by tools-guest-pass-parity.js',
+  'lib/session.js':
+    'the cookie and the session document, in the coldufantasy-login repo; shared by /auth/* and /api/guest-ping so the two cannot disagree about a valid session',
+  'api/guest-ping.js':
+    'the time-on-site endpoint, in the coldufantasy-login repo with its own Vercel deploy',
 };
 
 /* Extensions that name a real artifact. Anything else in backticks is prose or code. */

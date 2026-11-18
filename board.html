@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20261118-152041Z -->
+<head><!-- build:20261118-190542Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -545,7 +545,12 @@ function isTeamResultStage(n){ return (RACE_PROFILE.teamResultStages||[]).indexO
   .gate-climb{width:min(82vw,360px);height:auto;display:block}
   .gate-climb-eyebrow{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:2.4px;text-transform:uppercase;color:var(--gold);margin-bottom:2px}
   @keyframes cdfspin{to{transform:rotate(360deg)}}
-  .gate-card{max-width:370px;width:100%;text-align:center;color:#fff}
+  /* margin:auto centres the card on BOTH axes inside the flex container, and it is
+     what keeps a card taller than the viewport reachable: `.gate` scrolls, and a flex
+     item centred by align-items alone has its top overflow cut off with no way to
+     scroll to it. The align-items and justify-content on `.gate` are kept as well, so
+     the layout is still right if this rule is ever edited. */
+  .gate-card{max-width:370px;width:100%;margin:auto;text-align:center;color:#fff}
   .gate-logo{width:88px;height:88px;border-radius:19px;box-shadow:0 12px 34px rgba(0,0,0,.55);margin:0 auto 22px;display:block}
   .gate-h{font-family:'Montserrat',sans-serif;font-weight:900;text-transform:uppercase;font-size:33px;letter-spacing:-1px;line-height:.9}
   .gate-h span{color:var(--gold)}
@@ -1360,6 +1365,52 @@ let myEmail=null,isOwner=false,poolId=null,pool=null,STAGE=null,ORDER=[],SNAKE=[
    It is a function rather than a constant because myCode is resolved asynchronously
    after loadPool, and a constant captured at parse time would be false forever. */
 let isGuest=false, guestMeta=null;
+
+/* ---- TIME ON SITE, for a guest only ---------------------------------------------
+   One POST a minute to /api/guest-ping while the tab is in front and somebody has
+   touched it in the last two minutes. The server decides what a ping is worth, rate
+   limits it, and takes the guest's identity from the cookie; this side only decides
+   WHEN to ask, and says which board and tab are in view.
+
+   THREE CONDITIONS, and each one is there to stop the number being a lie:
+     - isGuest. A player's board never pings. The four players are not being tracked,
+       and this endpoint existing is not a reason for that to drift.
+     - the tab is VISIBLE. A board left open behind forty other tabs for a week is not
+       somebody reading it, and on a phone a backgrounded tab is not even on screen.
+     - somebody INTERACTED in the last two minutes. A visible tab on a second monitor
+       is the same lie more quietly.
+
+   It is a setInterval rather than a timer chained off each response, so one failed
+   request cannot stop the series; every call is independent and every failure is
+   swallowed, because a missing minute in Allen's report must never be visible to the
+   person being reported on. */
+(function(){
+  var PING_EVERY_MS=60*1000, IDLE_AFTER_MS=2*60*1000;
+  var lastAct=Date.now();
+  function touched(){ lastAct=Date.now(); }
+  ['pointerdown','keydown','wheel','touchstart','scroll'].forEach(function(ev){
+    try{ window.addEventListener(ev, touched, {passive:true}); }catch(e){ try{ window.addEventListener(ev, touched); }catch(_){} }
+  });
+  try{ document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible') touched(); }); }catch(e){}
+  function tabInView(){
+    try{ var b=document.querySelector('button.on[data-tab]'); return (b&&b.getAttribute('data-tab'))||''; }catch(e){ return ''; }
+  }
+  setInterval(function(){
+    /* isGuest is a `let` in this same block, declared ABOVE this IIFE and read when the
+       timer fires rather than when it is registered, so there is no temporal dead zone
+       to trip over here. The value is passed in by closure, never through a typeof
+       guard: CLAUDE.md records what `typeof` on a block-scoped binding costs. */
+    if(!isGuest) return;
+    if(!window.__cdfBoardUp) return;
+    try{ if(document.visibilityState!=='visible') return; }catch(e){ return; }
+    if(Date.now()-lastAct>IDLE_AFTER_MS) return;
+    try{
+      fetch(AUTH_API+'/api/guest-ping',{method:'POST',credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({board:poolId||'',tab:tabInView()})}).catch(function(){});
+    }catch(e){}
+  }, PING_EVERY_MS);
+})();
 function CAN_PLAY(){ return !!myCode || isOwner; }
 window.__canPlay=CAN_PLAY;
 const DEFAULT_POOL='';
@@ -1378,11 +1429,49 @@ function poolHref(pid,path){ var p=path||POOL_PAGE[pid]||'/board.html'; return l
 // checked entry still navigate when the pool is right but the shell is wrong.
 function onPoolPage(pid){ var w=POOL_PAGE[pid]; if(!w) return true; var h=location.pathname.toLowerCase(); if(h===w) return true; if(w==='/tour.html'&&(h==='/'||h==='/index.html')) return true; return false; }
 const paramPool=new URLSearchParams(location.search).get('pool')||DEFAULT_POOL||null;
-function showGate(msg,err,asHtml){ document.documentElement.classList.remove('gated'); document.body.classList.remove('gated'); var g=$('gate'); if(g){g.style.display='block'; g.classList.add('ask'); if(msg){var m=$('gate-msg')||$('gmsg'); if(m){ if(asHtml){m.innerHTML=msg;}else{m.textContent=msg;} m.className='gate-msg'+(err?' err':'');}}} }
+
+/* ---- THE GUEST PASS LINK -------------------------------------------------------
+   A guest arrives on a personal link, `?pass=<passId>`, and that id IS their
+   credential: there is no email to type and no code to wait for. The server checks it
+   at /auth/guest and answers with an ordinary session, the same cdf_session cookie a
+   player gets, so everything downstream of sign-in is unchanged.
+
+   THE PASS IS READ ONCE, HERE, at the top of the block, for the same reason paramPool
+   is: it is a fact about this page load. `GUEST_PASS` is empty for everybody else, so
+   every branch below is dead for a player and for the owner.
+
+   __stripPass IS A PURE FUNCTION ON PURPOSE. It takes a query string and returns one,
+   touching no globals, so the gate can lift it out of the BUILT board and EXECUTE it
+   against the cases that matter rather than pattern-matching the source. */
+function __stripPass(search){
+  var p; try{ p=new URLSearchParams(String(search||'')); }catch(e){ return ''; }
+  p.delete('pass');
+  var q=p.toString();
+  return q?('?'+q):'';
+}
+var GUEST_PASS=(function(){ try{ return new URLSearchParams(location.search).get('pass')||''; }catch(e){ return ''; } })();
+/* WHY THE PASS IS TAKEN OUT OF THE ADDRESS BAR. It is a long-lived credential, and left
+   in the URL it ends up in a screenshot of the board, in the browser history of a shared
+   laptop, and in the Referer header of the first outbound link anyone clicks. Stripping
+   it costs nothing: the cookie is already set by the time this runs, so the link has
+   done its whole job. replaceState rather than pushState, so Back does not walk into a
+   spent link. */
+function __clearPass(){
+  if(!GUEST_PASS) return;
+  try{ history.replaceState(null,'',location.pathname+__stripPass(location.search)+location.hash); }catch(e){}
+}
+function showGate(msg,err,asHtml){ document.documentElement.classList.remove('gated'); document.body.classList.remove('gated'); /* display:'' and NOT 'block'. An inline display outranks the stylesheet, and
+     `.gate{display:flex;align-items:center;justify-content:center}` is what centres
+     the card; setting block here is why it never did. Measured on the live board
+     2026-11-18: computed display block, card at top 26 / bottom 419 on a 390x844
+     phone. The empty string hands the decision back to the one place that holds it. */
+  var g=$('gate'); if(g){g.style.display=''; g.classList.add('ask'); if(msg){var m=$('gate-msg')||$('gmsg'); if(m){ if(asHtml){m.innerHTML=msg;}else{m.textContent=msg;} m.className='gate-msg'+(err?' err':'');}}} }
 // Show the spinner (never the login card) with a status label. Used the instant
 // the user taps sign-in and for the whole board-load window, so a working sign-in
 // never leaves them staring at the login card wondering if it failed.
-function showLoading(label){ var g=$('gate'); if(g){ g.style.display='block'; g.classList.remove('ask'); } var l=$('gateSplashLabel'); if(l){ l.textContent=label||''; } try{ if(window.__cdfStartClimb) window.__cdfStartClimb(); }catch(e){} }
+/* Same correction as showGate, and it has to be the same: the splash and the card
+   share one container, so a block display here would un-centre the spinner too. */
+function showLoading(label){ var g=$('gate'); if(g){ g.style.display=''; g.classList.remove('ask'); } var l=$('gateSplashLabel'); if(l){ l.textContent=label||''; } try{ if(window.__cdfStartClimb) window.__cdfStartClimb(); }catch(e){} }
 // Step tracing. The spinner label always shows the current step. With ?diag=1 a
 // full on-screen log renders too, so a stall is pinned to an exact step from one
 // screenshot instead of guesswork.
@@ -1608,8 +1697,49 @@ document.addEventListener('keydown',function(e){
 // first-party to coldufantasy.com and survives iOS's 7-day script-storage purge, so a
 // returning member signs straight in with no interaction. Small delay so Firebase's own
 // (faster, in-window) persistence restores first and we never double sign-in.
+/* A GUEST PASS IS TRIED FIRST, and instead of the cookie rather than after it. A guest
+   on a fresh device has no cookie, so the token boot below would fail and flash the login
+   card at somebody who was sent a link and has no code to enter. */
+function __guestPassBoot(){
+  try{ showLoading('Opening your preview...'); }catch(e){}
+  fetch(AUTH_API+'/auth/guest?pass='+encodeURIComponent(GUEST_PASS)+'&board='+encodeURIComponent(paramPool||''),{credentials:'include'})
+    .then(function(r){ return r.ok?r.json():null; })
+    .then(function(d){
+      if(!d||!d.firebaseToken){
+        /* ONE MESSAGE FOR EVERY REFUSAL, because the server gives one: missing, revoked
+           and expired are deliberately indistinguishable there, and inventing three
+           different sentences here would undo that. It also happens to be the only
+           useful thing to say, since the reader can do nothing but ask for a new link. */
+        __clearPass();
+        showGate('That preview link is no longer valid. Ask Allen for a fresh one.', true);
+        return null;
+      }
+      return auth.signInWithCustomToken(d.firebaseToken).then(function(){
+        __clearPass();
+        /* ROUTE TO THE SHOWROOM. `paramPool` was fixed when this block was parsed, so a
+           replaceState cannot change which pool this load will open: landing on the
+           right board needs a real navigation. It is skipped when the link already
+           carried ?pool=, which the link the create tool prints always does, so the
+           normal case costs no extra load. */
+        try{
+          var mine=(d.pools||[]);
+          if(mine.length && mine.indexOf(paramPool)<0){
+            var want=null;
+            for(var i=0;i<mine.length;i++){ if(onPoolPage(mine[i])){ want=mine[i]; break; } }
+            location.replace(poolHref(want||mine[0],null));
+          }
+        }catch(e){}
+        return true;
+      });
+    })
+    .catch(function(){
+      __clearPass();
+      showGate('That preview link could not be opened. Ask Allen for a fresh one.', true);
+    });
+}
 setTimeout(function(){
   if(auth.currentUser) return;
+  if(GUEST_PASS){ __guestPassBoot(); return; }
   fetch(AUTH_API+'/auth/token',{credentials:'include'})
     .then(function(r){ return r.ok?r.json():null; })
     .then(function(d){ if(d&&d.firebaseToken && !auth.currentUser){ return auth.signInWithCustomToken(d.firebaseToken); } return null; })
@@ -1636,7 +1766,13 @@ async function buildAcctMenu(){
   (function(){
     var gp=$('guestPill'); if(!gp) return;
     gp.innerHTML = isGuest
-      ? '<span class="gv-pill"><span class="gv-dot"></span>Guest view</span>'
+      /* IT SAYS THE VISITS ARE LOGGED, and that is the whole reason the text changed
+         on 2026-11-18. The board now records when a guest arrives and roughly how long
+         they read, which is Allen's to know and also theirs: telling somebody they are
+         being measured is the difference between a record and a surveillance. Still two
+         facts and no account state, so the rule that put the expiry and the address in
+         diagnostics instead of on the board is unchanged. */
+      ? '<span class="gv-pill"><span class="gv-dot"></span>Guest view &middot; Visits to this preview are logged.</span>'
       : '';
   })();
     var pools=[];

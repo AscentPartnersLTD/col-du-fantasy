@@ -145,10 +145,98 @@ check('the served HTML carries only an empty mount',
   /<div id="guestPill"><\/div>/.test(SRC),
   'built by a viewer session, never hidden by CSS');
 check('the pill is built only for a viewer',
-  /gp\.innerHTML = isGuest[\s\S]{0,120}Guest view[\s\S]{0,30}: '';/.test(SRC));
-check('it says two words and no account state',
+  /gp\.innerHTML = isGuest[\s\S]{0,900}Guest view[\s\S]{0,120}: '';/.test(SRC));
+/* IT SAYS THE VISITS ARE LOGGED, which is new on 2026-11-18 and is the whole reason
+   the wording changed. The board now records when a guest arrives and roughly how long
+   they stay; telling them so is the difference between a record and a surveillance. */
+check('and it says the visits are logged',
+  /Guest view &middot; Visits to this preview are logged\./.test(SRC),
+  'the reader is told they are being measured');
+check('it still carries no account state',
   !/guestMeta[\s\S]{0,40}innerHTML|until[\s\S]{0,20}gv-pill/.test(SRC),
   'no name, no expiry: that is what diagnostics are for');
+
+console.log('\nTHE GUEST PASS LINK');
+/* THE STRIP IS LIFTED AND EXECUTED, not pattern-matched. __stripPass is a pure function
+   on a string for exactly this reason: a regex over the source would prove the code
+   contains the word `delete`, which is not the same claim as "the pass comes out and
+   everything else survives". */
+function liftStrip(src, which) {
+  const a = src.indexOf('function __stripPass(search){');
+  if (a < 0) return null;
+  const b = src.indexOf('\n}', a);
+  if (b < 0) return null;
+  return new Function('search', src.slice(src.indexOf('{', a) + 1, b) + '\n');
+}
+/* The Tour board is read HERE rather than from the `TOUR` const, which is declared
+   further down this file and would be in its temporal dead zone at this point. That is
+   the same trap CLAUDE.md records against `STAGE` in loadRoster, and it throws rather
+   than reading as undefined, so it is at least loud. */
+const TOUR_SRC = fs.readFileSync(path.join(REPO, 'tour.html'), 'utf8');
+const stripV = liftStrip(SRC, 'vuelta');
+const stripT = liftStrip(TOUR_SRC, 'tour');
+check('__stripPass ships on both boards', !!stripV && !!stripT);
+if (stripV) {
+  check('the pass comes out of a link that carried a pool',
+    stripV('?pool=tour-showroom&pass=abc123') === '?pool=tour-showroom',
+    stripV('?pool=tour-showroom&pass=abc123'));
+  check('a bare pass link strips to nothing at all',
+    stripV('?pass=abc123') === '', JSON.stringify(stripV('?pass=abc123')));
+  check('it keeps every other parameter, in order',
+    stripV('?pool=vuelta-showroom&pass=x&rr=1') === '?pool=vuelta-showroom&rr=1',
+    stripV('?pool=vuelta-showroom&pass=x&rr=1'));
+  check('a query with no pass is left alone',
+    stripV('?pool=tour-showroom') === '?pool=tour-showroom');
+  check('an empty query stays empty', stripV('') === '' && stripV(undefined) === '');
+  check('it removes EVERY copy of the parameter',
+    stripV('?pass=a&pass=b&pool=p') === '?pool=p', stripV('?pass=a&pass=b&pool=p'));
+  check('both boards strip identically',
+    stripT('?pool=tour-showroom&pass=abc123') === stripV('?pool=tour-showroom&pass=abc123'));
+}
+/* THE PASS IS TRIED BEFORE THE COOKIE. A guest on a fresh device has no cookie, so the
+   token boot would fail first and flash the login card at somebody who was sent a link
+   and has no code to type. */
+check('the boot tries the pass before the cookie',
+  /if\(GUEST_PASS\)\{ __guestPassBoot\(\); return; \}[\s\S]{0,80}auth\/token/.test(SRC),
+  'or a guest sees the login card first');
+check('the pass is stripped once the session exists',
+  /signInWithCustomToken\(d\.firebaseToken\)\.then\(function\(\)\{\s*__clearPass\(\);/.test(SRC),
+  'the cookie is set by then, so the link has done its whole job');
+check('it is replaceState, never pushState',
+  /history\.replaceState\(null,'',location\.pathname\+__stripPass/.test(SRC) &&
+  !/pushState[\s\S]{0,40}__stripPass/.test(SRC),
+  'Back must not walk into a spent link');
+check('a refused link says ONE thing',
+  (SRC.match(/That preview link is no longer valid/g) || []).length === 1,
+  'the server makes missing, revoked and expired indistinguishable on purpose');
+/* COMMENTS ARE STRIPPED BEFORE THIS ASKS. The boot's own comment explains why the three
+   refusals are indistinguishable, so a naive scan finds the words `revoked` and
+   `expired` in the very prose that exists to justify not showing them. A gate that reads
+   its own explanation is the mistake tools-rules-guard.js already records. */
+check('and it never says which of the three it was',
+  !/revoked|expired/i.test(
+    (/__guestPassBoot[\s\S]{0,2600}?\n\}/.exec(SRC) || [''])[0].replace(/\/\*[\s\S]*?\*\//g, ' ')),
+  'one message, whichever it was');
+
+console.log('\nTHE ACTIVITY PING');
+const ping = (/PING_EVERY_MS[\s\S]{0,2600}?\}, PING_EVERY_MS\);/.exec(SRC) || [''])[0];
+check('the ping ships', ping.length > 0);
+check('it pings once a minute', /PING_EVERY_MS=60\*1000/.test(ping));
+check('a PLAYER board never pings', /if\(!isGuest\) return;/.test(ping),
+  'the four players are not tracked');
+check('a hidden tab never pings', /visibilityState!=='visible'\) return;/.test(ping));
+check('an idle tab stops pinging', /Date\.now\(\)-lastAct>IDLE_AFTER_MS\) return;/.test(ping) &&
+  /IDLE_AFTER_MS=2\*60\*1000/.test(ping), 'two minutes, so a tab on a second monitor stops counting');
+check('it sends a board and a tab and NOTHING else',
+  /body:JSON\.stringify\(\{board:poolId\|\|'',tab:tabInView\(\)\}\)/.test(ping),
+  'identity is the cookie\'s job, and only the cookie\'s');
+check('it never sends an email, a pass or a visit id',
+  !/email|passId|visitId/.test(ping), 'a body that named one could write against anybody');
+check('every failure is swallowed', /\.catch\(function\(\)\{\}\)/.test(ping),
+  'a missing minute in a report must not be visible to the person reported on');
+check('the ping is on the Tour board too',
+  /PING_EVERY_MS=60\*1000/.test(TOUR_SRC) && /if\(!isGuest\) return;/.test(TOUR_SRC),
+  'a defect fixed on one board and not the other is how RACE_OVER hid for two months');
 
 console.log('\nTHE INVITE SNIPPET');
 /* A dotted field path cannot carry an email, and escaping the dots does NOT save it:

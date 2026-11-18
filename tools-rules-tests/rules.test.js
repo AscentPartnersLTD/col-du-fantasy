@@ -42,6 +42,15 @@ const STRANGER = 'nobody@elsewhere.test';
 const LOWRY = 'lo@rollers.test';
 
 const PROD = ['col-du-fantasy', 'vuelta-2026'];
+
+/* A PASS, AS THE LINK FLOW CREATES ONE. The synthetic address is what a pass mints: a
+   local part under a domain with no mailboxes, so it is nobody's real address and it can
+   never receive a sign-in code. It is a VIEWER on the showrooms exactly like any other
+   guest, which is why no rule in firestore.rules knows anything about passes: the pass
+   is checked server side, and what reaches the rules is an ordinary viewer email. */
+const GUEST_SYNTH = 'a-guest-kv7q2m4x@guests.coldufantasy.com';
+const PASS_ID = 'xk4m2qv7a9t3bz6ry8pw5nhs2d4f6g8j';
+const VISIT_ID = 'visit_seeded_for_the_rules_test';
 const SHOWROOMS = ['tour-showroom', 'vuelta-showroom'];
 
 const FUTURE = new Date(Date.now() + 365 * 24 * 3600 * 1000);
@@ -107,7 +116,7 @@ async function seed() {
         showroom: true,
         members: { 'jj@showroom.invalid': 'JJ', 'jp@showroom.invalid': 'JP',
                    'jb@showroom.invalid': 'JB', 'aa@showroom.invalid': 'AA' },
-        viewers: { [GUEST]: FUTURE, [LAPSED]: PAST },
+        viewers: { [GUEST]: FUTURE, [LAPSED]: PAST, [GUEST_SYNTH]: FUTURE },
         order: ['JJ', 'JP', 'JB', 'AA'],
         predictionsLocked: true,
       });
@@ -126,6 +135,22 @@ async function seed() {
     await setDoc(doc(db, 'pools', 'lowry-city-rollers', 'drafts', '21'), { n: 21, picks: [] });
     await setDoc(doc(db, 'userPools', LOWRY), { pools: ['lowry-city-rollers'] });
 
+    /* A GUEST PASS AND A VISIT ROW. Both are written by the SERVER with admin
+       credentials in real life, which bypass rules completely; they are seeded here so
+       the rules can be asked what a browser may do with them afterwards. The pass id is
+       the credential in somebody's link, so the test uses one that LOOKS like a real one
+       rather than a friendly name, which is also what a reader of this file should
+       expect to see. */
+    await setDoc(doc(db, 'guestPasses', PASS_ID), {
+      label: 'A Guest', email: GUEST_SYNTH, revoked: false,
+      expires: FUTURE, createdAt: Date.now(), pools: SHOWROOMS,
+    });
+    await setDoc(doc(db, 'guestVisits', VISIT_ID), {
+      passId: PASS_ID, label: 'A Guest', email: GUEST_SYNTH, at: Date.now(),
+      via: 'link', device: 'iPhone / Safari', entry: 'tour-showroom',
+      boards: ['tour-showroom'], tabs: ['Overview'], activeMinutes: 3, lastSeen: Date.now(),
+    });
+
     /* a pool carrying viewers but NOT flagged a showroom: the flag is required */
     await setDoc(doc(db, 'pools', 'unflagged-copy'), {
       name: 'unflagged', members: {}, viewers: { [GUEST]: FUTURE },
@@ -138,6 +163,14 @@ async function seed() {
 }
 
 /* ---- the tests ---------------------------------------------------------------- */
+/* The owner revoke above really writes, so the flag is put back. Nothing after it reads
+   the pass today, and that is exactly the kind of assumption that stops being true. */
+async function db2Restore() {
+  await env.withSecurityRulesDisabled(async (c) => {
+    await updateDoc(doc(c.firestore(), 'guestPasses', PASS_ID), { revoked: false });
+  });
+}
+
 async function run() {
   env = await initializeTestEnvironment({
     projectId: 'col-du-fantasy',
@@ -360,6 +393,62 @@ async function run() {
     await expect('guest CANNOT write predictions on ' + pid,
       setDoc(doc(ctx(GUEST), 'pools', pid, 'predictions', 'JJ'), { seat: 'JJ' }), false);
   }
+
+  /* ============================================== GUEST PASSES AND VISITS ==== */
+  results.lines.push('\nTHE PASS TABLE AND THE VISIT LOG ARE OWNER ONLY');
+
+  /* THE PASS ID IS A SECRET AND KNOWING IT BUYS NOTHING HERE. The test asks for the
+     pass by its exact id, which is the strongest version of the question: a guest who
+     has their own link already knows this string, and must still be refused. */
+  const synth = ctx(GUEST_SYNTH);
+  await expect('a LIVE guest cannot read their own pass',
+    getDoc(doc(synth, 'guestPasses', PASS_ID)), false, 'even knowing its id exactly');
+  await expect('a live guest cannot LIST the passes',
+    getDocs(collection(synth, 'guestPasses')), false, 'it is a list of every live link');
+  await expect('a live guest cannot write a pass',
+    setDoc(doc(synth, 'guestPasses', PASS_ID), { revoked: false }), false);
+  await expect('a live guest cannot MINT a pass',
+    setDoc(doc(synth, 'guestPasses', 'minted-by-a-guest'), { email: GUEST_SYNTH }), false);
+  await expect('a live guest cannot read the visit log',
+    getDoc(doc(synth, 'guestVisits', VISIT_ID)), false, 'it is a record about them');
+  await expect('a live guest cannot list the visit log',
+    getDocs(collection(synth, 'guestVisits')), false);
+  await expect('a live guest cannot write a visit',
+    setDoc(doc(synth, 'guestVisits', VISIT_ID), { activeMinutes: 0 }), false,
+    'minutes are counted server side or not at all');
+  await expect('a live guest cannot forge a visit',
+    setDoc(doc(synth, 'guestVisits', 'forged-by-a-guest'), { passId: PASS_ID }), false);
+
+  /* AND THE GRANT THE REFUSALS ARE MEASURED AGAINST. A denial proves nothing about
+     WHICH rule denied, so the same reads are run as the owner. */
+  await expect('the OWNER reads a pass', getDoc(doc(o, 'guestPasses', PASS_ID)), true);
+  await expect('the owner lists the passes', getDocs(collection(o, 'guestPasses')), true);
+  await expect('the owner writes a pass, which is how one is revoked',
+    updateDoc(doc(o, 'guestPasses', PASS_ID), { revoked: true }), true);
+  await expect('the owner reads a visit', getDoc(doc(o, 'guestVisits', VISIT_ID)), true);
+  await expect('the owner lists the visits', getDocs(collection(o, 'guestVisits')), true);
+
+  /* The other three readers this suite already knows about, for completeness: the
+     distinction is owner and not-owner, so none of them may look either. */
+  await expect('an ordinary guest cannot read a pass',
+    getDoc(doc(ctx(GUEST), 'guestPasses', PASS_ID)), false);
+  await expect('a PLAYER cannot read a pass',
+    getDoc(doc(ctx(JJ), 'guestPasses', PASS_ID)), false, 'not a player surface either');
+  await expect('a signed-in stranger cannot read a pass',
+    getDoc(doc(ctx(STRANGER), 'guestPasses', PASS_ID)), false);
+  await expect('and nobody signed out can', getDoc(doc(ctx(null), 'guestPasses', PASS_ID)), false);
+
+  /* THE SYNTHETIC GUEST IS STILL AN ORDINARY VIEWER, which is the whole reason the
+     rules needed no concept of a pass. Asserted rather than assumed: if this failed, the
+     link flow would be granting access some other way than the viewers map. */
+  for (const pid of SHOWROOMS) {
+    await expect('the synthetic guest reads ' + pid, getDoc(doc(synth, 'pools', pid)), true);
+    await expect('and is refused ' + PROD[0] + ' from the same session',
+      getDoc(doc(synth, 'pools', PROD[0])), false);
+  }
+  await expect('the synthetic guest writes nothing on a showroom',
+    updateDoc(doc(synth, 'pools', SHOWROOMS[0]), { touched: true }), false);
+  await db2Restore();
 
   await expect('owner reads config/roster', getDoc(doc(o, 'config/roster')), true);
   await expect('owner writes config/roster',

@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Col du Fantasy - Guest passes</title>
+<!--
+  THE OWNER'S ACTIVITY PAGE. Who has a live preview link, when they looked, on what, and
+  for roughly how long.
+
+  IT IS NOT A SECURITY BOUNDARY AND DOES NOT PRETEND TO BE ONE. Anyone can open this URL;
+  what stops them seeing anything is firestore.rules, where guestPasses and guestVisits
+  are owner-only, read and write. The signed-out and not-the-owner messages below are
+  COURTESY, so a wrong tab reads as "not for you" rather than as a broken page. If this
+  file leaked tomorrow it would hand nobody a single row.
+
+  IT WRITES NOTHING. Revoke prints the same snippet tools/guest-pass-revoke.js prints,
+  to be pasted into a board console, which is how every write in this repo is applied.
+  The page is signed in as the owner and the rules would permit it to revoke directly;
+  it deliberately does not, because a one-tap irreversible action on a page listing five
+  people's links is a different thing from a dry run you read before confirming.
+
+  NO PLAYER SURFACE IS ADDED ANYWHERE BY THIS FILE. It is a separate page a player has
+  no link to and could not read if they opened it.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1b1a17;--paper:#faf8f3;--line:#e6e1d6;--mute:#8a8578;--gold:#c9971a;--gold-d:#a67c12;--ok:#2e7d32;--bad:#b3261e}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-size:15px;line-height:1.5}
+  .wrap{max-width:1000px;margin:0 auto;padding:26px 18px 70px}
+  h1{font-family:'Montserrat',sans-serif;font-weight:900;text-transform:uppercase;letter-spacing:-.5px;font-size:30px;margin:0 0 2px}
+  .sub{color:var(--mute);font-size:13px;margin-bottom:22px}
+  .msg{border:1px solid var(--line);background:#fff;border-radius:12px;padding:18px;margin:18px 0;color:var(--mute)}
+  .msg b{color:var(--ink)}
+  .pass{border:1px solid var(--line);background:#fff;border-radius:12px;margin:0 0 14px;overflow:hidden}
+  .ph{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .plabel{font-family:'Montserrat',sans-serif;font-weight:800;font-size:17px}
+  .tag{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;border-radius:999px;padding:3px 9px}
+  .tag.live{background:rgba(46,125,50,.12);color:var(--ok)}
+  .tag.dead{background:rgba(179,38,30,.10);color:var(--bad)}
+  .tag.soon{background:rgba(201,151,26,.14);color:var(--gold-d)}
+  .pmeta{color:var(--mute);font-size:12px;margin-left:auto;text-align:right}
+  .stats{display:flex;flex-wrap:wrap;gap:18px;padding:12px 16px;border-bottom:1px solid var(--line)}
+  .stat .k{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+  .stat .v{font-family:'Montserrat',sans-serif;font-weight:800;font-size:17px}
+  .acts{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px}
+  button{font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;letter-spacing:.04em;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:9px;padding:8px 13px;cursor:pointer}
+  button:hover{border-color:var(--gold)}
+  button.warn:hover{border-color:var(--bad);color:var(--bad)}
+  .visits{border-top:1px solid var(--line);padding:0}
+  details>summary{cursor:pointer;padding:11px 16px;font-size:13px;color:var(--mute);font-family:'Montserrat',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:11px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);padding:7px 16px;border-top:1px solid var(--line)}
+  td{padding:7px 16px;border-top:1px solid #f2efe7;vertical-align:top}
+  td.r,th.r{text-align:right}
+  .none{color:var(--mute);font-style:italic}
+  pre.snip{white-space:pre-wrap;word-break:break-word;background:var(--ink);color:#f4f1e8;font-size:11.5px;line-height:1.45;padding:14px 16px;margin:0;max-height:300px;overflow:auto}
+  .snipwrap{border-top:1px solid var(--line)}
+  .foot{color:var(--mute);font-size:12px;margin-top:26px;border-top:1px solid var(--line);padding-top:14px}
+  code{background:#f2efe7;border-radius:5px;padding:1px 5px;font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Guest passes</h1>
+  <div class="sub">Who holds a preview link, and what they have looked at.</div>
+  <div id="out"><div class="msg">Checking your session...</div></div>
+  <div class="foot">
+    Mint a pass: <code>node tools/guest-pass-create.js "Their name" 2027-03-31</code><br>
+    Revoke one: <code>node tools/guest-pass-revoke.js &lt;passId or label&gt;</code>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBH78lk1jwmu5WPmItdfTq_z1c92KBgOdw",
+  authDomain: "col-du-fantasy.firebaseapp.com",
+  projectId: "col-du-fantasy",
+  storageBucket: "col-du-fantasy.firebasestorage.app",
+  messagingSenderId: "243850980867",
+  appId: "1:243850980867:web:77c8455a03d972cb4fa836"
+};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth(), db=firebase.firestore();
+const AUTH_API='https://api.coldufantasy.com';
+const OWNER_EMAIL='allen@ascentpartnersltd.com';
+const SITE='https://coldufantasy.com';
+const SHOWROOMS=['tour-showroom','vuelta-showroom'];
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function msg(html){ $('out').innerHTML='<div class="msg">'+html+'</div>'; }
+
+/* Firestore hands timestamps back as Timestamp objects, the server writes some fields as
+   plain milliseconds, and a hand edit could leave an ISO string. One reader for all
+   three, because a date that silently reads as 1970 is the kind of wrong that looks
+   like data rather than like a bug. */
+function ms(v){
+  if(v==null) return null;
+  if(typeof v==='number') return v;
+  if(typeof v==='string'){ const t=Date.parse(v); return isNaN(t)?null:t; }
+  if(typeof v.toMillis==='function'){ try{ return v.toMillis(); }catch(e){ return null; } }
+  if(typeof v.seconds==='number') return v.seconds*1000;
+  return null;
+}
+const DT=new Intl.DateTimeFormat(undefined,{year:'numeric',month:'short',day:'numeric'});
+const DTT=new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+function dstr(v){ const t=ms(v); return t?DT.format(new Date(t)):'-'; }
+function tstr(v){ const t=ms(v); return t?DTT.format(new Date(t)):'-'; }
+function mins(n){
+  n=Number(n||0);
+  if(!n) return '0m';
+  if(n<60) return n+'m';
+  return Math.floor(n/60)+'h '+(n%60)+'m';
+}
+
+/* ---- sign in as the owner, through the same cookie the board uses --------------- */
+async function boot(){
+  let signedIn=false;
+  try{
+    const r=await fetch(AUTH_API+'/auth/token',{credentials:'include'});
+    if(r.ok){ const d=await r.json(); if(d&&d.firebaseToken){ await auth.signInWithCustomToken(d.firebaseToken); signedIn=true; } }
+  }catch(e){}
+  if(!signedIn){
+    msg('<b>Not signed in.</b><br>Open the board and sign in first, then come back to this page. '+
+        'It reads your session from the same cookie the board uses.');
+    return;
+  }
+  const email=((auth.currentUser&&auth.currentUser.email)||'').toLowerCase();
+  if(email!==OWNER_EMAIL){
+    /* The rules would refuse every read anyway. This is only so the page says so in
+       words rather than rendering an empty table that looks broken. */
+    msg('<b>This page is the operator\'s.</b><br>Signed in as '+esc(email)+'.');
+    return;
+  }
+  await render();
+}
+
+async function render(){
+  msg('Reading passes...');
+  let passes=[], visits=[];
+  try{
+    const ps=await db.collection('guestPasses').get();
+    ps.forEach(d=>passes.push(Object.assign({id:d.id}, d.data())));
+    /* Every visit, read once and grouped here rather than one query per pass. The log is
+       a handful of rows per guest per day; if it ever is not, this is the line to
+       change, and it will be obvious because the page will be slow rather than wrong. */
+    const vs=await db.collection('guestVisits').get();
+    vs.forEach(d=>visits.push(Object.assign({id:d.id}, d.data())));
+  }catch(e){
+    msg('<b>Could not read the pass table.</b><br>'+esc((e&&(e.code||e.message))||e)+
+        '<br><br>If that says permission denied, the rules have not been deployed yet: '+
+        '<code>firebase deploy --only firestore:rules</code>');
+    return;
+  }
+
+  if(!passes.length){
+    msg('<b>No guest passes yet.</b><br>Mint one with '+
+        '<code>node tools/guest-pass-create.js "Their name" 2027-03-31</code>, paste the '+
+        'snippet into a signed-in board console, and send them the link it prints.');
+    return;
+  }
+
+  const byPass={};
+  visits.forEach(v=>{ (byPass[v.passId]=byPass[v.passId]||[]).push(v); });
+  passes.sort((a,b)=>(ms(b.createdAt)||0)-(ms(a.createdAt)||0));
+
+  $('out').innerHTML=passes.map(p=>card(p,(byPass[p.id]||[]))).join('');
+}
+
+function state(p){
+  const exp=ms(p.expires)||0;
+  if(p.revoked===true) return {cls:'dead',txt:'revoked'};
+  if(exp && exp<Date.now()) return {cls:'dead',txt:'expired'};
+  if(exp && exp-Date.now() < 7*24*3600*1000) return {cls:'soon',txt:'ends soon'};
+  return {cls:'live',txt:'live'};
+}
+
+function card(p, vs){
+  const st=state(p);
+  vs=vs.slice().sort((a,b)=>(ms(b.at)||0)-(ms(a.at)||0));
+  const total=vs.reduce((n,v)=>n+Number(v.activeMinutes||0),0);
+  const first=vs.length?ms(vs[vs.length-1].at):null;
+  const last=vs.reduce((t,v)=>Math.max(t, ms(v.lastSeen)||ms(v.at)||0), 0);
+  const link=SITE+'/tour.html?pool=tour-showroom&pass='+p.id;
+
+  const rows=vs.length? vs.map(v=>
+    '<tr><td>'+esc(tstr(v.at))+'</td>'+
+    '<td>'+esc(v.device||'unknown')+'</td>'+
+    '<td>'+esc(v.via==='refresh'?'return':(v.via==='ping'?'resumed':'link'))+'</td>'+
+    '<td class="r">'+esc(mins(v.activeMinutes))+'</td>'+
+    '<td>'+esc((v.boards||[]).join(', ')||v.entry||'-')+'</td>'+
+    '<td>'+esc((v.tabs||[]).join(', ')||'-')+'</td></tr>').join('')
+    : '<tr><td colspan="6" class="none">No visits yet. The link has not been opened.</td></tr>';
+
+  return '<div class="pass" data-pass="'+esc(p.id)+'">'+
+    '<div class="ph"><span class="plabel">'+esc(p.label||'(no label)')+'</span>'+
+      '<span class="tag '+st.cls+'">'+esc(st.txt)+'</span>'+
+      '<span class="pmeta">created '+esc(dstr(p.createdAt))+'<br>expires '+esc(dstr(p.expires))+'</span></div>'+
+    '<div class="stats">'+
+      '<div class="stat"><div class="k">Visits</div><div class="v">'+vs.length+'</div></div>'+
+      '<div class="stat"><div class="k">Active time</div><div class="v">'+esc(mins(total))+'</div></div>'+
+      '<div class="stat"><div class="k">First seen</div><div class="v">'+esc(first?tstr(first):'-')+'</div></div>'+
+      '<div class="stat"><div class="k">Last seen</div><div class="v">'+esc(last?tstr(last):'-')+'</div></div>'+
+    '</div>'+
+    '<div class="acts">'+
+      '<button type="button" data-act="copy" data-link="'+esc(link)+'">Copy link</button>'+
+      '<button type="button" class="warn" data-act="revoke">Revoke</button>'+
+    '</div>'+
+    '<div class="snipwrap" data-snip hidden></div>'+
+    '<details class="visits"><summary>'+vs.length+' visit'+(vs.length===1?'':'s')+'</summary>'+
+      '<table><thead><tr><th>When</th><th>Device</th><th>How</th><th class="r">Active</th>'+
+      '<th>Boards</th><th>Tabs</th></tr></thead><tbody>'+rows+'</tbody></table></details>'+
+  '</div>';
+}
+
+/* ---- the revoke snippet, the same one the tool prints -------------------------- */
+/* THE PAGE DOES NOT REVOKE. It emits. See the header comment: the rules would allow it,
+   and that is exactly why the restraint has to be deliberate. The snippet below is the
+   same three writes tools/guest-pass-revoke.js emits, resolved by id because this page
+   already knows the id. */
+function revokeSnippet(passId){
+  return [
+    '/* REVOKE ' + passId + '. Paste into a signed-in OWNER board console.',
+    ' * DRY RUN FIRST. Nothing is written until APPLY = true. */',
+    '',
+    'const APPLY = false;   // <- flip to true on the second run',
+    '',
+    '(async () => {',
+    '  const FP = firebase.firestore.FieldPath, FV = firebase.firestore.FieldValue;',
+    '  const ID = ' + JSON.stringify(passId) + ';',
+    '  const SHOWROOMS = ' + JSON.stringify(SHOWROOMS) + ';',
+    '  const s = await db.doc("guestPasses/" + ID).get();',
+    '  if (!s.exists) { console.error("REFUSED: no such pass"); return; }',
+    '  const EMAIL = s.data().email;',
+    '  console.log(s.data().label, EMAIL, s.data().revoked === true ? "ALREADY REVOKED" : "live");',
+    '  if (!APPLY) { console.log("DRY RUN. Nothing written."); return; }',
+    '  await db.doc("guestPasses/" + ID).update({ revoked: true, revokedAt: Date.now() });',
+    '  for (const p of SHOWROOMS) {',
+    '    try { await db.doc("pools/" + p).update(new FP("viewers", EMAIL), FV.delete()); } catch (e) {}',
+    '  }',
+    '  try { await db.doc("userPools/" + EMAIL).delete(); } catch (e) {}',
+    '  const back = (await db.doc("guestPasses/" + ID).get()).data() || {};',
+    '  console.log("revoked ->", back.revoked === true ? "yes" : "NO, the write did not land");',
+    '  /* Their session document is deleted by the server at the next /auth/token: this',
+    '     snippet cannot reach authSessions, because firestore.rules has no match block',
+    '     for it and denies by default. */',
+    '})();'
+  ].join('\n');
+}
+
+document.addEventListener('click', async function(e){
+  const b=e.target&&e.target.closest?e.target.closest('button[data-act]'):null;
+  if(!b) return;
+  const cardEl=b.closest('.pass'); if(!cardEl) return;
+  const id=cardEl.getAttribute('data-pass');
+  if(b.getAttribute('data-act')==='copy'){
+    const link=b.getAttribute('data-link');
+    try{ await navigator.clipboard.writeText(link); b.textContent='Copied'; }
+    catch(err){
+      /* Clipboard access can be refused, and a button that silently does nothing is
+         worse than one that hands you the text to select. */
+      const w=cardEl.querySelector('[data-snip]');
+      w.hidden=false; w.innerHTML='<pre class="snip">'+esc(link)+'</pre>';
+      b.textContent='Copy failed, shown below';
+    }
+    setTimeout(()=>{ b.textContent='Copy link'; }, 2200);
+    return;
+  }
+  if(b.getAttribute('data-act')==='revoke'){
+    const w=cardEl.querySelector('[data-snip]');
+    if(!w.hidden){ w.hidden=true; w.innerHTML=''; b.textContent='Revoke'; return; }
+    w.hidden=false;
+    w.innerHTML='<pre class="snip">'+esc(revokeSnippet(id))+'</pre>';
+    b.textContent='Hide snippet';
+    try{ await navigator.clipboard.writeText(revokeSnippet(id)); }catch(err){}
+  }
+});
+
+boot();
+</script>
+</body>
+</html>

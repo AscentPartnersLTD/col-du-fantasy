@@ -3913,15 +3913,15 @@ sub-map. Found by reading the tool's own output, and guarded in `tools-guest-ver
 ### Rules tests, on the real emulator
 
 THERE ARE TWO SUITES AND THEY ARE NOT DUPLICATES. `node tools-rules-tests/run.js` starts
-the emulator and runs 108 rules assertions plus 19 for the copy tool. Then, separately,
+the emulator and runs 141 rules assertions plus 19 for the copy tool. Then, separately,
 `node_modules/.bin/firebase emulators:exec --only firestore "node tools-guest-access-test.js"`
-runs 149 checks that reproduce the LIVE MEMBERSHIP SHAPES rather than a clean fixture: a
+runs 151 checks that reproduce the LIVE MEMBERSHIP SHAPES rather than a clean fixture: a
 seated member off the roster, an unseated one, a seated roster reviewer, and one seat held
 by two addresses in two pools. EVERY GRANT IN THAT SUITE IS PAIRED WITH ITS REMOVAL,
 because twice on this project a denial was reported as proof a rule worked and both times
 it was default-deny from no matching rule. A denial proves nothing about WHICH rule denied.
-`node tools-rules-guard.js` is the cheap static gate over the same file, 25 invariants, and
-`node tools-guest-verify.js` is 57 checks over the BUILT boards, both of them, not just the
+`node tools-rules-guard.js` is the cheap static gate over the same file, 36 invariants, and
+`node tools-guest-verify.js` is 89 checks over the BUILT boards, both of them, not just the
 Vuelta. THE DEPLOY IS NO LONGER THE COMPILE STEP
 and four players are no longer the canary.
 
@@ -3982,6 +3982,146 @@ the scope was dropped rather than a pass saying none exists.
 
 Verified: 119 and 19 on the first emulator suite, 151 on the second, 29 static invariants.
 Proved to FAIL on the dropped scope at 115 and 25, every failure named.
+
+### A GUEST ARRIVES ON A LINK, not on an emailed code
+
+Changed 2026-11-18, at Allen's request. The code-by-email flow still exists and is what
+the four players use; a guest no longer touches it.
+
+WHY IT HAD TO CHANGE. Signing in asked somebody being shown a board as a courtesy to do
+paperwork, and it needed a REAL MAILBOX before they could look at anything, which meant
+the invitation list held real addresses. A pass replaces all of it: one link, and the id
+in that link IS the credential.
+
+THE SHAPE, and every piece of it is deliberate:
+
+- `guestPasses/{passId}`. The document id is the secret, 160 bits of base32 from
+  `crypto.randomBytes`, never derived from the label or the date. Fields: `label`, which
+  is Allen's private name for the person and is never shown to them; `email`; `expires`;
+  `revoked`; `createdAt`; `pools`; `board`.
+- THE EMAIL IS SYNTHETIC, `<slug>-<shortid>@guests.coldufantasy.com`, a domain with no
+  mailboxes. The whole stack is keyed by email: the session document, the token claim,
+  `em()` in firestore.rules, the `viewers` map and `userPools`. Bending any of that to
+  carry a different kind of identity would mean touching the path four players sign in
+  through, so a pass mints its own address instead and every mechanism works unchanged.
+  NO REAL ADDRESS IS WRITTEN ANYWHERE by this flow.
+- `GET /auth/guest?pass=<id>` is the whole of sign-in. It answers with the same
+  `cdf_session` cookie, the same 400-day TTL and the same custom token a player gets from
+  `doVerify`. There is deliberately NO `guest` claim, for the reason already recorded
+  when the showroom became a copy: a claim would be a second source of truth about who is
+  a guest, and the `viewers` map is the first one.
+- firestore.rules KNOWS NOTHING ABOUT PASSES. What reaches the rules is an ordinary
+  viewer email in the `viewers` map. That is why the whole feature added exactly two
+  match blocks, both owner-only, and no guest write anywhere.
+
+MISSING, REVOKED AND EXPIRED ARE ONE ANSWER. `/auth/guest` returns the same 401 and the
+same body for all three, and the board prints one sentence. Telling them apart would make
+the endpoint an oracle for which pass ids exist, and the reader can do nothing with the
+distinction anyway. The REASON is logged server side, where guests.html can show it.
+
+REVOCATION BITES AT THE NEXT REFRESH, and that is the only place it can. A session is a
+400-day cookie and a document, and neither knows anything about a pass, so `doToken`
+re-checks the pass on every refresh: a dead pass deletes the session document, clears the
+cookie and answers 401. THAT IS THE `authSessions` HALF OF REVOCATION, done server side,
+and it cannot be done from the owner console: firestore.rules has NO match block for
+`authSessions`, so every browser read and write there is denied by default and a snippet
+that tried would fail silently. The revoke snippet does the three things a browser CAN
+do, and the viewers key is one of them, so every read is denied immediately rather than
+at the next page load.
+
+A GUEST NEVER GETS A CODE. `signsInByLinkOnly` is asked by both `/auth/request` and
+`/auth/verify`. The synthetic domain has no mail, so a code sent there already goes
+nowhere, but that is a fact about DNS and not a rule, and a rule is what this needs.
+
+THE TOOLS are `tools/guest-pass-create.js "<label>" <YYYY-MM-DD>` and
+`tools/guest-pass-revoke.js <passId|label>`. Both EMIT a console snippet, dry run first,
+with a read-back, exactly like `tools/guest-add.js`; neither writes anything itself.
+Create prints the link. Revoke takes a label by QUERY inside the snippet and REFUSES if
+the label names more than one pass, because revoking the wrong person's link is not
+something to find out about afterwards.
+
+#### The pass core exists twice, and parity is asserted
+
+`tools-guest-pass-core.js` here and `lib/guest-pass.js` in coldufantasy-login are the
+same code in two deploy targets that cannot share a file, which is the
+`tools-combatif-gate.js` situation exactly. `tools-guest-pass-parity.js` fails if the
+region between the SHARED CORE markers differs by one byte.
+
+WHAT A DRIFT WOULD COST, stated because "they might diverge" is not a reason on its own:
+`isGuestEmail` decides whether an address is a guest. If the two copies disagreed, the
+tool would mint an address the server does not recognise as a guest, and the server would
+then treat it as a PLAYER, falling through to the `userPools` branch of `isMember`, which
+is the never-expiring grant this whole design replaces. Nothing would error. The link
+would simply work forever.
+
+The markers are explicit rather than "everything above module.exports", because this core
+needs `crypto` and the import line is the one thing that must genuinely differ between a
+CommonJS file and an ESM one.
+
+#### The activity log, and what it deliberately does not hold
+
+`guestVisits/{auto}`, one row per arrival: `passId`, `label`, `at`, `device`, `via`,
+`entry`, plus `activeMinutes`, `lastSeen`, `boards` and `tabs` which the ping fills in.
+
+THE DEVICE IS A SHORT LABEL, "iPhone / Safari", and the FULL USER AGENT IS NEVER STORED.
+It is a fingerprint and a rough version history of somebody's phone, and the visit log
+should not be a worse thing to hold than it has to be. An unknown agent is reported as
+unknown rather than guessed, the same rule the feed audit follows.
+
+`POST /api/guest-ping` is time on site, one minute at a time. THE ONE RULE OF THAT
+ENDPOINT IS THAT THE GUEST IS IDENTIFIED FROM THE COOKIE AND FROM NOTHING ELSE: the body
+carries no email, no pass id and no visit id, and if it did they would be ignored. A ping
+that took its identity from its own payload would let anyone write minutes against
+anybody's pass, which turns the log from a record into a thing that can be made to say
+anything. The board sends a board name and a tab name, and both are reduced to a short
+label before being stored.
+
+THE CLIENT DECIDES WHEN, THE SERVER DECIDES WHAT IT IS WORTH. The board pings once a
+minute, only while the tab is VISIBLE and only if somebody INTERACTED in the last two
+minutes; the server accepts at most one ping per 45 seconds per session and counts it as
+exactly one minute. If the client sent a duration, a stuck tab, a clock change or a
+tampered payload would all land as time somebody spent reading. A player's board never
+pings: the four players are not tracked, and this endpoint existing is not a reason for
+that to drift.
+
+The pill now reads "Guest view &middot; Visits to this preview are logged." Two facts and
+no account state, so the rule that put the expiry and the address in diagnostics rather
+than on the board is unchanged. Telling somebody they are being measured is the
+difference between a record and a surveillance.
+
+`guests.html` is the owner's page: one card per pass with the visits, the active time and
+the per-visit list, a Copy link button and a Revoke button that EMITS the snippet rather
+than revoking. The rules would permit it to revoke directly, which is exactly why the
+restraint is deliberate: a one-tap irreversible action on a page listing five people's
+links is a different thing from a dry run you read before confirming. It is not a
+security boundary and does not pretend to be one; firestore.rules is.
+
+### The login card was never centred, and the CSS was never the problem
+
+Found 2026-11-18, and it is the `display:block` lesson one layer over from the flex-item
+section above.
+
+MEASURED FIRST, on the live Vuelta board at 390x844, before anything was edited: `.gate`
+computed display `block`, inline style `display: block`, card at top 26 and bottom 419.
+
+`.gate{display:flex;align-items:center;justify-content:center}` has been in the sheet all
+along and has NEVER ONCE APPLIED. `showGate()` and `showLoading()` both set
+`g.style.display='block'`, and an inline style outranks a stylesheet, so the flex
+container was never a flex container. It looked horizontally centred only because
+`.gate-card{width:100%;max-width:370px}` fills the line and its text is centre-aligned.
+
+THE FIX IS TO STOP SETTING IT, not to set it to flex. `display:''` hands the decision
+back to the one place that holds it; writing `'flex'` into two functions in two files
+would be four more copies of a value the sheet already has.
+
+`margin:auto` ON THE CARD IS THE SECOND HALF and is not decoration. `.gate` is
+`overflow:auto`, and a flex item centred with `align-items:center` in a scrolling
+container has its top overflow UNREACHABLE: on a short landscape phone the top of the
+card would be scrolled off with no way back. `margin:auto` centres the same box and
+leaves both ends scrollable.
+
+Measured after, on both boards: 390x844 gives 26/26 and 222/222; 1440x900 gives 250/250
+and 527/528 against the client area, the odd pixel being the page scrollbar.
 
 ### The board
 
