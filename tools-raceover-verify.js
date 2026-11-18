@@ -139,6 +139,40 @@ for (const B of BOARDS) {
   check('the weather card retires', /if\(RACE_OVER\|\|!W\)\{/.test(src));
   check('the Next Two card retires', /if\(RACE_OVER\|\|!U\)\{/.test(src));
 
+  /* THE EIGHTH CONSUMER, and the one the first pass missed. It is a bare top-level
+     `if(up){` wrapping the phantom ledger card rather than a guard inside a function,
+     so counting functions did not find it. Without it `up.picks` throws inside
+     __runBoard and ABORTS THE REST OF THE BLOCK: measured live on tour.html, Today's
+     Order rendered empty and the Next Two card showed its own stylesheet as text. */
+  check('the phantom ledger card is wrapped in if(up)',
+    /const up=UPCOMING;\s*if\(up\)\{/.test(src)
+    && /end if\(up\)/.test(src),
+    'a null upcoming must not reach up.picks');
+
+  /* TYPEOF IS NOT A NULL CHECK, and this is the check that would have caught it.
+     `typeof UPCOMING!=='undefined' && UPCOMING.n` reads as a guard and is not one:
+     typeof null is 'object', so the first term is TRUE on a finished race and the
+     second throws. It is the twin of the temporal-dead-zone lesson in CLAUDE.md,
+     where typeof on a TDZ let throws rather than returning 'undefined'. The pattern
+     was correct while the only risk was a LATER script block, where UPCOMING really is
+     out of scope; RACE_OVER added a third state, in scope and null, it never covered. */
+  const bareTypeof = (src.match(/typeof UPCOMING!=='undefined'&&UPCOMING\.[a-z]/g) || []);
+  if (B.race === 'Tour') {
+    check('no UPCOMING read is guarded by typeof alone', bareTypeof.length === 0,
+      bareTypeof.length ? bareTypeof.join(' | ') : 'every one also tests for null');
+  } else {
+    /* THE VUELTA STILL CARRIES THREE, and this asserts the KNOWN STATE rather than
+       passing over it. Measured on the live board 2026-11-17: seasonOrder throws
+       "Cannot read properties of null (reading 'n')" on every load since that race
+       finished, which is the LAST statement in the block, so everything above it had
+       already rendered and only the Draft Tilt strip went missing. Reported to Allen
+       and deliberately NOT fixed here, because this brief says vuelta.html is to be
+       unchanged, the same call recorded for stage 1's combatifNote. WHEN IT IS FIXED
+       THIS CHECK FAILS, and the expectation moves to the Tour's. */
+    check('the Vuelta still carries its three typeof-only reads', bareTypeof.length === 3,
+      'reported, not fixed in this brief; fixing them flips this check');
+  }
+
   check('one wording, in one place',
     /const RACE_OVER_LINE = RACE_PROFILE\.name \+ ' ' \+ RACE_PROFILE\.year \+ ' is complete\.'/.test(src));
   check('upcoming is nulled, which is the null the stale guards tested for',
