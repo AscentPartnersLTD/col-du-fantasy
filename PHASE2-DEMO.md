@@ -1,10 +1,40 @@
 # Phase 2: the live-stage demo pools
 
-Nothing in this file ships. It is the design for `tour-demo` and `vuelta-demo`, built
-and proved against the Firestore emulator and then deliberately left out of the shipped
-ruleset. Phase 1 finishes the READ-ONLY showroom; this is what Phase 2 picks up.
+PART OF THIS SHIPPED ON 2026-11-19, and the rest of the file is kept because the part
+that did not ship is still the design for it.
 
-## Why it was left out
+WHAT SHIPPED: `tour-demo`, a copy of `sandbox` backfilled with col-du-fantasy stages 1
+to 13, so the board reads as a real season through stage 17 with stage 18 open and one
+pick in it. A guest holding a seat in `viewerSeats` appends picks to that pool's draft
+and nothing else anywhere. The Reset button puts the stage back to the pick it opens on.
+
+WHAT DID NOT, and the absence is now asserted by `tools-guest-access-test.js` rather
+than left as a thing nobody got round to:
+
+- the predictions grant, and the `predictionsLocked` flip, which the block below also
+  designed. The brief was "drafts for their own seat only, and nothing else anywhere".
+- `vuelta-demo`. One demo pool is enough to show the game, and a second is a second
+  thing to keep in step.
+- bots. The other three seats do not pick for themselves, so a guest makes their own
+  picks and the draft then waits. That is deliberate in this version and is the obvious
+  next piece.
+
+THE DRAFT GRANT IS SEAT SCOPED, which this design said it could not cheaply be. The
+trade below was accepted on the grounds that all four seats live in one `picks` array;
+what makes the scoping cheap in the end is that A DRAFT ONLY EVER GROWS BY ONE PICK, so
+the rule reads the pick that was just appended and insists it carries the caller's own
+seat. The reset shape, a list of one pick or none, is allowed alongside it, because the
+opening pick belongs to AA and a guest who could not write it could not reset the board
+they are playing on. A guest can therefore put a different single pick at the top of a
+throwaway copy, which is the residue of the trade and is written down rather than
+discovered.
+
+## Why it was left out, and how each reason was answered
+
+Each of the three held until the week it shipped. 1 was answered by the pool existing,
+so every refusal is now measured against it. 2 was answered by retiring that sentence in
+`tools-rules-guard.js` and replacing it with five narrower ones. 3 happened: the
+showroom went live on 2026-11-18 on its own.
 
 Three reasons, in order of weight.
 
@@ -92,8 +122,12 @@ Against `tour-demo` and `vuelta-demo` as a guest with `viewerSeats[guest] = 'AA'
 
 ## Still open for Phase 2
 
-- Demo stage: Tour stage 13, Dole to Belfort (Allen's call, 2026-11-13). Vuelta stage 13,
-  Almunecar to Loja, the biggest Fantasy Points swing on a breakaway stage at 78.
+- BOTS. The other three seats do not pick for themselves, so the draft stops after the
+  guest's turn. This is the piece that turns a demo into a game.
+- The demo opens on stage 18 and not stage 13, which this file proposed. Stage 18 is
+  where the sandbox already sat, with AA's opening pick already made and JB on the
+  clock, so the board is playable on the first tap rather than after three bot turns
+  that do not exist yet.
 - The Tour pool drafts TEAMS, not riders. Stage 1 picks read "Lidl-Trek", "Ineos",
   "UAE Team Emirates", "Visma-Lease a Bike" plus "Missed 2nd (penalty)". Bots
   reproducing real picks have to honour that.

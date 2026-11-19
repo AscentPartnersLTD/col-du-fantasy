@@ -15,10 +15,13 @@
  *     the migration that used to live here is what made a five-step cutover
  *     necessary. If this check fails, somebody has reintroduced that risk.
  *  2. A VIEWER CAN NEVER REACH A PRODUCTION POOL, denied by NAME and not by a flag.
- *  3. A VIEWER NEVER WRITES. No allow-write clause names viewerOf, and a clause that
- *     names a showroom must require owner(): since 2026-11-17 the owner may seed a
- *     showroom copy's predictions, which the copy tool's own members scrub is what made
- *     necessary, and that is the only write clause the word showroom may appear in.
+ *  3. A VIEWER WRITES EXACTLY ONE THING. Since 2026-11-19 a guest holding a seat in
+ *     `viewerSeats` on a pool flagged `demo` may append one pick, carrying their own
+ *     seat, to that pool's draft. There is ONE such clause, it is on drafts, and the
+ *     count is asserted so deleting it fails rather than passing vacuously. A clause
+ *     that names a showroom must still require owner(): since 2026-11-17 the owner may
+ *     seed a showroom copy's predictions, which the copy tool's own members scrub is
+ *     what made necessary.
  *  4. config/roster is closed. It holds players and reviewers keyed by EMAIL under
  *     what used to be a blanket signedIn() read.
  *  5. NOTHING IS PUBLIC, and nothing still grants on signedIn() alone.
@@ -125,16 +128,49 @@ check('an invitation expires on its own',
   /request\.time < poolCfg\(poolId\)\.viewers\[em\(\)\]/.test(viewerFn),
   'a lapsed viewer stops working with no cleanup job');
 
-/* ---- 5. a viewer never writes ---- */
+/* ---- 5. a viewer writes ONE thing, and this is the whole of it ---- */
 console.log('');
-/* THIS USED TO REFUSE BOTH `viewerOf` AND `showroom` in any write clause, and the
-   second half was too broad. The invariant is that a VIEWER never writes, not that the
-   word showroom may not appear: the owner may seed a showroom copy's predictions, which
-   names showroomPool() in a write clause and is correct. So the two halves are now
-   separate, and the second is NARROWER than what it replaced rather than relaxed: a
-   write clause may name a showroom only while it also requires owner(). */
-check('no write clause mentions a viewer',
-  writeAllows.filter(l => /viewerOf/.test(l)).length === 0);
+/* THIS USED TO READ "no write clause mentions a viewer", and that was true until
+   2026-11-19. PHASE2-DEMO.md named this exact check as reason 2 for deferring the demo
+   pools: it was a flat, checkable sentence to say before handing a link to a guest, and
+   it stops being true the moment the demo grant lands. The grant has landed, so the
+   sentence is retired rather than quietly weakened.
+
+   WHAT REPLACES IT IS NARROWER, in five parts instead of one. A guest may append one
+   pick, carrying their own seat, to one demo pool's draft, and nothing else anywhere.
+   Each part is asserted, and the COUNT is asserted first: written as a filter over
+   matching clauses, a check like this passes VACUOUSLY when the clause is deleted, which
+   is how 27 of 27 held on 2026-11-17 while the rule under test had been removed. */
+const viewerWrites = writeAllows.filter(l => /viewerOf/.test(l));
+check('exactly one write clause names a viewer', viewerWrites.length === 1,
+  viewerWrites.length + ' clause(s); zero means the demo grant was dropped, not that none exists');
+const vw = viewerWrites[0] || '';
+check('it requires a DEMO SEAT, not just a viewer', /hasDemoSeat\(poolId\)/.test(vw),
+  'a showroom viewer carries no seat and is refused by this term');
+check('and it is scoped to the shape a demo draft may take',
+  /demoDraftShapeOk\(poolId\)/.test(vw), 'one appended pick, carrying their own seat');
+check('the viewer write is on DRAFTS and nowhere else',
+  /match \/drafts\/\{stage\}\s*\{[^}]*allow write: if viewerOf\(poolId\) && hasDemoSeat/.test(src),
+  'not the pool doc, not stages, not predictions');
+check('no viewer write reaches predictions or the pool document',
+  writeAllows.filter(l => /viewerOf/.test(l) && /affectedKeys|predictions/.test(l)).length === 0,
+  'PHASE2-DEMO.md granted both; this ships neither');
+
+/* THE TWO HALVES OF "WHICH POOL", and the suite stages the accident for both. A demo
+   pool is refused by NAME if it is production, exactly as a showroom is, and must also
+   declare itself. Either alone is not enough. */
+const demoFn = (src.match(/function isDemoPool\(poolId\)\s*\{[\s\S]*?\n    \}/) || [''])[0];
+check('isDemoPool refuses production by name', /!prodPool\(poolId\)/.test(demoFn));
+check('and requires the pool to declare itself a demo', /'demo' in poolCfg\(poolId\)/.test(demoFn)
+  && /poolCfg\(poolId\)\.demo == true/.test(demoFn),
+  'the in-guard makes an absent flag a FALSE rather than an evaluation error');
+const seatFn = (src.match(/function hasDemoSeat\(poolId\)\s*\{[\s\S]*?\n    \}/) || [''])[0];
+check('a demo seat comes from viewerSeats, never from members',
+  /viewerSeats/.test(seatFn) && !/members/.test(seatFn),
+  'inPool() reads members, so every member-gated statement stays dead for a guest');
+check('viewerSeats is read nowhere but the demo helpers',
+  (src.match(/viewerSeats/g) || []).length === 3,
+  'hasDemoSeat twice and demoSeat once; a fourth reader is a second grant');
 const showroomWrites = writeAllows.filter(l => /showroom/i.test(l));
 /* THE COUNT IS ASSERTED, and that is not tidiness. Written as `.every()` alone these
    two checks PASSED VACUOUSLY on an injected regression: dropping `&& showroomPool`

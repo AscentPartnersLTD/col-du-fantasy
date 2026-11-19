@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><!-- build:20261118-190542Z -->
+<head><!-- build:20261119-223016Z -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -764,6 +764,13 @@ function isTeamResultStage(n){ return (RACE_PROFILE.teamResultStages||[]).indexO
       .mer-foot{font-size:11.5px;color:var(--mute);margin-top:10px}
       /* Live draft card, scoped to #draftMount so it never touches the rest of the board */
       #draftMount{margin:0 0 20px}
+      /* The demo bar. Only ever built on a demo pool, so these rules match nothing on
+         a production board. */
+      #draftMount .demo-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:13px;padding-top:12px;border-top:1px solid var(--line)}
+      #draftMount .demo-note{font-size:11.5px;color:var(--mute);line-height:1.45}
+      #draftMount .demo-reset{font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;background:none;border:1px solid var(--line);border-radius:999px;padding:7px 14px;cursor:pointer;color:var(--ink);flex:none}
+      #draftMount .demo-reset:hover{border-color:var(--gold)}
+      #draftMount .demo-reset:disabled{opacity:.6;cursor:default}
       #draftMount .draft{background:var(--card);border:1px solid var(--line);border-radius:15px;box-shadow:var(--sh);padding:16px 18px}
       #draftMount .dh{display:flex;align-items:center;justify-content:space-between;gap:12px}
       #draftMount .dh-l{display:flex;align-items:center;gap:10px}
@@ -1412,6 +1419,45 @@ let isGuest=false, guestMeta=null;
   }, PING_EVERY_MS);
 })();
 function CAN_PLAY(){ return !!myCode || isOwner; }
+
+/* ---- WHO THE READER IS ON THIS POOL, computed in ONE place ----------------------
+   This used to be two lines written out at every site that read the pool document:
+   loadPool, and on the Vuelta the pool-doc listener as well. A demo seat added to one
+   and not the other is a guest who can draft until the first snapshot lands and then
+   cannot, which is the FP_SCALE mistake in an identity check.
+
+   A DEMO SEAT IS NOT MEMBERSHIP, and that distinction is the whole design. It comes
+   from `viewerSeats`, which firestore.rules reads and `inPool()` does not, so a guest
+   holding one may append a pick to that pool's draft and nothing else anywhere. They
+   never appear in `members`, which is what grants a draft write on every other pool.
+
+   The MEMBER seat wins if anybody somehow holds both, because a member seat is the
+   real one and a demo seat is a loan. */
+let isDemoSeat=false, isDemoPool=false;
+function applySeat(p){
+  const members=(p&&p.members)||{}, viewers=(p&&p.viewers)||{}, seats=(p&&p.viewerSeats)||{};
+  isDemoPool=!!(p&&p.demo===true);
+  const member=members[myEmail]||null;
+  const loan=(isDemoPool&&!member)?(seats[myEmail]||null):null;
+  myCode=member||loan||null;
+  isDemoSeat=!!loan;
+  isJudge=(myCode&&myCode===JUDGE);
+  /* A VIEWER is named in `viewers`, and the owner is never a viewer of his own board.
+     IT NO LONGER REQUIRES AN EMPTY SEAT: that test was true while every guest was
+     read-only, and with a demo seat it would switch the pill and the activity ping off
+     for the one reader it is most honest to show them to. */
+  isGuest=(!isOwner && !!viewers[myEmail]);
+}
+/* ONE place decides what a seat is CALLED for this reader, so the draft card, the
+   ticker and buildCDF cannot disagree about it. On a demo pool the seat the guest is
+   playing reads "You": they are not Jeff Bush, and a board that calls them Jeff Bush
+   for an hour is a board that has to be explained. Everyone else keeps their name, and
+   the owner looking at the same pool sees all four real names, because `isDemoSeat` is
+   false for him. */
+function seatName(p,c){
+  const n=((p&&p.names)||{})[c]||c;
+  return (isDemoSeat && c===myCode) ? 'You' : n;
+}
 window.__canPlay=CAN_PLAY;
 const DEFAULT_POOL='col-du-fantasy';
 // Pool routing. A pool with its own skinned board file must open THAT file: the
@@ -1776,7 +1822,16 @@ async function buildAcctMenu(){
       : '';
   })();
     var pools=[];
-    if(isOwner){ var all=await db.collection('pools').get(); all.forEach(function(d){ pools.push({id:d.id,name:(d.data().name||d.id),path:(d.data().boardPath||'')}); }); }
+    if(isOwner){ var all=await db.collection('pools').get(); all.forEach(function(d){
+      var x=d.data()||{};
+      /* THE TAG IS THE OWNER'S ONLY. A guest sees one pool in this menu and knows
+         perfectly well what it is; the owner sees six and needs to tell a copy from
+         the season at a glance, because they differ by one word in the id. It is
+         appended to the NAME rather than rendered as a chip, so no markup changes and
+         nothing new reaches a player. */
+      var tag=(x.demo===true||x.showroom===true)?' &middot; guest view':'';
+      pools.push({id:d.id,name:(x.name||d.id)+tag,path:(x.boardPath||'')});
+    }); }
     else { var idx=await db.doc('userPools/'+myEmail).get(); var list=(idx.exists&&idx.data().pools)||[];
       for(var i=0;i<list.length;i++){ try{ var s=await db.doc('pools/'+list[i]).get(); if(s.exists) pools.push({id:list[i],name:(s.data().name||list[i]),path:(s.data().boardPath||'')}); }catch(e){} } }
     if(!pools.some(function(p){return p.id===poolId;})) pools.unshift({id:poolId,name:(pool&&pool.name)||poolId,path:(pool&&pool.boardPath)||''});
@@ -1872,12 +1927,8 @@ async function loadPool(id){
   }
   ORDER=(pool.order&&pool.order.length)?pool.order.slice():Object.values(pool.members||{});
   SNAKE=ORDER.concat(ORDER.slice().reverse()); JUDGE=pool.judge||null;
-  PMETA={}; { const seats=ORDER.slice().sort(); ORDER.forEach(c=>{ PMETA[c]={n:(pool.names&&pool.names[c])||c,c:PALETTE[seats.indexOf(c)%PALETTE.length]}; }); }
-  myCode=(pool.members||{})[myEmail]||null; isJudge=(myCode&&myCode===JUDGE);
-  /* A VIEWER holds no seat and is named in `viewers`. Both halves are required: a
-     seated player on a showroom pool is a player there, and the owner is never a
-     viewer of his own board. */
-  isGuest=(!isOwner && !myCode && !!((pool.viewers||{})[myEmail]));
+  applySeat(pool);
+  PMETA={}; { const seats=ORDER.slice().sort(); ORDER.forEach(c=>{ PMETA[c]={n:seatName(pool,c),c:PALETTE[seats.indexOf(c)%PALETTE.length]}; }); }
   guestMeta=isGuest?{email:myEmail, until:((pool.viewers||{})[myEmail])}:null;
 }
 /* Shared race intel for the upcoming stage (same for every pool). Update per stage until the
@@ -1993,7 +2044,7 @@ function fillClockAward(){
 
 async function buildCDF(){
   const seatList=(pool.seats&&pool.seats.length)?pool.seats.slice():ORDER.slice().sort();
-  const players={}; seatList.forEach(c=>players[c]={name:(pool.names&&pool.names[c])||c});
+  const players={}; seatList.forEach(c=>players[c]={name:seatName(pool,c)});
   const riderProfile={}; seatList.forEach(c=>riderProfile[c]={pin:'',avatar:''});
   const zero={}; seatList.forEach(c=>zero[c]=0);
   let stages=[];
@@ -2044,12 +2095,16 @@ async function buildCDF(){
      and the break check live in the next one and read CDF.raceOver. One derivation, two
      ways to read it, and no second computation. */
   window.__RACE_OVER=RACE_OVER;
+  /* PUBLISHED ON window FOR THE SAME REASON RACE_OVER IS: the consumers span script
+     blocks, and a const in a later block cannot be seen from an earlier one. Reaching
+     across for it is the ReferenceError that blanks the board. */
+  window.__DEMO_POOL=(pool.demo===true);
   const upcoming=RACE_OVER?null:{ n:Number(STAGE), order:ORDER.slice(), route:(draftDoc.route||su.route||''), type:(draftDoc.type||su.type||''), km:(draftDoc.km||su.km||0), intel:(dIntel||su.intel||{summary:'',facts:[]}), reads:(draftDoc.reads||su.reads||null), flag:(draftDoc.flag||su.flag||null), picks:upPicks };
   const official=pool.official||{ through:0, placement:Object.assign({},zero), rank:Object.assign({},zero) };
   const ledger=pool.personaLedger||{order:ORDER.slice(),by:{},seen:{}};
   const rp=pool.riderProfile||riderProfile;
   const seats=seatList.slice();
-  return { players, order:ORDER.slice(), seats, riderProfile:rp, personaLedger:ledger, official, stages, upcoming, raceOver:RACE_OVER, lastStage:_lastStage, editorial:pool.editorial||null, boardConfig:pool.boardConfig||null };
+  return { players, order:ORDER.slice(), seats, riderProfile:rp, personaLedger:ledger, official, stages, upcoming, raceOver:RACE_OVER, lastStage:_lastStage, demo:(pool.demo===true), editorial:pool.editorial||null, boardConfig:pool.boardConfig||null };
 }
 /* ---------------- draft engine (per pool) ---------------- */
 function draftRef(){ return db.doc('pools/'+poolId+'/drafts/'+STAGE); }
@@ -2236,6 +2291,39 @@ function renderMini(picks){
     `<span class="mb-more">Picks are live on the stage card</span>`+
     `</div></div>`;
 }
+/* ---- RESET DEMO ------------------------------------------------------------------
+   Puts the demo stage back to the pick it opens on, so the next person to be shown the
+   board starts where the last one did.
+
+   THE STARTING STATE IS DATA, NOT CODE. `pool.demoReset` holds the whole draft document
+   the demo opens with, written once by the build tool from the sandbox it was copied
+   from. The board never contains a rider name, a queue or a seat order for it: a second
+   copy of the opening state here is one that drifts from the pool it describes, and the
+   one that drifts is the one nobody is looking at.
+
+   firestore.rules permits it because the restored document carries ONE pick, which is
+   the reset shape the demo grant allows alongside appending your own. */
+async function resetDemo(btn){
+  if(!window.__DEMO_POOL) return;
+  const start=(pool&&pool.demoReset)||null;
+  if(!start){ if(btn){ btn.textContent='No starting state stored'; } return; }
+  if(btn){ btn.disabled=true; btn.textContent='Resetting...'; }
+  try{
+    await draftRef().set(JSON.parse(JSON.stringify(start)));
+    if(btn){ btn.textContent='Back to the start'; }
+  }catch(e){
+    /* LOUD, not swallowed. A reset that silently did nothing leaves somebody tapping a
+       button at a board that will not move, which is the fail-open shape one layer up. */
+    console.error('reset demo', e);
+    if(btn){ btn.textContent='Reset failed, reload the page'; }
+  }
+  if(btn){ setTimeout(function(){ try{ btn.disabled=false; btn.textContent='Reset demo'; }catch(_){} }, 2200); }
+}
+document.addEventListener('click',function(e){
+  const b=e.target&&e.target.closest?e.target.closest('#resetDemo'):null;
+  if(b) resetDemo(b);
+});
+
 function renderDraft(){
   /* A finished race showed "Stage 22 draft" with eight empty slots and a seed button,
      telling the operator the draft was armed. There is no stage 22. It now accepts
@@ -2285,7 +2373,15 @@ function renderDraft(){
   else { const mine=[]; queue.forEach((c,idx)=>{ if(c===myCode) mine.push(idx); }); const nextTxt=myCode?(mine.length?`Your next turn is pick #${picks.length+mine[0]+1}.`:'Both your picks are in.'):'You are watching.'; action=`<div class="action"><div class="waitline"><b>${PMETA[clock].n} is on the clock.</b> ${nextTxt}</div></div>`; }
   let admin=''; if(isOwner&&!pending&&clock&&clock!==myCode){ admin=`<div class="admin"><div class="ad-h">Operator · enter for the player on the clock</div><div class="ad-b">${PMETA[clock].n} is up (pick #${picks.length+1}).</div>${searchRow('Enter for '+PMETA[clock].n)}</div>`; }
   let judge=''; if(isJudge&&!pending&&clock&&clock!==myCode){ judge=`<div class="judge"><div class="j-h">Judge control</div><div class="j-b">Waiting on <b>${PMETA[clock].n}</b> (pick #${picks.length+1}).</div><button class="j-skip" id="bump" type="button">Bump ${PMETA[clock].n} to the back</button></div>`; }
-  $('draftMount').innerHTML='<div class="draft">'+head(sub,badge)+`<div class="ticker">${nodes}</div>`+action+admin+judge+'</div>';
+  /* THE RESET LIVES ON THE DRAFT CARD, because that is the thing it resets and the
+     card the demo is about. Built ONLY on a demo pool, so there is no node at all on a
+     production board rather than a hidden one: a `display:none` control is one
+     stylesheet mistake away from being in front of four players. */
+  const demoBar = window.__DEMO_POOL
+    ? '<div class="demo-bar"><span class="demo-note">A demo board. Your picks here change nothing in the real pool.</span>'
+      + '<button class="demo-reset" id="resetDemo" type="button">Reset demo</button></div>'
+    : '';
+  $('draftMount').innerHTML='<div class="draft">'+head(sub,badge)+`<div class="ticker">${nodes}</div>`+action+admin+judge+demoBar+'</div>';
   let forCode=null; if(clock===myCode) forCode=myCode; else if(isOwner&&pending) forCode=ORDER[0]; else if(isOwner&&clock&&clock!==myCode) forCode=clock;
   if(forCode) wireSearch(forCode);
   const b=$('bump'); if(b) b.addEventListener('click',doBump);
@@ -3666,6 +3762,12 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
      showing the last raced stage's finish as though it were the outlook. A forecast for a
      stage that has been raced is not a forecast. The whole card retires with the race,
      because an empty bordered card reads as broken where an absent one reads as finished. */
+  /* A DEMO POOL HIDES THIS TOO, and that is a judgement rather than a request: the
+     card fetches a LIVE forecast for a dated stage finish, and a demo is a frozen
+     mid-race replay, so whatever it shows is either a forecast for a day that has
+     passed or a forecast for the wrong place. "The markup was well formed and the
+     sentence was false" is the shape this avoids. Say so if it should stay. */
+  if(window.__DEMO_POOL===true){ const b=body.closest('.metricbox')||body.parentElement; if(b) b.remove(); return; }
   if(RACE_OVER||!W){
     const box=body.closest('.metricbox')||body.parentElement;
     if(box&&RACE_OVER) box.remove();
@@ -3924,6 +4026,11 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
      under "live from /api/break is NOT a race-state flag". The card starts hidden and
      simply never reveals itself, so nothing is removed and nothing flashes. */
   if(CDF.raceOver===true){ return; }
+  /* AND ON A DEMO POOL, for the same reason one step over: this card asks a LIVE feed
+     who is up the road, and a demo is a finished race frozen at one stage. The honest
+     answer would be a snapshot of a day that is long over, presented as now. The card
+     starts hidden and simply never reveals itself. */
+  if(CDF.demo===true){ return; }
   CARD.style.display='';
   var BTN=document.getElementById('bwBtn'), BODY=document.getElementById('bwBody');
   var COL=(function(){var _p=['#c9971a','#26347e','#2f8f52','#cf2530'],_s=CDF.order.slice().sort(),o={};_s.forEach(function(c,i){o[c]=_p[i%_p.length];});return o;})();

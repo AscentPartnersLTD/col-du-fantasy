@@ -29,7 +29,22 @@
 
 const core = require('../tools-guest-pass-core.js');
 
+/* The pools a new pass opens. `tour-demo` joined them on 2026-11-19: a guest who can
+   only read is being shown a board, and a guest who can draft is being shown the game.
+   Everyone invited before that date was granted it by tools/demo-grants.js.
+
+   THE DEMO IS THE ONLY ONE THAT CARRIES A SEAT. A showroom grant is one key in
+   `viewers`; a demo grant is that plus one key in `viewerSeats`, which is what
+   firestore.rules reads to let them append a pick. A pass with a viewers key and no
+   seat reads the demo and cannot play it, which is a worse state than either, so the
+   snippet writes both or neither. */
 const SHOWROOMS = ['tour-showroom', 'vuelta-showroom'];
+const DEMO = 'tour-demo';
+/* JB because that is the seat the demo opens on the clock: stage 18 holds one pick,
+   AA's, and JB is next. The other three seats do not play themselves in this version,
+   so handing out any other seat would be handing out a board that cannot move. */
+const DEMO_SEAT = 'JB';
+const POOLS = SHOWROOMS.concat([DEMO]);
 const SITE = 'https://coldufantasy.com';
 
 /* The board a link opens on. Both showrooms are in the pass, and the account switcher
@@ -106,6 +121,9 @@ console.log('  const EMAIL = ' + JSON.stringify(email) + ';');
 console.log('  const LABEL = ' + JSON.stringify(label) + ';');
 console.log('  const UNTIL = new Date(' + JSON.stringify(when.toISOString()) + ');');
 console.log('  const SHOWROOMS = ' + JSON.stringify(SHOWROOMS) + ';');
+console.log('  const DEMO = ' + JSON.stringify(DEMO) + ';');
+console.log('  const DEMO_SEAT = ' + JSON.stringify(DEMO_SEAT) + ';');
+console.log('  const POOLS = ' + JSON.stringify(POOLS) + ';');
 console.log('  const PRODUCTION = ' + JSON.stringify(PRODUCTION_POOLS) + ';');
 console.log('  const BOARD = ' + JSON.stringify(PRIMARY.path + '?pool=' + PRIMARY.pool) + ';');
 console.log('');
@@ -131,18 +149,27 @@ console.log('    console.error("REFUSED: " + EMAIL + " is already a MEMBER of: "
 console.log('    return;');
 console.log('  }');
 console.log('');
-console.log('  /* REFUSAL 3: a target that is not one of the two showrooms. */');
-console.log('  for (const p of SHOWROOMS) {');
+console.log('  /* REFUSAL 3: a target that is not one of the pools this pass opens. */');
+console.log('  for (const p of POOLS) {');
 console.log('    if (PRODUCTION.includes(p)) { console.error("REFUSED: " + p + " is a production pool."); return; }');
 console.log('    const snap = await db.doc("pools/" + p).get();');
 console.log('    if (!snap.exists) { console.error("REFUSED: " + p + " does not exist. Run showroom-copy first."); return; }');
 console.log('    if ((snap.data() || {}).showroom !== true) { console.error("REFUSED: " + p + " is not flagged showroom."); return; }');
 console.log('  }');
+console.log('  /* And the demo must declare itself, or the seat below grants nothing:');
+console.log('     firestore.rules reads the flag AND the name, and a seat in a map on a');
+console.log('     pool that is not a demo is a key nothing ever looks at. */');
+console.log('  {');
+console.log('    const dsnap = await db.doc("pools/" + DEMO).get();');
+console.log('    if ((dsnap.data() || {}).demo !== true) { console.error("REFUSED: " + DEMO + " is not flagged demo."); return; }');
+console.log('    if (!((dsnap.data() || {}).order || []).includes(DEMO_SEAT)) { console.error("REFUSED: seat " + DEMO_SEAT + " is not in the " + DEMO + " order."); return; }');
+console.log('  }');
 console.log('');
 console.log('  if (!APPLY) {');
 console.log('    console.log("DRY RUN. Would create pass " + PASS_ID + " for " + LABEL);');
 console.log('    console.log("  as " + EMAIL + ", until " + UNTIL.toISOString());');
-console.log('    console.log("  viewer on: " + SHOWROOMS.join(", "));');
+console.log('    console.log("  viewer on: " + POOLS.join(", "));');
+console.log('    console.log("  playing seat " + DEMO_SEAT + " on " + DEMO);');
 console.log('    console.log("Nothing was written. Set APPLY = true and run it again.");');
 console.log('    return;');
 console.log('  }');
@@ -151,7 +178,7 @@ console.log('  /* THE PASS. This document is the credential table: its id is the
 console.log('     the link, and firestore.rules lets nobody but the owner read it. */');
 console.log('  await db.doc("guestPasses/" + PASS_ID).set({');
 console.log('    label: LABEL, email: EMAIL, expires: UNTIL, revoked: false,');
-console.log('    createdAt: Date.now(), pools: SHOWROOMS, board: BOARD');
+console.log('    createdAt: Date.now(), pools: POOLS, board: BOARD, demoSeat: DEMO_SEAT');
 console.log('  });');
 console.log('');
 console.log('  /* THE VIEWER GRANT, which is what firestore.rules actually reads. The pass');
@@ -162,16 +189,21 @@ console.log('     FieldPath and not a dotted string: a dotted path cannot carry 
 console.log('     and escaping the dots does not save it, because the JavaScript parser');
 console.log('     resolves the escape before Firestore sees the string and you get a');
 console.log('     NESTED map that the rule looks straight past. */');
-console.log('  for (const p of SHOWROOMS) await db.doc("pools/" + p).update(new FP("viewers", EMAIL), UNTIL);');
-console.log('  await db.doc("userPools/" + EMAIL).set({ pools: SHOWROOMS });');
+console.log('  for (const p of POOLS) await db.doc("pools/" + p).update(new FP("viewers", EMAIL), UNTIL);');
+console.log('  /* THE SEAT, and it is the only grant in this snippet that lets anybody');
+console.log('     write anything. It is one key on one demo pool. */');
+console.log('  await db.doc("pools/" + DEMO).update(new FP("viewerSeats", EMAIL), DEMO_SEAT);');
+console.log('  await db.doc("userPools/" + EMAIL).set({ pools: POOLS });');
 console.log('');
 console.log('  /* READ IT BACK. A write that returned is not a write that landed. */');
 console.log('  const back = (await db.doc("guestPasses/" + PASS_ID).get()).data() || {};');
 console.log('  console.log("pass ->", back.label, back.email, back.expires && back.expires.toDate().toISOString());');
-console.log('  for (const p of SHOWROOMS) {');
+console.log('  for (const p of POOLS) {');
 console.log('    const v = ((await db.doc("pools/" + p).get()).data() || {}).viewers || {};');
 console.log('    console.log(p, "->", v[EMAIL] ? v[EMAIL].toDate().toISOString() : "MISSING, the write did not land");');
 console.log('  }');
+console.log('  const seats = ((await db.doc("pools/" + DEMO).get()).data() || {}).viewerSeats || {};');
+console.log('  console.log("seat ->", seats[EMAIL] || "MISSING, they can read the demo but not play it");');
 console.log('  const up = (await db.doc("userPools/" + EMAIL).get()).data() || {};');
 console.log('  console.log("userPools ->", up.pools || "MISSING");');
 console.log('  console.log("LINK ->", ' + JSON.stringify(link) + ');');
@@ -187,7 +219,7 @@ console.log(' * send this instead:');
 console.log(' *');
 console.log(' *   ' + link2);
 console.log(' *');
-console.log(' * The board strips ?pass= out of the address bar the moment it has signed in,');
+console.log(' * It opens the Tour showroom. The same link reaches the playable demo through the'); console.log(' * account switcher, where it is the pool called Tour demo.'); console.log(' *'); console.log(' * The board strips ?pass= out of the address bar the moment it has signed in,');
 console.log(' * so the credential does not sit in a screenshot, in the history of a shared');
 console.log(' * laptop, or in the Referer of the first outbound link they click.');
 console.log(' *');

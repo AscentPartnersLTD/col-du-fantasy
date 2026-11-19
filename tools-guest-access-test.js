@@ -383,16 +383,22 @@ async function run() {
   await mutatePool(TOUR, (d) => { delete d.showroom; delete d.viewers; });
   await allow('members still read col-du-fantasy after the flag is removed', rd(as(AA2), 'pools/' + TOUR));
 
-  console.log('\n=== 5. the DEMO pools: DEFERRED to phase 2 ===');
-  /* NOT skipped quietly. The viewerSeats write grant was designed, built and passed here,
-     and was then LEFT OUT of the shipped ruleset on purpose: this branch finishes the
-     READ-ONLY showroom, no demo pool exists yet, and tools-rules-guard.js can only assert
-     "not one allow-write clause mentions a viewer" while that stays true. A write grant
-     for a pool type that does not exist cannot be proved unreachable against live data,
-     because there is no live data. The rules block and these checks are kept verbatim in
-     PHASE2-DEMO.md.
-     The deferral is ASSERTED, not asserted around: if a viewer write grant appears in
-     firestore.rules while this file still calls it phase 2, these FAIL. */
+  console.log('\n=== 5. the DEMO pool: SHIPPED 2026-11-19, and narrowed on the way in ===');
+  /* THIS BLOCK USED TO ASSERT THE DEFERRAL, and it asserted it rather than asserting
+     around it, which is exactly why it is the first thing that had to change when the
+     deferral ended. The three reasons PHASE2-DEMO.md gave for deferring are all now
+     answered rather than ignored:
+
+       1. "a write grant for a pool type that does not exist cannot be proved
+          unreachable against live data" - tour-demo now exists, and the refusals below
+          are measured against it rather than against a hypothetical.
+       2. "tools-rules-guard.js asserts not one allow-write clause mentions a viewer" -
+          that sentence is retired there too, replaced by five narrower ones.
+       3. "the showroom goes live on its own" - it did, on 2026-11-18.
+
+     WHAT SHIPPED IS SMALLER THAN WHAT WAS DESIGNED. PHASE2-DEMO.md also granted
+     predictions and the predictionsLocked flip to a demo guest. Neither shipped, and
+     the absence is asserted below rather than left as a thing nobody got round to. */
   {
     const rules = stripComments(fs.readFileSync(path.join(__dirname, 'firestore.rules'), 'utf8'));
     const writeClauses = (rules.match(ALLOW_CLAUSE) || [])
@@ -405,10 +411,33 @@ async function run() {
        and is correct, and it was failing a check about a different thing.
        A VIEWER write is still refused outright, and a clause naming a showroom without
        requiring owner() counts as one. */
-    const viewerWrites = writeClauses.filter((l) =>
-      /viewerOf|viewerSeats/.test(l) || (/showroom/i.test(l) && !/owner\(\)/.test(l)));
-    record('phase 2 really is deferred: no viewer write clause ships', viewerWrites.length === 0,
+    const viewerWrites = writeClauses.filter((l) => /viewerOf/.test(l));
+    /* ONE CLAUSE, and the count is asserted FIRST. A filter-and-every check passes
+       vacuously when the clause is deleted, which is how 27 of 27 held on 2026-11-17
+       over a rule that had been removed. Zero here means the demo grant was dropped,
+       which is a different thing from there being none to drop. */
+    record('exactly one viewer write clause ships', viewerWrites.length === 1,
       viewerWrites.join(' | ') || 'none of ' + writeClauses.length + ' write clauses');
+    record('and it needs a DEMO SEAT as well as a viewer',
+      viewerWrites.length === 1 && /hasDemoSeat\(poolId\)/.test(viewerWrites[0]),
+      'a showroom viewer holds no seat and is refused by that term');
+    record('and the shape of the write is scoped',
+      viewerWrites.length === 1 && /demoDraftShapeOk\(poolId\)/.test(viewerWrites[0]),
+      'one appended pick carrying their own seat, or the reset shape');
+    record('it is on DRAFTS and nowhere else',
+      /match \/drafts\/\{stage\}[^}]*allow write: if viewerOf\(poolId\) && hasDemoSeat/.test(rules),
+      'not the pool doc, not stages, not predictions');
+    /* WHAT WAS DESIGNED AND DELIBERATELY NOT SHIPPED, asserted so it cannot arrive by
+       accident later: PHASE2-DEMO.md also granted a demo guest their own predictions
+       and the predictionsLocked flip. */
+    record('the predictions half of the design did NOT ship',
+      !/allow write: if viewerOf\(poolId\) && hasDemoSeat\(poolId\) && demoSeat/.test(rules) &&
+      !/viewerOf\(poolId\) && hasDemoSeat\(poolId\)[\s\S]{0,160}predictionsLocked/.test(rules),
+      'drafts only, which is what the brief asked for');
+    record('a viewer still writes nothing without the demo flag',
+      /function isDemoPool\(poolId\)[\s\S]{0,240}poolCfg\(poolId\)\.demo == true/.test(rules) &&
+      /function isDemoPool\(poolId\)[\s\S]{0,240}!prodPool\(poolId\)/.test(rules),
+      'the flag AND the name, the same pair showroomPool() carries');
     /* And the clause that DOES ship is described, not merely tolerated: a check that
        only says what must not exist stops noticing what does. One clause, owner-gated,
        and inside the predictions block rather than loose in the pool. */
@@ -420,8 +449,15 @@ async function run() {
       /match \/predictions\/\{seat\}[^}]*allow write: if owner\(\) && showroomPool\(poolId\);/
         .test(rules),
       'not loose in the pool, where it would cover every subcollection');
-    record('phase 2 really is deferred: viewerSeats is nowhere in the rules',
-      rules.indexOf('viewerSeats') === -1);
+    /* viewerSeats IS in the rules now, and the thing worth asserting is how MANY times:
+       three reads, all inside the two demo helpers. A fourth is a second grant. */
+    record('viewerSeats is read three times, all in the demo helpers',
+      (rules.match(/viewerSeats/g) || []).length === 3,
+      'hasDemoSeat twice, demoSeat once');
+    record('and a demo seat never comes from members',
+      /function hasDemoSeat\(poolId\)[\s\S]{0,200}viewerSeats/.test(rules) &&
+      !/function hasDemoSeat\(poolId\)[\s\S]{0,200}members/.test(rules),
+      'inPool() reads members, so member-gated statements stay dead for a guest');
     record('the phase 2 design is written down, not just dropped',
       fs.existsSync(path.join(__dirname, 'PHASE2-DEMO.md')), 'PHASE2-DEMO.md');
   }

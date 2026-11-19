@@ -49,6 +49,20 @@ const PROD = ['col-du-fantasy', 'vuelta-2026'];
    guest, which is why no rule in firestore.rules knows anything about passes: the pass
    is checked server side, and what reaches the rules is an ordinary viewer email. */
 const GUEST_SYNTH = 'a-guest-kv7q2m4x@guests.coldufantasy.com';
+
+/* THE DEMO POOL. A copy of the sandbox in real life; here it is the smallest document
+   that carries the three things the rule reads: `demo: true`, `showroom: true` because
+   viewerOf() demands it, and a `viewerSeats` map that gives ONE guest ONE seat.
+   The seat is JB because that is the seat the live demo hands out. */
+const DEMO = 'tour-demo';
+const DEMO_SEAT = 'JB';
+const START_PICK = { n: 1, player: 'AA', rider: 'T. Pogacar', team: 'UAE Team Emirates XRG' };
+const draftDoc = (picks) => ({
+  n: 18, order: ['AA', 'JB', 'JJ', 'JP'], status: 'live',
+  snake: ['AA', 'JB', 'JJ', 'JP', 'JP', 'JJ', 'JB', 'AA'],
+  queue: ['JB', 'JJ', 'JP', 'JP', 'JJ', 'JB', 'AA'], picks,
+});
+const pick = (player, rider) => ({ n: 2, player, rider, team: 'A Team' });
 const PASS_ID = 'xk4m2qv7a9t3bz6ry8pw5nhs2d4f6g8j';
 const VISIT_ID = 'visit_seeded_for_the_rules_test';
 const SHOWROOMS = ['tour-showroom', 'vuelta-showroom'];
@@ -150,6 +164,30 @@ async function seed() {
       via: 'link', device: 'iPhone / Safari', entry: 'tour-showroom',
       boards: ['tour-showroom'], tabs: ['Overview'], activeMinutes: 3, lastSeen: Date.now(),
     });
+
+    /* THE DEMO POOL, and the one thing to notice is that GUEST holds a seat here and
+       GUEST_SYNTH does not. Both are live viewers of it, so every refusal GUEST_SYNTH
+       meets below is the SEAT missing and not the invitation. */
+    await setDoc(doc(db, 'pools', DEMO), {
+      name: 'Tour demo', showroom: true, demo: true,
+      members: {},
+      viewers: { [GUEST]: FUTURE, [GUEST_SYNTH]: FUTURE, [LAPSED]: PAST },
+      viewerSeats: { [GUEST]: DEMO_SEAT },
+      order: ['AA', 'JB', 'JJ', 'JP'],
+      names: { AA: 'Allen Abbott', JB: 'Jeff Bush', JJ: 'Jeff Johns', JP: 'Jason Pfetcher' },
+      startStage: 18, predictionsLocked: true,
+    });
+    await setDoc(doc(db, 'pools', DEMO, 'drafts', '18'), draftDoc([START_PICK]));
+    await setDoc(doc(db, 'pools', DEMO, 'stages', '17'), { n: 17, win: 'J. Philipsen' });
+    await setDoc(doc(db, 'pools', DEMO, 'predictions', 'JB'), { seat: 'JB' });
+
+    /* THE SANDBOX, which is the pool the demo is copied FROM and is not itself a demo.
+       It is seeded so the refusal below is measured rather than assumed: a guest must
+       not be able to write the pool the copy came from. */
+    await setDoc(doc(db, 'pools', 'sandbox'), {
+      name: 'Sandbox (test only)', members: {}, order: ['AA', 'JB', 'JJ', 'JP'], startStage: 18,
+    });
+    await setDoc(doc(db, 'pools', 'sandbox', 'drafts', '18'), draftDoc([START_PICK]));
 
     /* a pool carrying viewers but NOT flagged a showroom: the flag is required */
     await setDoc(doc(db, 'pools', 'unflagged-copy'), {
@@ -449,6 +487,136 @@ async function run() {
   await expect('the synthetic guest writes nothing on a showroom',
     updateDoc(doc(synth, 'pools', SHOWROOMS[0]), { touched: true }), false);
   await db2Restore();
+
+  /* ======================================================= THE DEMO POOL ==== */
+  results.lines.push('\nA GUEST PLAYS ONE SEAT ON A DEMO POOL');
+  const dg = ctx(GUEST);
+  const dref = (c) => doc(c, 'pools', DEMO, 'drafts', '18');
+
+  await expect('the guest READS the demo pool', getDoc(doc(dg, 'pools', DEMO)), true);
+  await expect('and its draft', getDoc(dref(dg)), true);
+  await expect('THE GUEST DRAFTS AS ' + DEMO_SEAT,
+    setDoc(dref(dg), draftDoc([START_PICK, pick(DEMO_SEAT, 'J. Vingegaard')])), true,
+    'one pick appended, carrying their own seat');
+
+  /* Put it back before the refusals, so each one is measured against the same start
+     state rather than against whatever the previous assertion left. */
+  await env.withSecurityRulesDisabled(async (c) => {
+    await setDoc(doc(c.firestore(), 'pools', DEMO, 'drafts', '18'), draftDoc([START_PICK]));
+  });
+
+  for (const other of ['AA', 'JJ', 'JP']) {
+    await expect('the guest CANNOT draft for ' + other,
+      setDoc(dref(dg), draftDoc([START_PICK, pick(other, 'J. Vingegaard')])), false,
+      'the appended pick must name their own seat');
+  }
+  await expect('and cannot append TWO picks at once',
+    setDoc(dref(dg), draftDoc([START_PICK, pick(DEMO_SEAT, 'A'), pick(DEMO_SEAT, 'B')])), false,
+    'a draft grows by one, so two is somebody rewriting the day');
+  /* THE BOUNDARY THAT MATTERS: once the draft has GROWN, nothing can be edited in
+     place. That is what stops a guest rewriting a pick another seat has made. */
+  await env.withSecurityRulesDisabled(async (c) => {
+    await setDoc(doc(c.firestore(), 'pools', DEMO, 'drafts', '18'),
+      draftDoc([START_PICK, pick(DEMO_SEAT, 'J. Vingegaard')]));
+  });
+  await expect('the guest cannot rewrite a pick in place',
+    setDoc(dref(dg), draftDoc([START_PICK, pick(DEMO_SEAT, 'Somebody else')])), false,
+    'same length, so it is an edit and not an append');
+  await expect('nor rewrite somebody else\'s pick in place',
+    setDoc(dref(dg), draftDoc([pick('JJ', 'x'), pick(DEMO_SEAT, 'J. Vingegaard')])), false,
+    'the appended-pick branch needs the list to GROW, so an edit never qualifies');
+  await expect('but CAN still append their own next pick',
+    setDoc(dref(dg), draftDoc([START_PICK, pick(DEMO_SEAT, 'J. Vingegaard'), pick(DEMO_SEAT, 'W. van Aert')])), true,
+    'growing by one, carrying their seat, from a draft that is already two long');
+
+  /* THE RESET IS PERMITTED, and it is the button. It is NOT seat scoped, because the
+     opening pick belongs to AA and a guest who could not write it could not reset the
+     board they are playing on. A guest could therefore put a DIFFERENT single pick at
+     the top, which on a throwaway copy whose other three seats are bots is an accepted
+     trade, the same one PHASE2-DEMO.md already accepted about all four seats living in
+     one picks array. It is written down here rather than left to be discovered. */
+  await expect('and CAN reset to the opening state',
+    setDoc(dref(dg), draftDoc([START_PICK])), true,
+    'the Reset demo button, which is why this shape is allowed at all');
+
+  await expect('the guest writes NOTHING ELSE on the demo pool',
+    updateDoc(doc(dg, 'pools', DEMO), { touched: true }), false);
+  await expect('not the persona ledger either',
+    updateDoc(doc(dg, 'pools', DEMO), { personaLedger: { order: [], by: {}, seen: {} } }), false);
+  await expect('not a stage', setDoc(doc(dg, 'pools', DEMO, 'stages', '17'), { n: 17 }), false);
+  await expect('not a prediction, which PHASE2-DEMO.md granted and this does not',
+    setDoc(doc(dg, 'pools', DEMO, 'predictions', DEMO_SEAT), { seat: DEMO_SEAT }), false);
+
+  results.lines.push('\nAND THE SEAT IS WHAT GRANTS IT, not the invitation');
+  const dgs = ctx(GUEST_SYNTH);
+  await expect('a viewer with NO seat reads the demo pool', getDoc(doc(dgs, 'pools', DEMO)), true);
+  await expect('and CANNOT write its draft',
+    setDoc(dref(dgs), draftDoc([START_PICK, pick(DEMO_SEAT, 'J. Vingegaard')])), false,
+    'viewerSeats is what grants, and they are not in it');
+  await expect('a LAPSED viewer with a seat would still be refused',
+    setDoc(dref(ctx(LAPSED)), draftDoc([START_PICK, pick(DEMO_SEAT, 'x')])), false);
+  await expect('a signed-in stranger cannot write it',
+    setDoc(dref(ctx(STRANGER)), draftDoc([START_PICK, pick(DEMO_SEAT, 'x')])), false);
+
+  results.lines.push('\nAND NOWHERE ELSE, WHICH IS THE HALF THAT MATTERS');
+  for (const pid of SHOWROOMS) {
+    await expect('the demo guest cannot write the ' + pid + ' draft',
+      setDoc(doc(dg, 'pools', pid, 'drafts', '21'), draftDoc([START_PICK])), false,
+      'a showroom carries no demo flag');
+  }
+  for (const pid of PROD) {
+    await expect('nor the ' + pid + ' draft',
+      setDoc(doc(dg, 'pools', pid, 'drafts', '21'), draftDoc([START_PICK])), false);
+    await expect('nor read ' + pid + ' at all', getDoc(doc(dg, 'pools', pid)), false);
+  }
+  await expect('nor the SANDBOX the demo was copied from',
+    setDoc(doc(dg, 'pools', 'sandbox', 'drafts', '18'), draftDoc([START_PICK])), false,
+    'the sandbox is not flagged demo, so the grant does not reach it');
+
+  /* THE FLAG AND THE NAME ARE BOTH LOAD-BEARING, staged deliberately. Giving a
+     production pool a demo flag and a viewerSeats entry is the accident the name guard
+     exists for, and it is the one a reader would assume could never happen. */
+  await env.withSecurityRulesDisabled(async (c) => {
+    await updateDoc(doc(c.firestore(), 'pools', PROD[0]), {
+      demo: true, showroom: true, viewers: { [GUEST]: FUTURE }, viewerSeats: { [GUEST]: DEMO_SEAT },
+    });
+  });
+  await expect('a demo flag on ' + PROD[0] + ' grants the guest nothing',
+    setDoc(doc(dg, 'pools', PROD[0], 'drafts', '21'), draftDoc([START_PICK])), false,
+    'refused by NAME, before the flag is even read');
+  await env.withSecurityRulesDisabled(async (c) => {
+    await updateDoc(doc(c.firestore(), 'pools', PROD[0]), {
+      demo: deleteField(), showroom: deleteField(),
+      viewers: deleteField(), viewerSeats: deleteField(),
+    });
+  });
+
+  /* And the mirror: take the demo flag OFF the demo pool with the seat left in place,
+     which is the check PHASE2-DEMO.md listed and the one that proves the flag is doing
+     the work rather than the viewerSeats map alone. */
+  await env.withSecurityRulesDisabled(async (c) => {
+    await updateDoc(doc(c.firestore(), 'pools', DEMO), { demo: false });
+  });
+  await expect('with demo:false the seat grants nothing',
+    setDoc(dref(dg), draftDoc([START_PICK, pick(DEMO_SEAT, 'x')])), false);
+  await env.withSecurityRulesDisabled(async (c) => {
+    await updateDoc(doc(c.firestore(), 'pools', DEMO), { demo: deleteField() });
+  });
+  await expect('and with the flag ABSENT it is a refusal, not an error',
+    setDoc(dref(dg), draftDoc([START_PICK, pick(DEMO_SEAT, 'x')])), false,
+    'the in-guard is why this denies as a rule rather than erroring');
+  await env.withSecurityRulesDisabled(async (c) => {
+    await updateDoc(doc(c.firestore(), 'pools', DEMO), { demo: true });
+  });
+
+  results.lines.push('\nPLAYERS AND THE OWNER ARE UNCHANGED BY ANY OF IT');
+  await expect('a player still drafts on their own pool',
+    setDoc(doc(ctx(JJ), 'pools', PROD[0], 'drafts', '21'), draftDoc([START_PICK])), true);
+  await expect('a player cannot write the demo draft',
+    setDoc(dref(ctx(JJ)), draftDoc([START_PICK])), false,
+    'they are in neither viewers nor viewerSeats there');
+  await expect('the owner writes the demo pool', updateDoc(doc(o, 'pools', DEMO), { touched: true }), true);
+  await expect('and its draft', setDoc(dref(o), draftDoc([START_PICK])), true);
 
   await expect('owner reads config/roster', getDoc(doc(o, 'config/roster')), true);
   await expect('owner writes config/roster',

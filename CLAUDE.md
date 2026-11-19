@@ -3913,15 +3913,15 @@ sub-map. Found by reading the tool's own output, and guarded in `tools-guest-ver
 ### Rules tests, on the real emulator
 
 THERE ARE TWO SUITES AND THEY ARE NOT DUPLICATES. `node tools-rules-tests/run.js` starts
-the emulator and runs 141 rules assertions plus 19 for the copy tool. Then, separately,
+the emulator and runs 174 rules assertions plus 19 for the copy tool. Then, separately,
 `node_modules/.bin/firebase emulators:exec --only firestore "node tools-guest-access-test.js"`
-runs 151 checks that reproduce the LIVE MEMBERSHIP SHAPES rather than a clean fixture: a
+runs 157 checks that reproduce the LIVE MEMBERSHIP SHAPES rather than a clean fixture: a
 seated member off the roster, an unseated one, a seated roster reviewer, and one seat held
 by two addresses in two pools. EVERY GRANT IN THAT SUITE IS PAIRED WITH ITS REMOVAL,
 because twice on this project a denial was reported as proof a rule worked and both times
 it was default-deny from no matching rule. A denial proves nothing about WHICH rule denied.
-`node tools-rules-guard.js` is the cheap static gate over the same file, 36 invariants, and
-`node tools-guest-verify.js` is 89 checks over the BUILT boards, both of them, not just the
+`node tools-rules-guard.js` is the cheap static gate over the same file, 44 invariants, and
+`node tools-guest-verify.js` is 101 checks over the BUILT boards, both of them, not just the
 Vuelta. THE DEPLOY IS NO LONGER THE COMPILE STEP
 and four players are no longer the canary.
 
@@ -4095,6 +4095,94 @@ than revoking. The rules would permit it to revoke directly, which is exactly wh
 restraint is deliberate: a one-tap irreversible action on a page listing five people's
 links is a different thing from a dry run you read before confirming. It is not a
 security boundary and does not pretend to be one; firestore.rules is.
+
+### The playable demo, and the one write a guest ever gets
+
+Shipped 2026-11-19. `tour-demo` is a copy of `sandbox`, backfilled with col-du-fantasy
+stages 1 to 13, so the board reads as a real season through stage 17 with STAGE 18 OPEN
+and one pick already in it. A guest plays the JB seat. The design is PHASE2-DEMO.md,
+which had been deliberately deferred and is now part shipped and part still deferred;
+read it before touching any of this.
+
+A DEMO SEAT IS NOT MEMBERSHIP. It comes from `viewerSeats` on the pool document, email
+to seat, which firestore.rules reads and `inPool()` does not. So every member-gated
+statement in the rules stays dead for a guest, and the guest never appears in `members`,
+which is the map that grants a draft write on every other pool. The board resolves it in
+ONE place, `applySeat()`, called from loadPool and from the pool-doc listener: those were
+two hand-written copies of "who is this reader", and a demo seat added to one and not the
+other is a guest who can draft until the first snapshot lands and then silently cannot.
+
+THE DRAFT GRANT IS SEAT SCOPED, which PHASE2-DEMO.md said could not be done cheaply
+because all four seats live in one `picks` array. What makes it cheap is that A DRAFT
+ONLY EVER GROWS BY ONE PICK: the rule compares the two list lengths and reads the element
+at the old length, which is the pick that was just appended, and insists it names the
+caller's seat. Rewriting a pick in place, deleting one, or appending two at once are all
+refused, and each of those is asserted rather than assumed.
+
+THE RESET SHAPE IS THE RESIDUE OF THE TRADE. A list of one pick or none is allowed
+unscoped, because the opening pick belongs to AA and a guest who could not write it could
+not reset the board they are playing on. So a guest can put a different single pick at the
+top of a throwaway copy whose other three seats are bots that do not exist yet. Stated
+here rather than discovered later.
+
+THE STARTING STATE IS DATA. `pool.demoReset` holds the whole opening draft document,
+written once by the build tool from the sandbox it was copied from, and the Reset button
+writes it back. The board contains no rider name, no queue and no seat order for it: a
+second copy of the opening state in the board is one that drifts from the pool it
+describes.
+
+#### What the build drops, and why each one is not a number anybody typed
+
+`tools/demo-build.js` emits the whole thing as an owner-console snippet, dry run first,
+splicing the SCRUB out of `tools/showroom-copy.js` rather than rewriting it. The sandbox
+draft carries `by: <an address>` deep inside a picks array, which is exactly the field a
+curated scrub list misses.
+
+- `official` is DROPPED, not recomputed. It is the OFFICIAL HAND TALLY and the only
+  reader is a reconciliation panel comparing Allen's own numbers against the board's.
+  Nobody hand-tallied a copy. Writing one would mean re-implementing Placement and Rank
+  in a build tool, which is a SECOND COPY OF THE SCORING. `buildCDF` already has the
+  designed fallback, `pool.official || {through:0,...}`.
+- `personaLedger` is CLEARED, which is how the whole board retires, so the engine
+  assigns from the standings THROUGH STAGE 17 on the first load. That is the board's own
+  code path and the only one. Carrying the sandbox's ledger would pin four personas to a
+  standing that no longer exists after the backfill.
+- `editorial` is DROPPED. Authored prose about a season that is not this one once the
+  backfill lands, and the board keeps its baked markup when the key is absent.
+- `boardConfig.next2` is DROPPED, per the rule that says never write it.
+
+AND THE ONE THE SANDBOX GETS WRONG ON ITS OWN, which is the finding worth keeping:
+its `boardConfig.race` is the FINISHED Tour. All 21 rows carry a winner, INCLUDING STAGE
+18, the stage the guest is about to draft. Copied as it stands, Full Results and the Road
+Ahead would print the result of the stage being played, and nothing would error. Rows
+from the open stage onward are reopened, `win` cleared and `extra` dropped with it, and
+rows 1 to 13 are taken from col-du-fantasy so the calendar and the stage documents come
+from ONE source. Two records of the same fact with only one corrected is the stage 15
+distance shape.
+
+#### What a demo pool hides
+
+The live break check, because it asks a live feed who is up the road on a race frozen at
+one stage. The weather card goes with it, and THAT ONE IS A JUDGEMENT RATHER THAN A
+REQUEST: it fetches a forecast for a dated stage finish, so on a frozen replay it is
+either a forecast for a day that has passed or one for the wrong place. Both are the
+"well formed markup, false sentence" shape. Say so if the weather card should stay.
+
+The owner's pool menu tags a showroom or a demo with " &middot; guest view", and ONLY the
+owner's: a guest sees one pool there and knows what it is, while the owner sees six that
+differ by one word in the id. It is appended to the name rather than rendered as a chip,
+so no markup changed and nothing new reaches a player.
+
+#### The gates that had to be flipped deliberately
+
+Two of them asserted the deferral, which is why they are the first things that change
+when a deferral ends. `tools-rules-guard.js` said "not one allow-write clause mentions a
+viewer"; that is retired and replaced by five narrower checks, count asserted first so
+deleting the grant fails rather than passing vacuously. `tools-guest-access-test.js` said
+phase 2 was deferred; it now asserts the shape of what shipped AND the absence of the
+predictions half. `tools-guest-verify.js` lost four checks that asserted the identity
+computation as two hand-written lines and gained thirteen that assert the one function
+and the demo seat.
 
 ### The login card was never centred, and the CSS was never the problem
 

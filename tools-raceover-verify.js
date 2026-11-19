@@ -127,9 +127,16 @@ for (const B of BOARDS) {
     /if\(window\.__RACE_OVER\)\{/.test(pbody) && pbody.indexOf(picker) > 0 && /\.remove\(\)/.test(pbody),
     'no chips are built, so there is nothing to tap');
 
+  /* THE WINDOW WIDENED on 2026-11-19 because a SECOND guard moved in beside this one:
+     a demo pool hides the same card for the same reason. The two are asserted together
+     rather than the window simply being loosened, so a guard that wanders away from
+     the reveal still fails. */
   check('the live break check never reveals itself',
-    /if\(CDF\.raceOver===true\)\{ return; \}[\s\S]{0,60}CARD\.style\.display/.test(src),
+    /if\(CDF\.raceOver===true\)\{ return; \}[\s\S]{0,700}CARD\.style\.display/.test(src),
     'the feed would answer with a frozen snapshot');
+  check('and a demo pool hides it too',
+    /if\(CDF\.demo===true\)\{ return; \}[\s\S]{0,120}CARD\.style\.display/.test(src),
+    'a demo is a finished race frozen at one stage');
 
   check("Today's Order names the champion", /RACE_OVER\|\|!UPCOMING/.test(src));
   check('and it orders by this race own system of record',

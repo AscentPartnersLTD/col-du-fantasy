@@ -73,6 +73,77 @@ service cloud.firestore {
     function poolSeat(poolId)    { return poolCfg(poolId).members[em()]; }
     function predsLocked(poolId) { return poolCfg(poolId).predictionsLocked == true; }
 
+    /* =====================================================================
+       A DEMO POOL, where a guest PLAYS one seat.
+       Designed in PHASE2-DEMO.md, deliberately left out of the shipped ruleset
+       until 2026-11-19, and NARROWED on the way in: that design also granted
+       predictions and the predictionsLocked flip, and this grants neither. The
+       brief is "may write that pool's drafts for their own seat only, and
+       nothing else anywhere", so drafts are the only thing that moved.
+
+       A DEMO SEAT COMES FROM `viewerSeats` AND NEVER FROM `members`, and that is
+       the whole point rather than a detail. `inPool()` reads `members`, so every
+       member-gated statement in this file stays dead for a guest, and the guest
+       never appears in a map that is email to seat on a pool anyone plays for
+       real. Adding them to `members` would have been one line and would have
+       handed them a draft write on whatever else that map is read for.
+
+       THE `('demo' in ...)` GUARD IS NOT DECORATION. Without it, a pool carrying
+       no `demo` field makes this an EVALUATION ERROR rather than a false. It
+       denies either way, and that is exactly the problem: an error that happens
+       to deny is not the same claim as a rule that denies, and the next error at
+       this line would be indistinguishable from this one. The same guard is on
+       showroomPool() one block up, for the same reason.
+
+       BOTH FLAGS ARE REQUIRED. viewerOf() already demands `showroom == true`, so
+       a demo pool carries `showroom: true` AND `demo: true`. PHASE2-DEMO.md put
+       the choice this way round on purpose: carrying both flags is a smaller
+       change than widening showroomPool() to accept either, and it keeps ONE
+       read path for who may read a copy. */
+    function isDemoPool(poolId) {
+      return !prodPool(poolId) && poolExists(poolId)
+        && ('demo' in poolCfg(poolId)) && poolCfg(poolId).demo == true;
+    }
+    function hasDemoSeat(poolId) {
+      return isDemoPool(poolId)
+        && ('viewerSeats' in poolCfg(poolId)) && (em() in poolCfg(poolId).viewerSeats);
+    }
+    function demoSeat(poolId) { return poolCfg(poolId).viewerSeats[em()]; }
+
+    /* WHAT A DEMO GUEST MAY WRITE TO A DRAFT, and it is two shapes and no others.
+
+       PHASE2-DEMO.md accepted an unscoped draft write, because all four seats
+       live in one `picks` array and a rule cannot cheaply scope that. The brief
+       asks for the seat scoping anyway, and it turns out to be cheap in the one
+       direction that matters: a DRAFT ONLY EVER GROWS BY ONE PICK, so the rule
+       can read the pick that was just appended and insist it carries the
+       caller's own seat.
+
+         1. APPEND ONE PICK, and it must be theirs. The new list is exactly one
+            longer and the element at the old length names demoSeat().
+         2. RESET. A list of one pick or none, which is the Reset demo button
+            putting stage 18 back to its opening state. It is not scoped to a
+            seat because the opening pick belongs to AA, and a guest who could
+            not write it could not reset the board they are playing on.
+
+       Everything else is refused: rewriting a pick in place, deleting one from
+       the middle, appending two at once, or appending one that names another
+       seat. The emulator suite asserts each of those rather than assuming them.
+
+       THE GUARDS ARE EXPLICIT because `resource` is null on a CREATE and
+       `picks` can be absent on either side, and both of those would be an
+       evaluation error here. A demo draft is seeded by the build, so a guest
+       creating one is not a case anyone needs; refusing it is the safe half. */
+    function demoDraftShapeOk(poolId) {
+      return ('picks' in request.resource.data)
+        && resource != null && ('picks' in resource.data)
+        && (
+          (request.resource.data.picks.size() == resource.data.picks.size() + 1
+            && request.resource.data.picks[resource.data.picks.size()].player == demoSeat(poolId))
+          || request.resource.data.picks.size() <= 1
+        );
+    }
+
     /* A VIEWER is named in the showroom pool's `viewers` map, email to an EXPIRY
        TIMESTAMP, which is the same shape `members` already has. Three conditions,
        all required:
@@ -127,6 +198,16 @@ service cloud.firestore {
       match /drafts/{stage} {
         allow read:  if poolReader(poolId);
         allow write: if poolMember(poolId);
+        /* THE ONE WRITE A GUEST EVER GETS, and it is this line. It is a separate
+           statement rather than a widening of the one above, because multiple
+           allow-write statements are ORed: the member grant keeps working
+           exactly as it does, and nothing is added to a production pool or to a
+           showroom, neither of which carries `demo: true`.
+
+           Firestore stops at the first granting statement, so the order of these
+           two is a performance detail and not a security one. It is written
+           second because that is where PHASE2-DEMO.md put it. */
+        allow write: if viewerOf(poolId) && hasDemoSeat(poolId) && demoDraftShapeOk(poolId);
       }
       match /stages/{stage} {
         allow read:  if poolReader(poolId);

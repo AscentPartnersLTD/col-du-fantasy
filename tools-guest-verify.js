@@ -71,15 +71,61 @@ console.log('\nA VIEWER IS NAMED IN THE VIEWERS MAP');
    derived from the `viewers` map on that copy, the same shape `members` already has.
    It is not a security boundary and does not need to be: every write is refused by the
    rules, so editing the flag in devtools renders a copied draft card and nothing more. */
+/* THESE FOUR USED TO ASSERT TWO HAND-WRITTEN LINES, and what they were really
+   protecting is that the viewer flag follows the pool DOCUMENT rather than boot: a
+   flag set in loadPool and not refreshed by the snapshot goes stale. It is now one
+   function, `applySeat`, called from both sites, which is the stronger version of the
+   same property and is what the replacements assert. */
+check('identity is ONE computation, not a line per site',
+  /function applySeat\(p\)\{/.test(SRC),
+  'two copies is a demo seat added to one of them');
+check('and every site calls it',
+  (SRC.match(/applySeat\(/g) || []).length >= 3,
+  'the definition, loadPool, and the pool-doc snapshot');
 check('isGuest derives from the viewers map',
-  /isGuest=\(!isOwner && !myCode && !!\(\(pool\.viewers\|\|\{\}\)\[myEmail\]\)\)/.test(SRC),
+  /isGuest=\(!isOwner && !!viewers\[myEmail\]\)/.test(SRC),
   'no claim, so no claim plumbing in the login API');
-check('a seated player is never a viewer', /!isOwner && !myCode &&/.test(SRC),
-  'both halves required, or a player on a showroom reads as a guest');
 check('the owner is never a viewer of his own board', /isGuest=\(!isOwner/.test(SRC));
-check('the viewer state follows the document, not boot',
-  (SRC.match(/isGuest=\(!isOwner && !myCode/g) || []).length >= 2,
-  'set in loadPool AND refreshed by the pool snapshot');
+/* IT NO LONGER REQUIRES AN EMPTY SEAT, and that is the one deliberate loosening here.
+   `!myCode` was correct while every guest was read-only; a demo guest holds a seat, and
+   that test would switch the pill and the activity ping off for the reader it is most
+   honest to show them to. A seated PLAYER is still never a viewer, because the copy
+   tool empties `members` and a player is in no pool's viewers map. */
+check('a demo seat does not switch the guest pill off',
+  !/isGuest=\(!isOwner && !myCode/.test(SRC),
+  'the old test would hide the pill from the one reader who is playing');
+
+console.log('\nA DEMO SEAT IS A LOAN, NOT MEMBERSHIP');
+const seatFn = (/function applySeat\(p\)\{[\s\S]*?\n\}/.exec(SRC) || [''])[0];
+check('the loan comes from viewerSeats', /viewerSeats/.test(seatFn),
+  'firestore.rules reads that map; inPool() does not');
+check('and only on a pool flagged demo', /isDemoPool&&!member/.test(seatFn),
+  'a showroom viewer is handed no seat whatever the map says');
+check('a MEMBER seat wins over a loan', /myCode=member\|\|loan\|\|null/.test(seatFn),
+  'a member seat is the real one and a loan is a loan');
+check('the demo seat reads as "You", and only for its holder',
+  /return \(isDemoSeat && c===myCode\) \? 'You' : n;/.test(SRC),
+  'the owner looking at the same pool sees all four real names');
+check('one place decides what a seat is called',
+  /function seatName\(p,c\)\{/.test(SRC) && (SRC.match(/seatName\(pool,c\)/g) || []).length === 2,
+  'the draft chrome and buildCDF, reading the same function');
+check('the Reset button is built ONLY on a demo pool',
+  /window\.__DEMO_POOL\s*\n?\s*\? '<div class="demo-bar">/.test(SRC) ||
+  /const demoBar = window\.__DEMO_POOL/.test(SRC),
+  'no node at all elsewhere, rather than a hidden one');
+check('and the state it restores is DATA, not code',
+  /const start=\(pool&&pool\.demoReset\)\|\|null;/.test(SRC) &&
+  !/T\. Pogacar/.test((/async function resetDemo[\s\S]*?\n\}/.exec(SRC) || [''])[0]),
+  'no rider, queue or seat order is written into the board');
+check('a failed reset says so', /Reset failed, reload the page/.test(SRC),
+  'a button that silently does nothing is the fail-open shape');
+check('the live break check is hidden on a demo pool',
+  /if\(CDF\.demo===true\)\{ return; \}/.test(SRC),
+  'it asks a live feed about a race frozen at one stage');
+check('the owner menu tags a copy, and only for the owner',
+  /var tag=\(x\.demo===true\|\|x\.showroom===true\)\?' &middot; guest view':'';/.test(SRC) &&
+  /if\(isOwner\)\{ var all=await db\.collection\('pools'\)/.test(SRC),
+  'the tag is built inside the isOwner branch');
 
 console.log('\nSUPPRESSED BY NOT RENDERING, NEVER BY CSS');
 const draftFn = SRC.slice(SRC.indexOf('function renderDraft()'),
@@ -127,9 +173,9 @@ console.log('\nPRODUCTION READS ARE EXACTLY AS THEY WERE');
    would bring back the five-step cutover that can lock all four players out. */
 const CODE = SRC.replace(/\/\*[\s\S]*?\*\//g, ' ');
 check('the seat still comes from the members map',
-  /myCode=\(pool\.members\|\|\{\}\)\[myEmail\]\|\|null/.test(CODE) &&
-  /myCode=\(p\.members\|\|\{\}\)\[myEmail\]\|\|null/.test(CODE),
-  'loadPool and the pool snapshot, both unchanged');
+  /const member=members\[myEmail\]\|\|null;/.test(CODE) &&
+  /const members=\(p&&p\.members\)\|\|\{\}/.test(CODE),
+  'through applySeat now, but still the members map and still no subcollection');
 check('no member subcollection read was left behind',
   !/\/members\/'\+myEmail|resolveSeat/.test(CODE),
   'a stray one would need the cutover to work');
@@ -297,7 +343,10 @@ const TOUR = fs.readFileSync(path.join(REPO, 'tour.html'), 'utf8');
 check('CAN_PLAY exists on the Tour board', /function CAN_PLAY\(\)\{ return !!myCode \|\| isOwner; \}/.test(TOUR),
   'the same one predicate, not a second idea of who may play');
 check('isGuest is derived from the viewers map',
-  /isGuest=\(!isOwner && !myCode && !!\(\(pool\.viewers\|\|\{\}\)\[myEmail\]\)\)/.test(TOUR));
+  /isGuest=\(!isOwner && !!viewers\[myEmail\]\)/.test(TOUR));
+check('the Tour board carries the demo seat too',
+  /function applySeat\(p\)\{/.test(TOUR) && /viewerSeats/.test(TOUR),
+  'the live demo is a Tour pool, and both boards carry the same code anyway');
 check('isGuest is reset when a session signs in', /\n  isGuest=false;/.test(TOUR),
   'so switching back from a showroom cannot carry the flag');
 check('the snake draft pick is gated', /async function submitPick\(forCode,label\)\{ if\(!CAN_PLAY\(\)\) return;/.test(TOUR));
